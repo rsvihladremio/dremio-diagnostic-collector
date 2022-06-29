@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# script/test: Run test suite for application.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+[ -z "$DEBUG" ] || set -x
+
+go test -race -covermode atomic -coverprofile=covprofile ./...
+go tool cover -func=covprofile
