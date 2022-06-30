@@ -19,7 +19,7 @@ date "+%H:%M:%S"
 echo "Building linux-amd64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-linux-amd64.zip ./bin/ssdownloader
+zip ./bin/ddc-linux-amd64.zip ./bin/ddc
 echo "Building linux-arm64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ./bin/ddc

@@ -31,6 +31,9 @@ var outputLoc string
 var kubectlPath string
 var isK8s bool
 
+//var isEmbeddedK8s bool
+//var isEmbeddedSSH bool
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "dremio-diagnostic-collector",
@@ -70,6 +73,8 @@ func (u unableToGetHomeDir) Error() string {
 	return fmt.Sprintf("unable to get home dir '%v'", u.Err)
 }
 
+// sshDefault returns the default .ssh key typically used on most deployments
+
 func sshDefault() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -87,4 +92,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.zip", "either a common separated list or a ip range of executors nodes to connect to")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
+	// TODO implement embedded k8s and ssh support using go libs
+	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
+	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
 }
