@@ -3,9 +3,7 @@
 # script/audit: runs gosec against the mod file to find security issues
 #                   
 
-# Run everything except for rule G107
-# this is due to G107 requiring non dynamic URLs for get
-# since we are implicitely trusting sendsafely here we have
-# very little choice but to ignore this rule
-# see https://securego.io/docs/rules/g107.html
- gosec -exclude=G107 ./...
+# Run everything except for rule G204
+# will look into sanitizing pod name input as a security measure but this is too 
+# general of a rule and we are shelling at for the time being intentionally in this tooling
+gosec -exclude=G204 ./...
