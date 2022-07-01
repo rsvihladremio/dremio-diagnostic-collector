@@ -20,7 +20,7 @@ jobs:
       with:
         go-version: 1.18
     - name: CI
-      run:  ./script/cibuild
+      run:  bash ./script/cibuild
     - name: Send coverage
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
