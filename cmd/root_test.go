@@ -13,6 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
+//cmd package contains all the command line flag and initialization logic for commands
 package cmd
 
 import (

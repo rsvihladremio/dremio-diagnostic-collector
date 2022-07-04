@@ -13,7 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-// package cli provides wrapper support for executing commands, this is so
+
+//package cli provides wrapper support for executing commands, this is so
 // we can test the rest of the implementations quickly.
 package cli
 
@@ -46,6 +47,7 @@ func (u ExecuteCliErr) Error() string {
 	return fmt.Sprintf("during execution the command '%v' failed due to error '%v'", u.Cmd, u.Err)
 }
 
+// Cli
 type Cli struct {
 }
 

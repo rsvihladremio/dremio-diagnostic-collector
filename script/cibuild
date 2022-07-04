@@ -22,7 +22,5 @@ date "+%H:%M:%S"
 
 ./script/lint
 
-echo "Audit started at…"
+echo "Linting finished at…"
 date "+%H:%M:%S"
-
-./script/audit

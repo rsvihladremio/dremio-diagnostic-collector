@@ -15,8 +15,66 @@
 */
 package ssh
 
-import "testing"
+import (
+	"fmt"
+	"reflect"
+	"testing"
 
-func TestSSHExecute(t *testing.T) {
-	t.SkipNow()
+	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
+)
+
+func TestSSHExec(t *testing.T) {
+	hostName := "pod"
+	cli := &tests.MockCli{
+		StoredResponse: []string{"success"},
+		StoredErrors:   []error{nil},
+	}
+	k := &CmdSSHActions{
+		cli: cli,
+	}
+	out, err := k.HostExecute(hostName, "ls -l")
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+
+	if out != "success" {
+		t.Errorf("expected success but got %v", out)
+	}
+	calls := cli.Calls
+	if len(calls) != 1 {
+		t.Errorf("expected 1 call but got %v", len(calls))
+	}
+	expectedCall := []string{"ssh", "-c", "ls -l", hostName}
+	if !reflect.DeepEqual(calls[0], expectedCall) {
+		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
+	}
+}
+
+func TestSCP(t *testing.T) {
+	hostName := "pod"
+	source := "/podroot/test.log"
+	destination := "/mydir/test.log"
+	cli := &tests.MockCli{
+		StoredResponse: []string{"success"},
+		StoredErrors:   []error{nil},
+	}
+	k := &CmdSSHActions{
+		cli: cli,
+	}
+	out, err := k.CopyFromHost(hostName, source, destination)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+
+	if out != "success" {
+		t.Errorf("expected success but got %v", out)
+	}
+	calls := cli.Calls
+	if len(calls) != 1 {
+		t.Errorf("expected 1 call but got %v", len(calls))
+	}
+	expectedCall := []string{"scp", fmt.Sprintf("%v:%v", hostName, source), destination}
+	if !reflect.DeepEqual(calls[0], expectedCall) {
+		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
+	}
 }
