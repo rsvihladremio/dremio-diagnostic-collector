@@ -13,6 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
+//cmd package contains all the command line flag and initialization logic for commands
 package cmd
 
 import (
@@ -21,6 +23,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/spf13/cobra"
 )
 
@@ -52,6 +56,18 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 				log.Fatalf("unexpected error getting ssh directory '%v'. This is a critical error and should result in a bug report.", err)
 			}
 			sshKeyLoc = sshDefault
+		}
+		logOutput := os.Stdout
+		var collectorStrategy collection.Collector
+		if isK8s {
+			log.Print("using Kubernetes kubectl based collection")
+			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath)
+		} else {
+			log.Print("using SSH based collection")
+		}
+		err := collection.Execute(collectorStrategy, coordinatorStr, executorsStr, outputLoc, logOutput)
+		if err != nil {
+			log.Fatalf("unexpected error running kubernetes collection '%v'", err)
 		}
 	},
 }

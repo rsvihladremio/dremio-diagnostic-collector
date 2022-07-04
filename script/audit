@@ -1,9 +1,0 @@
-#!/bin/sh
-
-# script/audit: runs gosec against the mod file to find security issues
-#                   
-
-# Run everything except for rule G204
-# will look into sanitizing pod name input as a security measure but this is too 
-# general of a rule and we are shelling at for the time being intentionally in this tooling
-gosec -exclude=G204 ./...

@@ -13,37 +13,29 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+//kubernetes package provides access to log collections on k8s
 package kubernetes
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
 )
-
-type MockCli struct {
-	Calls          [][]string
-	StoredResponse []string
-	StoredErrors   []error
-}
-
-func (m *MockCli) Execute(args ...string) (out string, err error) {
-	m.Calls = append(m.Calls, args)
-	length := len(m.Calls)
-	return m.StoredResponse[length-1], m.StoredErrors[length-1]
-}
 
 func TestKubectlExec(t *testing.T) {
 	namespace := "testns"
 	podName := "pod"
-	cli := &MockCli{
+	cli := &tests.MockCli{
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
 	}
 	k := KubectlK8sActions{
-		cli: cli,
+		cli:         cli,
+		kubectlPath: "kubectl",
 	}
-	out, err := k.PodExecute(podName, namespace, "ls", "-l")
+	out, err := k.HostExecute(fmt.Sprintf("%v:%v", namespace, podName), "ls", "-l")
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -64,14 +56,15 @@ func TestKubectlSearch(t *testing.T) {
 
 	namespace := "testns"
 	labelName := "myPods"
-	cli := &MockCli{
+	cli := &tests.MockCli{
 		StoredResponse: []string{"pod1\npod2\npod3\n"},
 		StoredErrors:   []error{nil},
 	}
 	k := KubectlK8sActions{
-		cli: cli,
+		cli:         cli,
+		kubectlPath: "kubectl",
 	}
-	podNames, err := k.PodSearch(labelName, namespace)
+	podNames, err := k.FindHosts(fmt.Sprintf("%v:%v", namespace, labelName))
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -94,14 +87,15 @@ func TestKubectCopyFrom(t *testing.T) {
 	podName := "pod"
 	source := "/podroot/test.log"
 	destination := "/mydir/test.log"
-	cli := &MockCli{
+	cli := &tests.MockCli{
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
 	}
 	k := KubectlK8sActions{
-		cli: cli,
+		cli:         cli,
+		kubectlPath: "kubectl",
 	}
-	out, err := k.PodCopyFromFile(podName, namespace, source, destination)
+	out, err := k.CopyFromHost(fmt.Sprintf("%v:%v", namespace, podName), source, destination)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}

@@ -13,6 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
+
+//main is the standard go entry point for the application
 package main
 
 import "github.com/rsvihladremio/dremio-diagnostic-collector/cmd"

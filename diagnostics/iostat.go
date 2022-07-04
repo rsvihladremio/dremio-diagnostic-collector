@@ -14,5 +14,9 @@
    limitations under the License.
 */
 
-//zip package provides support for zipping of files into an single large archive for transport
-package zip
+//diagnostics contains all the commands that run server diagnostics to find problems on the host
+package diagnostics
+
+func IOStatArgs() []string {
+	return []string{"iostat", "-x", "-d", "-c", "-t", "600"}
+}
