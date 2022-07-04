@@ -85,23 +85,25 @@ func GenericHostCapture(c Collector, logOutput io.Writer, host string) {
 	} else {
 		logger.Printf("INFO: host %v finished iostat", host)
 		if err := os.WriteFile(fmt.Sprintf("diag/%v/iostat.txt", host), []byte(o), 0600); err != nil {
-			logger.Printf("ERROR: unable to save iostat.txt for %v due to error %v", host, err)
+			logger.Printf("ERROR: unable to save iostat.txt for %v due to error %v output was %v", host, err, o)
 		}
 	}
 
 	confFiles := []string{"dremio.conf", "dremio-env", "logback-access.xml", "logback-admin.xml", "logback.xml"}
-	for _, conf := range confFiles {
-		if out, err := c.CopyFromHost(host, filepath.Join("etc", "dremio", conf), filepath.Join("diag", host, "conf", conf)); err != nil {
-			logger.Printf("ERROR: unable to copy %v from host %v due to error %v", conf, host, err)
+	for i := range confFiles {
+		conf := confFiles[i]
+		if out, err := c.CopyFromHost(host, filepath.Join("/", "etc", "dremio", conf), filepath.Join("diag", host, "conf", conf)); err != nil {
+			logger.Printf("ERROR: unable to copy %v from host %v due to error %v output was %v", conf, host, err, o)
 		} else {
 			logger.Printf("INFO: host %v copied %v, and logged the following %v", conf, host, out)
 		}
 	}
 
 	logFiles := []string{"audit.json", "hive.deprecated.function.warning.log", "metadata_refresh.log", "queries.json", "server.gc", "server.log", "server.out", "tracker.json"}
-	for _, log := range logFiles {
-		if out, err := c.CopyFromHost(host, filepath.Join("var", "log", "dremio", log), filepath.Join("diag", host, "logs", log)); err != nil {
-			logger.Printf("ERROR: unable to copy %v from host %v due to error %v", log, host, err)
+	for i := range logFiles {
+		log := logFiles[i]
+		if out, err := c.CopyFromHost(host, filepath.Join("/", "var", "log", "dremio", log), filepath.Join("diag", host, "logs", log)); err != nil {
+			logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
 		} else {
 			logger.Printf("INFO: host %v copied %v, and logged the following %v", log, host, out)
 		}

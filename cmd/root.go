@@ -25,12 +25,14 @@ import (
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
 )
 
 var coordinatorStr string
 var executorsStr string
 var sshKeyLoc string
+var sshUser string
 var outputLoc string
 var kubectlPath string
 var isK8s bool
@@ -64,6 +66,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath)
 		} else {
 			log.Print("using SSH based collection")
+			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
 		err := collection.Execute(collectorStrategy, coordinatorStr, executorsStr, outputLoc, logOutput)
 		if err != nil {
@@ -104,7 +107,8 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&coordinatorStr, "coordinator", "c", "", "coordinator node to connect to for colleciton")
 	rootCmd.Flags().StringVarP(&executorsStr, "executors", "e", "", "either a common separated list or a ip range of executors nodes to connect to")
-	rootCmd.Flags().StringVarP(&sshKeyLoc, "ssh-key", "s", "", "location of ssh key to use to login to the hosts specified")
+	rootCmd.Flags().StringVarP(&sshKeyLoc, "ssh-key", "s", "", "location of ssh key to use to login")
+	rootCmd.Flags().StringVarP(&sshUser, "ssh-user", "u", "", "user to use during ssh operations to login")
 	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.zip", "either a common separated list or a ip range of executors nodes to connect to")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")

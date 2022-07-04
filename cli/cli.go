@@ -19,7 +19,6 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -53,16 +52,9 @@ type Cli struct {
 
 func (c *Cli) Execute(args ...string) (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
-	var out bytes.Buffer
-
-	cmd.Stdout = &out
-	err := cmd.Start()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+		return string(output), UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
-	err = cmd.Wait()
-	if err != nil {
-		return "", ExecuteCliErr{Err: err, Cmd: strings.Join(args, " ")}
-	}
-	return out.String(), nil
+	return string(output), nil
 }

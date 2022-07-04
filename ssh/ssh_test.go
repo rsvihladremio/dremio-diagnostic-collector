@@ -29,8 +29,11 @@ func TestSSHExec(t *testing.T) {
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
 	}
+	sshUser := "root"
 	k := &CmdSSHActions{
-		cli: cli,
+		cli:     cli,
+		sshKey:  "id_rsa",
+		sshUser: sshUser,
 	}
 	out, err := k.HostExecute(hostName, "ls -l")
 	if err != nil {
@@ -44,7 +47,7 @@ func TestSSHExec(t *testing.T) {
 	if len(calls) != 1 {
 		t.Errorf("expected 1 call but got %v", len(calls))
 	}
-	expectedCall := []string{"ssh", "-c", "ls -l", hostName}
+	expectedCall := []string{"ssh", "-i", "id_rsa", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-C", "ls -l", fmt.Sprintf("%v@%v", sshUser, hostName)}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}
@@ -58,8 +61,11 @@ func TestSCP(t *testing.T) {
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
 	}
+	sshUser := "root"
 	k := &CmdSSHActions{
-		cli: cli,
+		cli:     cli,
+		sshKey:  "id_rsa",
+		sshUser: sshUser,
 	}
 	out, err := k.CopyFromHost(hostName, source, destination)
 	if err != nil {
@@ -73,7 +79,7 @@ func TestSCP(t *testing.T) {
 	if len(calls) != 1 {
 		t.Errorf("expected 1 call but got %v", len(calls))
 	}
-	expectedCall := []string{"scp", fmt.Sprintf("%v:%v", hostName, source), destination}
+	expectedCall := []string{"scp", "-i", "id_rsa", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", sshUser, hostName, source), destination}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}

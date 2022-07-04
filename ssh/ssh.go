@@ -24,21 +24,31 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 )
 
+func NewCmdSSHActions(sshKey, sshUser string) *CmdSSHActions {
+	return &CmdSSHActions{
+		cli:     &cli.Cli{},
+		sshKey:  sshKey,
+		sshUser: sshUser,
+	}
+}
+
 //CmdSSHActions depends on the scp and ssh programs being present and
 // then assumes ssh public key auth is in place since it has no support for using
 // password based authentication
 type CmdSSHActions struct {
-	cli cli.CmdExecutor
+	cli     cli.CmdExecutor
+	sshKey  string
+	sshUser string
 }
 
 func (c *CmdSSHActions) CopyFromHost(hostName, source, destination string) (string, error) {
-	return c.cli.Execute("scp", fmt.Sprintf("%v:%v", hostName, source), destination)
+	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, source), destination)
 }
 
-func (c *CmdSSHActions) HostExecute(hostName string, arg string) (string, error) {
-	sshArgs := []string{"ssh", "-c"}
-	sshArgs = append(sshArgs, arg)
-	sshArgs = append(sshArgs, hostName)
+func (c *CmdSSHActions) HostExecute(hostName string, args ...string) (string, error) {
+	sshArgs := []string{"ssh", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no"}
+	sshArgs = append(sshArgs, fmt.Sprintf("%v@%v", c.sshUser, hostName))
+	sshArgs = append(sshArgs, strings.Join(args, " "))
 	return c.cli.Execute(sshArgs...)
 }
 
