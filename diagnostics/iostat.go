@@ -18,5 +18,5 @@
 package diagnostics
 
 func IOStatArgs() []string {
-	return []string{"iostat", "-x", "-d", "-c", "-t", "600"}
+	return []string{"iostat", "-y", "-x", "-d", "-c", "-t", "1", "60"}
 }
