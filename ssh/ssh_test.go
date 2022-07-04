@@ -47,7 +47,7 @@ func TestSSHExec(t *testing.T) {
 	if len(calls) != 1 {
 		t.Errorf("expected 1 call but got %v", len(calls))
 	}
-	expectedCall := []string{"ssh", "-i", "id_rsa", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-C", "ls -l", fmt.Sprintf("%v@%v", sshUser, hostName)}
+	expectedCall := []string{"ssh", "-i", "id_rsa", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v", sshUser, hostName), "ls -l"}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}
