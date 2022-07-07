@@ -17,3 +17,5 @@
 covprofile
 
 bin/
+
+*.swp
