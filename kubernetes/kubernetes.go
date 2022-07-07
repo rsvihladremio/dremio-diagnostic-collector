@@ -19,6 +19,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
@@ -36,27 +37,34 @@ type KubectlK8sActions struct {
 	kubectlPath string
 }
 
-func (c *KubectlK8sActions) HostExecute(hostString string, args ...string) (out string, err error) {
-	tokens := strings.Split(hostString, ":")
+func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
+	if isCoordinator {
+		return "dremio-coordinator"
+	}
+	return "dremio-executor"
+}
+
+func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, args ...string) (out string, err error) {
+	tokens := strings.Split(hostString, ".")
 	namespace := tokens[0]
 	podName := tokens[1]
-	kubectlArgs := []string{c.kubectlPath, "exec", "-it", "-n", namespace, podName}
+	kubectlArgs := []string{c.kubectlPath, "exec", "-it", "-n", namespace, "-c", c.getContainerName(isCoordinator), podName, "--"}
 	kubectlArgs = append(kubectlArgs, args...)
 	return c.cli.Execute(kubectlArgs...)
 }
 
-func (c *KubectlK8sActions) CopyFromHost(hostString, source, destination string) (out string, err error) {
-	tokens := strings.Split(hostString, ":")
+func (c *KubectlK8sActions) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error) {
+	tokens := strings.Split(hostString, ".")
 	namespace := tokens[0]
 	podName := tokens[1]
-	return c.cli.Execute(c.kubectlPath, "cp", "-n", namespace, fmt.Sprintf("%v:%v", podName, source), destination)
+	return c.cli.Execute(c.kubectlPath, "cp", "-n", namespace, "-c", c.getContainerName(isCoordinator), fmt.Sprintf("%v:%v", podName, source), destination)
 }
 
 func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err error) {
 	tokens := strings.Split(searchTerm, ":")
 	namespace := tokens[0]
 	labelName := tokens[1]
-	out, err := c.cli.Execute(c.kubectlPath, "get", "-n", namespace, "-l", labelName, "-o", "name")
+	out, err := c.cli.Execute(c.kubectlPath, "get", "pods", "-n", namespace, "-l", labelName, "-o", "name")
 	if err != nil {
 		return []string{}, err
 	}
@@ -66,7 +74,12 @@ func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err 
 		if pod == "" {
 			continue
 		}
-		pods = append(pods, strings.TrimSpace(pod))
+		rawPod := strings.TrimSpace(pod)
+		log.Print(rawPod)
+		pod := rawPod[4:]
+		log.Print(pod)
+		podWithNamespace := fmt.Sprintf("%v.%v", namespace, pod)
+		pods = append(pods, podWithNamespace)
 	}
 	return pods, nil
 }

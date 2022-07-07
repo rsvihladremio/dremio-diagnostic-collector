@@ -35,7 +35,7 @@ func TestSSHExec(t *testing.T) {
 		sshKey:  "id_rsa",
 		sshUser: sshUser,
 	}
-	out, err := k.HostExecute(hostName, "ls -l")
+	out, err := k.HostExecute(hostName, true, "ls", "-l")
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -67,7 +67,7 @@ func TestSCP(t *testing.T) {
 		sshKey:  "id_rsa",
 		sshUser: sshUser,
 	}
-	out, err := k.CopyFromHost(hostName, source, destination)
+	out, err := k.CopyFromHost(hostName, false, source, destination)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}

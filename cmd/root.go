@@ -29,6 +29,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var dremioConfDir string
+var dremioLogDir string
 var coordinatorStr string
 var executorsStr string
 var sshKeyLoc string
@@ -59,6 +61,13 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			}
 			sshKeyLoc = sshDefault
 		}
+		if dremioConfDir == "" {
+			if isK8s {
+				dremioConfDir = "/opt/dremio/conf/..data"
+			} else {
+				dremioConfDir = "/etc/dremio/conf"
+			}
+		}
 		logOutput := os.Stdout
 		var collectorStrategy collection.Collector
 		if isK8s {
@@ -68,7 +77,15 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			log.Print("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
-		err := collection.Execute(collectorStrategy, coordinatorStr, executorsStr, outputLoc, logOutput)
+		err := collection.Execute(collectorStrategy,
+			logOutput,
+			collection.Args{
+				CoordinatorStr: coordinatorStr,
+				ExecutorsStr:   executorsStr,
+				OutputLoc:      outputLoc,
+				DremioConfDir:  dremioConfDir,
+				DremioLogDir:   dremioLogDir,
+			})
 		if err != nil {
 			log.Fatalf("unexpected error running kubernetes collection '%v'", err)
 		}
@@ -112,6 +129,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.zip", "either a common separated list or a ip range of executors nodes to connect to")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
+	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/conf")
+	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
