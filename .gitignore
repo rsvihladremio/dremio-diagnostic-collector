@@ -5,6 +5,7 @@
 *.so
 *.dylib
 
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -19,3 +20,4 @@ covprofile
 bin/
 
 *.swp
+.DS_Store

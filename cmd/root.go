@@ -87,7 +87,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 				DremioLogDir:   dremioLogDir,
 			})
 		if err != nil {
-			log.Fatalf("unexpected error running kubernetes collection '%v'", err)
+			log.Fatalf("unexpected error running collection '%v'", err)
 		}
 	},
 }
