@@ -18,9 +18,6 @@
 package collection
 
 import (
-	"archive/tar"
-	"archive/zip"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"log"
@@ -129,7 +126,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	collectionInfo.EndTimeUTC = end
 	collectionInfo.StartTimeUTC = start
 	seconds := end.Unix() - start.Unix()
-	collectionInfo.TotalRuntimeStr = fmt.Sprintf("%v seconds", seconds)
+	collectionInfo.TotalRuntimeSeconds = fmt.Sprintf("%v seconds", seconds)
 	collectionInfo.ClusterInfo.TotalNodesAttempted = len(coordinators) + len(executors)
 	collectionInfo.ClusterInfo.NumberNodesContacted = nodesConnectedTo
 	collectionInfo.CollectedFiles = files
@@ -305,109 +302,4 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 		}
 	}
 	return files, failedFiles
-}
-
-func TarDiag(tarFileName string, baseDir string, files []summary.CollectedFile) error {
-	// Create a buffer to write our archive to.
-	tarFile, err := os.Create(tarFileName)
-	if err != nil {
-		return err
-	}
-	// Create a new tar archive.
-	tw := tar.NewWriter(tarFile)
-
-	defer func() {
-		err := tw.Close()
-		if err != nil {
-			log.Printf("unable to close file %v due to error %v", tarFileName, err)
-		}
-	}()
-	for _, collectedFile := range files {
-		file := collectedFile.Path
-		log.Printf("taring file %v", file)
-		fileInfo, err := os.Stat(file)
-		if err != nil {
-			return err
-		}
-		rf, err := os.Open(file)
-		if err != nil {
-			return err
-		}
-		hdr := &tar.Header{
-			Name: file[len(baseDir):],
-			Mode: 0600,
-			Size: fileInfo.Size(),
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-		_, err = io.Copy(tw, rf)
-		if err != nil {
-			return err
-		}
-	}
-	if err := tw.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func GZipDiag(zipFileName string, baseDir string, file string) error {
-	// Create a buffer to write our archive to.
-	zipFile, err := os.Create(zipFileName)
-	if err != nil {
-		return err
-	}
-	// Create a new gzip archive.
-	w := gzip.NewWriter(zipFile)
-	defer func() {
-		err := w.Close()
-		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
-		}
-	}()
-	log.Printf("gzipping file %v into %v", file, zipFileName)
-	rf, err := os.Open(file)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(w, rf)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func ZipDiag(zipFileName string, baseDir string, files []summary.CollectedFile) error {
-	// Create a buffer to write our archive to.
-	zipFile, err := os.Create(zipFileName)
-	if err != nil {
-		return err
-	}
-	// Create a new zip archive.
-	w := zip.NewWriter(zipFile)
-	defer func() {
-		err := w.Close()
-		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
-		}
-	}()
-	// Add some files to the archive.
-	for _, collectedFile := range files {
-		file := collectedFile.Path
-		log.Printf("zipping file %v", file)
-		f, err := w.Create(file[len(baseDir):])
-		if err != nil {
-			return err
-		}
-		rf, err := os.Open(file)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(f, rf)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

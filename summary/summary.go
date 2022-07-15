@@ -29,7 +29,7 @@ type CollectionInfo struct {
 	FailedFiles         []FailedFiles   `json:"failedFiles"`
 	StartTimeUTC        time.Time       `json:"startTimeUTC"`
 	EndTimeUTC          time.Time       `json:"endTimeUTC"`
-	TotalRuntimeStr     string          `json:"totalRuntimeStr"`
+	TotalRuntimeSeconds string          `json:"totalRuntimeSeconds"`
 	TotalBytesCollected int64           `json:"totalBytesCollected"`
 	Executors           []string        `json:"executors"`
 	Coordinators        []string        `json:"coordinators"`
