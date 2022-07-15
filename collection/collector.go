@@ -126,7 +126,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	collectionInfo.EndTimeUTC = end
 	collectionInfo.StartTimeUTC = start
 	seconds := end.Unix() - start.Unix()
-	collectionInfo.TotalRuntimeSeconds = fmt.Sprintf("%v seconds", seconds)
+	collectionInfo.TotalRuntimeSeconds = seconds
 	collectionInfo.ClusterInfo.TotalNodesAttempted = len(coordinators) + len(executors)
 	collectionInfo.ClusterInfo.NumberNodesContacted = nodesConnectedTo
 	collectionInfo.CollectedFiles = files
@@ -201,7 +201,7 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 		return foundFiles, nil
 	}
 
-	logger := log.New(g.logOutput, fmt.Sprintf("HOST: %v", host), log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.New(g.logOutput, fmt.Sprintf("HOST: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
 	if err := os.Mkdir(filepath.Join(outputLoc, host), 0755); err != nil {
 		logger.Printf("ERROR: host %v had error %v trying to make it's host dir", host, err)
 		return files, failedFiles
@@ -221,19 +221,24 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 	} else {
 		logger.Printf("INFO: host %v finished iostat", host)
 		fileName := filepath.Join(outputLoc, host, "iostat.txt")
-		fileInfo, err := os.Stat(fileName)
-		size := int64(0)
-		if err != nil {
-			logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
-		} else {
-			size = fileInfo.Size()
-		}
 		if err := os.WriteFile(fileName, []byte(o), 0600); err != nil {
+			failedFiles = append(failedFiles, summary.FailedFiles{
+				Path: fileName,
+				Err:  err,
+			})
+			logger.Printf("ERROR: unable to save iostat.txt for %v due to error %v output was %v", host, err, o)
+		} else {
+			fileInfo, err := os.Stat(fileName)
+			size := int64(0)
+			if err != nil {
+				logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
+			} else {
+				size = fileInfo.Size()
+			}
 			files = append(files, summary.CollectedFile{
 				Path: fileName,
 				Size: size,
 			})
-			logger.Printf("ERROR: unable to save iostat.txt for %v due to error %v output was %v", host, err, o)
 		}
 	}
 
@@ -249,16 +254,20 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 	for i := range confFiles {
 		conf := confFiles[i]
 		fileName := filepath.Join(outputLoc, host, "conf", filepath.Base(conf))
-		fileInfo, err := os.Stat(fileName)
-		size := int64(0)
-		if err != nil {
-			logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
-		} else {
-			size = fileInfo.Size()
-		}
 		if out, err := g.c.CopyFromHost(host, g.isCoordinator, conf, fileName); err != nil {
+			failedFiles = append(failedFiles, summary.FailedFiles{
+				Path: fileName,
+				Err:  err,
+			})
 			logger.Printf("ERROR: unable to copy %v from host %v due to error %v output was %v", conf, host, err, out)
 		} else {
+			fileInfo, err := os.Stat(fileName)
+			size := int64(0)
+			if err != nil {
+				logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
+			} else {
+				size = fileInfo.Size()
+			}
 			files = append(files, summary.CollectedFile{
 				Path: fileName,
 				Size: size,
