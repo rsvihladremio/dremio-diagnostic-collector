@@ -89,7 +89,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			logger := log.New(logOutput, fmt.Sprintf("COORDINATOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
+			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
 				Collector:                 c,
 				IsCoordinator:             true,
@@ -116,13 +116,13 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			logger := log.New(logOutput, fmt.Sprintf("EXECUTOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
+			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
 				Collector:                 c,
 				IsCoordinator:             false,
 				Logger:                    logger,
 				Host:                      host,
-				OutputLocation:            coordinatorDir,
+				OutputLocation:            executorDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,

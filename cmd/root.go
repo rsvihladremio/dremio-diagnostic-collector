@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -39,20 +40,25 @@ var outputLoc string
 var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
+var GitSha = "unknown"
+var Version = "dev"
 
 //var isEmbeddedK8s bool
 //var isEmbeddedSSH bool
+func getVersion() string {
+	return fmt.Sprintf("ddc %v-%v\n", Version, GitSha)
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "dremio-diagnostic-collector",
-	Short: "connects via to dremio servers collects logs into a zip file",
-	Long: `connects via ssh or kubectl and collects a series of logs and files for dremio, then puts them in a zip folder for easy uploads
+	Use:   "ddc",
+	Short: getVersion() + "ddc connects via to dremio servers collects logs into an archive",
+	Long: getVersion() + `ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
-ddc --coordinator 10.0.0.10 --executors 10.0.0.20-10.0.0.30 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
+ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --executors executor-dremio --output diag.zip
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator-dremio --executors default:role=executor-dremio --output diag.tar.gz
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sshKeyLoc == "" {
@@ -70,6 +76,30 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			}
 		}
 		logOutput := os.Stdout
+
+		collectionArgs := collection.Args{
+			CoordinatorStr:            coordinatorStr,
+			ExecutorsStr:              executorsStr,
+			OutputLoc:                 filepath.Clean(outputLoc),
+			DremioConfDir:             filepath.Clean(dremioConfDir),
+			DremioLogDir:              filepath.Clean(dremioLogDir),
+			DurationDiagnosticTooling: durationDiagnosticTooling,
+		}
+		err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
+		if err != nil {
+			fmt.Println("COMMAND HELP TEXT:")
+			fmt.Println("")
+			err := cmd.Help()
+			if err != nil {
+				log.Fatalf("unable to print help %v", err)
+			}
+			fmt.Println("")
+			fmt.Println("")
+			fmt.Printf("Invalid command flag detected: %v\n", err)
+			fmt.Println("")
+			os.Exit(1)
+		}
+		fmt.Println(getVersion())
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
@@ -78,16 +108,11 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			log.Print("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
-		err := collection.Execute(collectorStrategy,
+		err = collection.Execute(collectorStrategy,
 			logOutput,
-			collection.Args{
-				CoordinatorStr:            coordinatorStr,
-				ExecutorsStr:              executorsStr,
-				OutputLoc:                 filepath.Clean(outputLoc),
-				DremioConfDir:             filepath.Clean(dremioConfDir),
-				DremioLogDir:              filepath.Clean(dremioLogDir),
-				DurationDiagnosticTooling: durationDiagnosticTooling,
-			})
+			collectionArgs,
+		)
+
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)
 		}
@@ -137,4 +162,29 @@ func init() {
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
+}
+
+func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s bool) error {
+	if args.CoordinatorStr == "" {
+		if isK8s {
+			return errors.New("the coordinator string was empty you must pass a namespace, a colon and a label that will match your coordinators --coordinator or -c arguments. Example: -c \"default:mylabel=coordinator\"")
+		}
+		return errors.New("the coordinator string was empty you must pass a single host or a comma separated lists of hosts to --coordinator or -c arguments. Example: -e 192.168.64.12,192.168.65.10")
+	}
+	if args.ExecutorsStr == "" {
+		if isK8s {
+			return errors.New("the executor was empty you must pass a namespace, a colon and a label that will match your coordinators --executor or -c arguments. Example: -e \"default:mylabel=executor\"")
+		}
+		return errors.New("the executor string was empty you must pass a single host or a comma separated lists of hosts to --executor or -e arguments. Example: -e 192.168.64.12,192.168.65.10")
+	}
+
+	if !isK8s {
+		if sshKeyLoc == "" {
+			return errors.New("the ssh private key location was empty, pass --ssh-key or -s with the key to get past this error. Example --ssh-key ~/.ssh/id_rsa")
+		}
+		if sshUser == "" {
+			return errors.New("the ssh user was empty, pass --ssh-user or -u with the user name you want to use to get past this error. Example --ssh-user ubuntu")
+		}
+	}
+	return nil
 }
