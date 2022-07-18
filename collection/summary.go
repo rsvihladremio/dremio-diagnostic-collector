@@ -14,8 +14,8 @@
    limitations under the License.
 */
 
-//summary generates a summary file and writes it to the root of the diagnostic
-package summary
+//collection package provides the interface for collection implementation and the actual collection execution
+package collection
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-type CollectionInfo struct {
+type SummaryInfo struct {
 	ClusterInfo         ClusterInfo     `json:"clusterInfo"`
 	CollectedFiles      []CollectedFile `json:"collectedFiles"`
 	FailedFiles         []FailedFiles   `json:"failedFiles"`
@@ -50,21 +50,21 @@ type FailedFiles struct {
 	Err  error  `json:"err"`
 }
 
-type CollectionInfoWriterError struct {
-	CollectionInfo CollectionInfo
-	Err            error
+type SummaryInfoWriterError struct {
+	SummaryInfo SummaryInfo
+	Err         error
 }
 
-func (w CollectionInfoWriterError) Error() string {
-	return fmt.Sprintf("This is a bug, unable to write summary %#v due to error %v", w.CollectionInfo, w.Err)
+func (w SummaryInfoWriterError) Error() string {
+	return fmt.Sprintf("This is a bug, unable to write summary %#v due to error %v", w.SummaryInfo, w.Err)
 }
 
-func (summary CollectionInfo) String() (string, error) {
+func (summary SummaryInfo) String() (string, error) {
 	b, err := json.MarshalIndent(summary, "", "\t")
 	if err != nil {
-		return "", CollectionInfoWriterError{
-			CollectionInfo: summary,
-			Err:            err,
+		return "", SummaryInfoWriterError{
+			SummaryInfo: summary,
+			Err:         err,
 		}
 	}
 	return string(b), nil
