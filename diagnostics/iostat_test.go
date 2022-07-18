@@ -16,3 +16,16 @@
 
 //diagnostics contains all the commands that run server diagnostics to find problems on the host
 package diagnostics
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestIoStatArgs(t *testing.T) {
+	result := IOStatArgs(10)
+	expected := []string{"iostat", "-y", "-x", "-d", "-c", "-t", "1", "10"}
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("expected %#v but was %#v", expected, result)
+	}
+}

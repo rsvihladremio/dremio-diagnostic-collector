@@ -13,4 +13,13 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package integrationtests
+
+//collection package provides the interface for collection implementation and the actual collection execution
+package collection
+
+import (
+	"testing"
+)
+
+func TestWriteSummaryJsonFile(t *testing.T) {
+}

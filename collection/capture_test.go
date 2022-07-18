@@ -14,5 +14,5 @@
    limitations under the License.
 */
 
-//zip package provides support for zipping of files into an single large archive for transport
-package zip
+//collection package provides the interface for collection implementation and the actual collection execution
+package collection

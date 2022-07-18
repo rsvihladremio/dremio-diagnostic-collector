@@ -17,6 +17,8 @@
 //diagnostics contains all the commands that run server diagnostics to find problems on the host
 package diagnostics
 
-func IOStatArgs() []string {
-	return []string{"iostat", "-y", "-x", "-d", "-c", "-t", "1", "60"}
+import "strconv"
+
+func IOStatArgs(duration int) []string {
+	return []string{"iostat", "-y", "-x", "-d", "-c", "-t", "1", strconv.Itoa(duration)}
 }

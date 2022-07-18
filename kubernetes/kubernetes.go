@@ -25,6 +25,8 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 )
 
+// NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct
+// one must pass the path to kubectl
 func NewKubectlK8sActions(kubectlPath string) *KubectlK8sActions {
 	return &KubectlK8sActions{
 		cli:         &cli.Cli{},
@@ -32,6 +34,7 @@ func NewKubectlK8sActions(kubectlPath string) *KubectlK8sActions {
 	}
 }
 
+//KubectlK8sActions provides a way to collect and copy files using kubectl
 type KubectlK8sActions struct {
 	cli         cli.CmdExecutor
 	kubectlPath string

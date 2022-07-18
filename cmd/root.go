@@ -38,6 +38,7 @@ var sshUser string
 var outputLoc string
 var kubectlPath string
 var isK8s bool
+var durationDiagnosticTooling int
 
 //var isEmbeddedK8s bool
 //var isEmbeddedSSH bool
@@ -65,7 +66,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			if isK8s {
 				dremioConfDir = "/opt/dremio/conf/..data"
 			} else {
-				dremioConfDir = "/etc/dremio/conf"
+				dremioConfDir = "/etc/dremio"
 			}
 		}
 		logOutput := os.Stdout
@@ -80,14 +81,15 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 		err := collection.Execute(collectorStrategy,
 			logOutput,
 			collection.Args{
-				CoordinatorStr: coordinatorStr,
-				ExecutorsStr:   executorsStr,
-				OutputLoc:      outputLoc,
-				DremioConfDir:  dremioConfDir,
-				DremioLogDir:   dremioLogDir,
+				CoordinatorStr:            coordinatorStr,
+				ExecutorsStr:              executorsStr,
+				OutputLoc:                 filepath.Clean(outputLoc),
+				DremioConfDir:             filepath.Clean(dremioConfDir),
+				DremioLogDir:              filepath.Clean(dremioLogDir),
+				DurationDiagnosticTooling: durationDiagnosticTooling,
 			})
 		if err != nil {
-			log.Fatalf("unexpected error running kubernetes collection '%v'", err)
+			log.Fatalf("unexpected error running collection '%v'", err)
 		}
 	},
 }
@@ -129,8 +131,9 @@ func init() {
 	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.zip", "either a common separated list or a ip range of executors nodes to connect to")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
-	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/conf")
+	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
+	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
