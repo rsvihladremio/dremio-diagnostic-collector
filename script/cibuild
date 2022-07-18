@@ -24,8 +24,8 @@ date "+%H:%M:%S"
 echo "Linting finished at…"
 date "+%H:%M:%S"
 
-Write-Output "Audit started at"
-Get-Date
+echo "Audit started at"
+date "+%H:%M:%S"
 
 ./script/audit
 
