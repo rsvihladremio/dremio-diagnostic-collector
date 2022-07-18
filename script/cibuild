@@ -16,11 +16,18 @@ date "+%H:%M:%S"
 
 ./script/test
 
-
 echo "Linting started at…"
 date "+%H:%M:%S"
 
 ./script/lint
 
 echo "Linting finished at…"
+date "+%H:%M:%S"
+
+Write-Output "Audit started at"
+Get-Date
+
+./script/audit
+
+echo "Audit finished at…"
 date "+%H:%M:%S"

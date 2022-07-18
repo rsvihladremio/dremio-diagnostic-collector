@@ -6,4 +6,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+go fmt ./...
+
 golangci-lint run -E exportloopref,revive,gofmt,gosec -D structcheck

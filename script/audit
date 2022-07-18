@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# script/audit: runs gosec against the mod file to find security issues
+#                   
+
+gosec ./...
