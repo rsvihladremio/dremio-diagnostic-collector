@@ -18,15 +18,11 @@
 package collection
 
 import (
-	"archive/tar"
-	"archive/zip"
-	"bytes"
-	"compress/gzip"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
 )
 
 func TestZip(t *testing.T) {
@@ -51,41 +47,7 @@ func TestZip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
 	}
-	tr, err := zip.OpenReader(archiveFile)
-	if err != nil {
-		t.Fatalf("unexpected error getting opening file %v due to error %v", testFile, err)
-	}
-	defer tr.Close()
-	var found bool
-	var buf bytes.Buffer
-	for _, f := range tr.File {
-		fmt.Printf("Contents of %s:\n", f.Name)
-		if f.Name == "/test.txt" {
-			found = true
-		}
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		for {
-			_, err := io.CopyN(&buf, rc, 1024)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				t.Fatal(err)
-			}
-		}
-		rc.Close()
-	}
-
-	if !found {
-		t.Error("expected to find the newly archived file but did not")
-	}
-	row := buf.String()
-	if row != "my row" {
-		t.Errorf("expected content to have 'my row' but was %v", row)
-	}
+	tests.ZipContainsFile(t, testFile, archiveFile)
 }
 
 func TestTar(t *testing.T) {
@@ -106,48 +68,10 @@ func TestTar(t *testing.T) {
 			Size: fi.Size(),
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error taring file %v due to error %v", testFile, err)
 	}
-	f, err := os.Open(archiveFile)
-	if err != nil {
-		t.Fatalf("unexpected error untaring file %v due to error %v", testFile, err)
-	}
-
-	tr := tar.NewReader(f)
-	var found bool
-	var buf bytes.Buffer
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Printf("Contents of %s:\n", hdr.Name)
-		if hdr.Name == "/test.txt" {
-			found = true
-		}
-		for {
-			_, err := io.CopyN(&buf, tr, 1024)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				t.Fatal(err)
-			}
-		}
-		fmt.Println()
-	}
-	if !found {
-		t.Error("expected to find the newly archived file but did not")
-	}
-	row := buf.String()
-	if row != "my row" {
-		t.Errorf("expected content to have 'my row' but was %v", row)
-	}
+	tests.TarContainsFile(t, testFile, archiveFile)
 }
 
 func TestGZip(t *testing.T) {
@@ -157,35 +81,12 @@ func TestGZip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
 	}
+	archiveFile := tmpDir + ".gzip"
 
-	archiveFile := tmpDir + ".zip"
 	err = GZipDiag(archiveFile, tmpDir, testFile)
-
 	if err != nil {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
 	}
 
-	f, err := os.Open(archiveFile)
-	if err != nil {
-		t.Fatalf("unexpected error untaring file %v due to error %v", testFile, err)
-	}
-	tr, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatalf("unexpected error getting opening file %v due to error %v", testFile, err)
-	}
-	defer tr.Close()
-	var buf bytes.Buffer
-	for {
-		_, err := io.CopyN(&buf, tr, 1024)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			t.Fatal(err)
-		}
-	}
-	row := buf.String()
-	if row != "my row" {
-		t.Errorf("expected content to have 'my row' but was %v", row)
-	}
+	tests.GzipContainsFile(t, testFile, archiveFile)
 }
