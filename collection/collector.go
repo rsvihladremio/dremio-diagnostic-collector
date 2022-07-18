@@ -82,22 +82,23 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	var nodesConnectedTo int
 	var m sync.Mutex
 	var wg sync.WaitGroup
-	coordinatorCapture := GenericHostCapture{
-		c:             c,
-		isCoordinator: true,
-		logOutput:     logOutput,
-	}
-	executorCapture := GenericHostCapture{
-		c:             c,
-		isCoordinator: false,
-		logOutput:     logOutput,
-	}
+
 	for _, coordinator := range coordinators {
 		nodesConnectedTo++
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			writtenFiles, failedFiles := coordinatorCapture.Capture(host, coordinatorDir, dremioConfDir, dremioLogDir)
+			logger := log.New(logOutput, fmt.Sprintf("COORDINATOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
+			coordinatorCaptureConf := HostCaptureConfiguration{
+				Collector:      c,
+				IsCoordinator:  true,
+				Logger:         logger,
+				Host:           host,
+				OutputLocation: coordinatorDir,
+				DremioConfDir:  dremioConfDir,
+				DremioLogDir:   dremioLogDir,
+			}
+			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			files = append(files, writtenFiles...)
@@ -113,7 +114,17 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			writtenFiles, failedFiles := executorCapture.Capture(host, executorDir, dremioConfDir, dremioLogDir)
+			logger := log.New(logOutput, fmt.Sprintf("EXECUTOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
+			executorCaptureConf := HostCaptureConfiguration{
+				Collector:      c,
+				IsCoordinator:  false,
+				Logger:         logger,
+				Host:           host,
+				OutputLocation: coordinatorDir,
+				DremioConfDir:  dremioConfDir,
+				DremioLogDir:   dremioLogDir,
+			}
+			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			files = append(files, writtenFiles...)

@@ -19,7 +19,6 @@ package collection
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,44 +27,31 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
 )
 
-type GenericHostCapture struct {
-	isCoordinator bool
-	logOutput     io.Writer
-	c             Collector
+type HostCaptureConfiguration struct {
+	Logger         *log.Logger
+	IsCoordinator  bool
+	Collector      Collector
+	Host           string
+	OutputLocation string
+	DremioConfDir  string
+	DremioLogDir   string
 }
 
-func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDir string) (files []CollectedFile, failedFiles []FailedFiles) {
-	findFiles := func(host string, searchDir string) ([]string, error) {
-		out, err := g.c.HostExecute(host, g.isCoordinator, "ls", "-1", searchDir)
-		if err != nil {
-			return []string{}, fmt.Errorf("ls -l failed due to error %v", err)
-		}
+func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles) {
+	host := conf.Host
+	c := conf.Collector
+	outputLoc := conf.OutputLocation
+	dremioConfDir := conf.DremioConfDir
+	dremioLogDir := conf.DremioLogDir
+	isCoordinator := conf.IsCoordinator
+	logger := conf.Logger
 
-		rawFoundFiles := strings.Split(out, "\n")
-		var foundFiles []string
-		for _, f := range rawFoundFiles {
-			if f != "" {
-				foundFiles = append(foundFiles, f)
-			}
-		}
-		return foundFiles, nil
+	err := setupDiagDir(conf)
+	if err != nil {
+		logger.Printf("ERROR: failed to setup diag directory for host %v due to error %v, will not collect diags for this host", host, err)
+		return []CollectedFile{}, []FailedFiles{}
 	}
-
-	logger := log.New(g.logOutput, fmt.Sprintf("HOST: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
-	if err := os.Mkdir(filepath.Join(outputLoc, host), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host dir", host, err)
-		return files, failedFiles
-	}
-
-	if err := os.Mkdir(filepath.Join(outputLoc, host, "conf"), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host conf dir", host, err)
-		return files, failedFiles
-	}
-	if err := os.Mkdir(filepath.Join(outputLoc, host, "logs"), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
-		return files, failedFiles
-	}
-	o, err := g.c.HostExecute(host, g.isCoordinator, diagnostics.IOStatArgs()...)
+	o, err := c.HostExecute(host, isCoordinator, diagnostics.IOStatArgs()...)
 	if err != nil {
 		logger.Printf("ERROR: host %v failed iostat with error %v", host, err)
 	} else {
@@ -93,7 +79,7 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 	}
 
 	confFiles := []string{}
-	foundConfigFiles, err := findFiles(host, dremioConfDir)
+	foundConfigFiles, err := findFiles(conf, dremioConfDir)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioConfDir, err)
 	} else {
@@ -101,33 +87,13 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 			confFiles = append(confFiles, filepath.Join(dremioConfDir, c))
 		}
 	}
-	for i := range confFiles {
-		conf := confFiles[i]
-		fileName := filepath.Join(outputLoc, host, "conf", filepath.Base(conf))
-		if out, err := g.c.CopyFromHost(host, g.isCoordinator, conf, fileName); err != nil {
-			failedFiles = append(failedFiles, FailedFiles{
-				Path: fileName,
-				Err:  err,
-			})
-			logger.Printf("ERROR: unable to copy %v from host %v due to error %v output was %v", conf, host, err, out)
-		} else {
-			fileInfo, err := os.Stat(fileName)
-			size := int64(0)
-			if err != nil {
-				logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
-			} else {
-				size = fileInfo.Size()
-			}
-			files = append(files, CollectedFile{
-				Path: fileName,
-				Size: size,
-			})
-			logger.Printf("INFO: host %v copied %v to %v", host, conf, fileName)
-		}
-	}
+
+	collected, failed := copyFiles(conf, "conf", confFiles)
+	files = append(files, collected...)
+	failedFiles = append(failedFiles, failed...)
 
 	logFiles := []string{}
-	foundLogFiles, err := findFiles(host, dremioLogDir)
+	foundLogFiles, err := findFiles(conf, dremioLogDir)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioLogDir, err)
 	} else {
@@ -135,11 +101,46 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 		for _, c := range foundLogFiles {
 			logFiles = append(logFiles, filepath.Join(dremioLogDir, c))
 		}
+		collected, failed := copyFiles(conf, "log", logFiles)
+		files = append(files, collected...)
+		failedFiles = append(failedFiles, failed...)
 	}
-	for i := range logFiles {
-		log := logFiles[i]
-		fileName := filepath.Join(outputLoc, host, "logs", filepath.Base(log))
-		if out, err := g.c.CopyFromHost(host, g.isCoordinator, log, fileName); err != nil {
+
+	return files, failedFiles
+}
+
+func setupDiagDir(conf HostCaptureConfiguration) error {
+	host := conf.Host
+	outputLoc := conf.OutputLocation
+	logger := conf.Logger
+
+	if err := os.Mkdir(filepath.Join(outputLoc, host), DirPerms); err != nil {
+		logger.Printf("ERROR: host %v had error %v trying to make it's host dir", host, err)
+		return err
+	}
+
+	if err := os.Mkdir(filepath.Join(outputLoc, host, "conf"), DirPerms); err != nil {
+		logger.Printf("ERROR: host %v had error %v trying to make it's host conf dir", host, err)
+		return err
+	}
+	if err := os.Mkdir(filepath.Join(outputLoc, host, "logs"), DirPerms); err != nil {
+		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
+		return err
+	}
+	return nil
+}
+
+func copyFiles(conf HostCaptureConfiguration, destDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles) {
+	outputLoc := conf.OutputLocation
+	host := conf.Host
+	logger := conf.Logger
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+
+	for i := range filesToCopy {
+		log := filesToCopy[i]
+		fileName := filepath.Join(outputLoc, host, destDir, filepath.Base(log))
+		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,
 				Err:  err,
@@ -153,12 +154,32 @@ func (g *GenericHostCapture) Capture(host, outputLoc, dremioConfDir, dremioLogDi
 			} else {
 				size = fileInfo.Size()
 			}
-			files = append(files, CollectedFile{
+			collectedFiles = append(collectedFiles, CollectedFile{
 				Path: fileName,
 				Size: size,
 			})
 			logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
 		}
 	}
-	return files, failedFiles
+	return collectedFiles, failedFiles
+}
+
+func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error) {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+
+	out, err := c.HostExecute(host, isCoordinator, "ls", "-1", searchDir)
+	if err != nil {
+		return []string{}, fmt.Errorf("ls -l failed due to error %v", err)
+	}
+
+	rawFoundFiles := strings.Split(out, "\n")
+	var foundFiles []string
+	for _, f := range rawFoundFiles {
+		if f != "" {
+			foundFiles = append(foundFiles, f)
+		}
+	}
+	return foundFiles, nil
 }
