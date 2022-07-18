@@ -3,13 +3,26 @@
 # script/install: Script to install from source, eventually when there 
 #                 are releases this will switch to latest release
 
-curl -L -o bootstrap https://raw.githubusercontent.com/rsvihladremio/dremio-diagnostic-collector/main/script/bootstrap
-sh ./bootstrap
-curl -L -o main.zip https://github.com/rsvihladremio/dremio-diagnostic-collector/archive/refs/heads/main.zip
-unzip main.zip
-cd dremio-diagnostic-collector 
-./script/build
-sudo cp ./bin/ddc /usr/local/bin
-cd ..
-rm -fr dremio-diagnostic-collector-main 
-rm boostrap
+
+DOWNLOAD=""
+OS=""
+ARCH=`uname -m`
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	OS="linux"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+	OS="darwin"
+elif [[ "$OSTYPE" == "cygwin" ]]; then
+	OS="linux"
+elif [[ "$OSTYPE" == "msys" ]]; then
+	OS="linux"
+else
+        echo script for os type $OSTYPE is unsupported, build from sournce instead 
+	exit 1
+fi
+
+DOWNLOAD=ddc-$OS-$ARCH.zip
+curl -o $DOWNLOAD -L "https://github.com/rsvihladremio/dremio-diagnostic-collector/releases/latest/download/$DOWNLOAD"
+unzip $DOWNLOAD
+sudo mv ./bin/ddc /usr/local/bin/
+rm $DOWNLOAD
+rm -fr ddc-$OS-$ARCH
