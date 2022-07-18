@@ -39,11 +39,12 @@ type Collector interface {
 }
 
 type Args struct {
-	CoordinatorStr string
-	ExecutorsStr   string
-	OutputLoc      string
-	DremioConfDir  string
-	DremioLogDir   string
+	CoordinatorStr            string
+	ExecutorsStr              string
+	OutputLoc                 string
+	DremioConfDir             string
+	DremioLogDir              string
+	DurationDiagnosticTooling int
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -90,13 +91,14 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 			defer wg.Done()
 			logger := log.New(logOutput, fmt.Sprintf("COORDINATOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
-				Collector:      c,
-				IsCoordinator:  true,
-				Logger:         logger,
-				Host:           host,
-				OutputLocation: coordinatorDir,
-				DremioConfDir:  dremioConfDir,
-				DremioLogDir:   dremioLogDir,
+				Collector:                 c,
+				IsCoordinator:             true,
+				Logger:                    logger,
+				Host:                      host,
+				OutputLocation:            coordinatorDir,
+				DremioConfDir:             dremioConfDir,
+				DremioLogDir:              dremioLogDir,
+				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -116,13 +118,14 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 			defer wg.Done()
 			logger := log.New(logOutput, fmt.Sprintf("EXECUTOR: %v - ", host), log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
-				Collector:      c,
-				IsCoordinator:  false,
-				Logger:         logger,
-				Host:           host,
-				OutputLocation: coordinatorDir,
-				DremioConfDir:  dremioConfDir,
-				DremioLogDir:   dremioLogDir,
+				Collector:                 c,
+				IsCoordinator:             false,
+				Logger:                    logger,
+				Host:                      host,
+				OutputLocation:            coordinatorDir,
+				DremioConfDir:             dremioConfDir,
+				DremioLogDir:              dremioLogDir,
+				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -163,6 +166,13 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		Path: summaryFile,
 		Size: int64(len([]byte(o))),
 	})
+
+	return archiveDiagDirectory(outputLoc, outputDir, files)
+}
+
+// archiveDiagDirectory will detect the extension asked for and use the correct archival library
+// to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
+func archiveDiagDirectory(outputLoc, outputDir string, files []CollectedFile) error {
 	ext := filepath.Ext(outputLoc)
 	if ext == ".zip" {
 		if err := ZipDiag(outputLoc, outputDir, files); err != nil {
