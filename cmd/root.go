@@ -82,9 +82,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator coordinator-dremio --exe
 			collection.Args{
 				CoordinatorStr: coordinatorStr,
 				ExecutorsStr:   executorsStr,
-				OutputLoc:      outputLoc,
-				DremioConfDir:  dremioConfDir,
-				DremioLogDir:   dremioLogDir,
+				OutputLoc:      filepath.Clean(outputLoc),
+				DremioConfDir:  filepath.Clean(dremioConfDir),
+				DremioLogDir:   filepath.Clean(dremioLogDir),
 			})
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)

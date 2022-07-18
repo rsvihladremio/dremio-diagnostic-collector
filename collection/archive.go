@@ -24,13 +24,13 @@ import (
 	"io"
 	"log"
 	"os"
-
-	"github.com/rsvihladremio/dremio-diagnostic-collector/summary"
+	"path/filepath"
 )
 
-func TarDiag(tarFileName string, baseDir string, files []summary.CollectedFile) error {
+func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	// Create a buffer to write our archive to.
-	tarFile, err := os.Create(tarFileName)
+
+	tarFile, err := os.Create(filepath.Clean(tarFileName))
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func TarDiag(tarFileName string, baseDir string, files []summary.CollectedFile) 
 		if err != nil {
 			return err
 		}
-		rf, err := os.Open(file)
+		rf, err := os.Open(filepath.Clean(file))
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func TarDiag(tarFileName string, baseDir string, files []summary.CollectedFile) 
 
 func GZipDiag(zipFileName string, baseDir string, file string) error {
 	// Create a buffer to write our archive to.
-	zipFile, err := os.Create(zipFileName)
+	zipFile, err := os.Create(filepath.Clean(zipFileName))
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func GZipDiag(zipFileName string, baseDir string, file string) error {
 		}
 	}()
 	log.Printf("gzipping file %v into %v", file, zipFileName)
-	rf, err := os.Open(file)
+	rf, err := os.Open(filepath.Clean(file))
 	if err != nil {
 		return err
 	}
@@ -99,9 +99,9 @@ func GZipDiag(zipFileName string, baseDir string, file string) error {
 	return nil
 }
 
-func ZipDiag(zipFileName string, baseDir string, files []summary.CollectedFile) error {
+func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 	// Create a buffer to write our archive to.
-	zipFile, err := os.Create(zipFileName)
+	zipFile, err := os.Create(filepath.Clean(zipFileName))
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func ZipDiag(zipFileName string, baseDir string, files []summary.CollectedFile) 
 		if err != nil {
 			return err
 		}
-		rf, err := os.Open(file)
+		rf, err := os.Open(filepath.Clean(file))
 		if err != nil {
 			return err
 		}
