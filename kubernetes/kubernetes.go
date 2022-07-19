@@ -27,24 +27,28 @@ import (
 
 // NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct
 // one must pass the path to kubectl
-func NewKubectlK8sActions(kubectlPath string) *KubectlK8sActions {
+func NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer string) *KubectlK8sActions {
 	return &KubectlK8sActions{
-		cli:         &cli.Cli{},
-		kubectlPath: kubectlPath,
+		cli:                  &cli.Cli{},
+		kubectlPath:          kubectlPath,
+		coordinatorContainer: coordinatorContainer,
+		executorContainer:    executorContainer,
 	}
 }
 
 //KubectlK8sActions provides a way to collect and copy files using kubectl
 type KubectlK8sActions struct {
-	cli         cli.CmdExecutor
-	kubectlPath string
+	cli                  cli.CmdExecutor
+	kubectlPath          string
+	coordinatorContainer string
+	executorContainer    string
 }
 
 func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
 	if isCoordinator {
-		return "dremio-coordinator"
+		return c.coordinatorContainer
 	}
-	return "dremio-executor"
+	return c.executorContainer
 }
 
 func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, args ...string) (out string, err error) {
