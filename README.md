@@ -63,7 +63,7 @@ You must specify a --ssh-user and an -ssh-key the key must be configured to acce
 The -e and -c flags will take a comma separated list of hosts
 
 ```sh
-/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2 -coordinator --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
+/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
 ```
 
 ### more help
