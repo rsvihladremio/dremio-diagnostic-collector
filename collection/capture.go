@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
@@ -36,6 +37,7 @@ type HostCaptureConfiguration struct {
 	DremioConfDir             string
 	DremioLogDir              string
 	DurationDiagnosticTooling int
+	GCLogOverride             string
 }
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
@@ -79,11 +81,34 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 		for _, c := range foundLogFiles {
 			logFiles = append(logFiles, filepath.Join(dremioLogDir, c))
 		}
-		collected, failed := copyFiles(conf, "log", logFiles)
-		files = append(files, collected...)
-		failedFiles = append(failedFiles, failed...)
 	}
-
+	gcLogSearchString, err := findGCLogLocation(conf)
+	if err != nil {
+		logger.Printf("ERROR: host %v unable to find gc log location with error %v", host, err)
+	} else {
+		baseGCLogDir := filepath.Dir(gcLogSearchString)
+		gcLogs, err := findFiles(conf, gcLogSearchString)
+		if err != nil {
+			logger.Printf("ERROR: host %v unable to find gc log files at %v with error %v", host, gcLogSearchString, err)
+		}
+		for _, gclog := range gcLogs {
+			fullLogPath := filepath.Join(baseGCLogDir, gclog)
+			alreadyFound := false
+			for _, f := range logFiles {
+				//skip files already added
+				if f == fullLogPath {
+					alreadyFound = true
+					break
+				}
+			}
+			if !alreadyFound {
+				logFiles = append(logFiles, gclog)
+			}
+		}
+	}
+	collected, failed = copyFiles(conf, "log", logFiles)
+	files = append(files, collected...)
+	failedFiles = append(failedFiles, failed...)
 	return files, failedFiles
 }
 
@@ -193,12 +218,13 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, filesToCopy []stri
 
 // findFiles runs a simple ls -1 command to find all the top level files and nothing more
 // this does mean you will have some errors.
+// it will also attempt to find the gclogs based on startup flags if there is no gclog override specified
 func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error) {
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
 
-	out, err := c.HostExecute(host, isCoordinator, "ls", "-1", searchDir)
+	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("ls -1 %v", searchDir))
 	if err != nil {
 		return []string{}, fmt.Errorf("ls -l failed due to error %v", err)
 	}
@@ -211,4 +237,84 @@ func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error
 		}
 	}
 	return foundFiles, nil
+}
+
+//findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
+func findGCLogLocation(conf HostCaptureConfiguration) (gcLogLoc string, err error) {
+	if conf.GCLogOverride != "" {
+		return conf.GCLogOverride + "*", nil
+	}
+	pidList, err := ListJavaProcessPids(conf)
+	if err != nil {
+		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	}
+	pid, err := GetDremioPID(pidList)
+	if err != nil {
+		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	}
+	startupFlags, err := GetStartupFlags(conf, pid)
+	if err != nil {
+		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	}
+
+	logLocation, err := ParseGCLogFromFlags(startupFlags)
+	if err != nil {
+		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	}
+	return logLocation + "*", nil
+}
+
+//ListJavaProcessPids uses jcmd to list the processes running on the jvm
+func ListJavaProcessPids(conf HostCaptureConfiguration) (pidList string, err error) {
+	host := conf.Host
+	collector := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	out, err := collector.HostExecute(host, isCoordinator, "jcmd", "-l")
+	if err != nil {
+		return "unable to retrieve pid of dremio due to error '%v'", err
+	}
+	return out, nil
+}
+
+//GetDremioPID loops through the output of jcmd -l and finds the dremio pid
+func GetDremioPID(pidList string) (pid int, err error) {
+	for _, line := range strings.Split(pidList, "\n") {
+		if strings.HasSuffix(strings.TrimSpace(line), "com.dremio.dac.daemon.DremioDaemon") {
+			tokens := strings.Split(line, " ")
+			if len(tokens) != 2 {
+				return -1, fmt.Errorf("unexpected result trying to read pid for string '%v' there are '%v' tokens but we expected 2. This is a critical error and should be reported", line, len(tokens))
+			}
+			return strconv.Atoi(tokens[0])
+		}
+	}
+	return -1, fmt.Errorf("unable to find process 'com.dremio.dac.daemon.DremioDaemon' inside '%v'", pidList)
+}
+
+//GetStartupFlags uses jcmd to get the startup parameters for a given pid
+func GetStartupFlags(conf HostCaptureConfiguration, pid int) (flags string, err error) {
+	host := conf.Host
+	collector := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	return collector.HostExecute(host, isCoordinator, "ps", "-f", strconv.Itoa(pid))
+}
+
+// ParseGCLogFromFlags takes a given string with java startup flags and finds the gclog directive
+func ParseGCLogFromFlags(startupFlagsStr string) (gcLogLocation string, err error) {
+	tokens := strings.Split(startupFlagsStr, " ")
+	var found []int
+	for i, token := range tokens {
+		if strings.HasPrefix(token, "-Xloggc:") {
+			found = append(found, i)
+		}
+	}
+	if len(found) == 0 {
+		return "", nil
+	}
+	lastIndex := found[len(found)-1]
+	last := tokens[lastIndex]
+	gcLogLocationTokens := strings.Split(last, "-Xloggc:")
+	if len(gcLogLocationTokens) != 2 {
+		return "", fmt.Errorf("unexpected items in string '%v', expected only 2 items but found %v", last, len(gcLogLocationTokens))
+	}
+	return gcLogLocationTokens[1], nil
 }
