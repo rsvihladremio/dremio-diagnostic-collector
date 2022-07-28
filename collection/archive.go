@@ -21,6 +21,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -45,6 +46,13 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	}()
 	for _, collectedFile := range files {
 		file := collectedFile.Path
+		fi, err := os.Stat(filepath.Clean(file))
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			continue
+		}
 		log.Printf("taring file %v", file)
 		fileInfo, err := os.Stat(file)
 		if err != nil {
@@ -116,6 +124,13 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 	// Add some files to the archive.
 	for _, collectedFile := range files {
 		file := collectedFile.Path
+		fi, err := os.Stat(filepath.Clean(file))
+		if err != nil {
+			return fmt.Errorf("error while checking path %v with error %v", filepath.Clean(file), err)
+		}
+		if fi.IsDir() {
+			continue
+		}
 		log.Printf("zipping file %v", file)
 		f, err := w.Create(file[len(baseDir):])
 		if err != nil {

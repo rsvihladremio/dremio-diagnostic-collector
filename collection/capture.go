@@ -59,56 +59,56 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
 	confFiles := []string{}
-	foundConfigFiles, err := findFiles(conf, dremioConfDir)
+	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/")
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioConfDir, err)
 	} else {
-		for _, c := range foundConfigFiles {
-			confFiles = append(confFiles, filepath.Join(dremioConfDir, c))
-		}
+		confFiles = append(confFiles, foundConfigFiles...)
 	}
 
-	collected, failed := copyFiles(conf, "conf", confFiles)
+	collected, failed := copyFiles(conf, "conf", dremioConfDir, confFiles)
 	files = append(files, collected...)
 	failedFiles = append(failedFiles, failed...)
 
 	logFiles := []string{}
-	foundLogFiles, err := findFiles(conf, dremioLogDir)
+	foundLogFiles, err := findFiles(conf, dremioLogDir+"/")
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioLogDir, err)
 	} else {
 		logger.Printf("INFO: host %v finished finding files to copy out of the log directory", host)
-		for _, c := range foundLogFiles {
-			logFiles = append(logFiles, filepath.Join(dremioLogDir, c))
-		}
+		logFiles = append(logFiles, foundLogFiles...)
+		collected, failed := copyFiles(conf, "log", dremioLogDir, logFiles)
+		files = append(files, collected...)
+		failedFiles = append(failedFiles, failed...)
 	}
 	gcLogSearchString, err := findGCLogLocation(conf)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find gc log location with error %v", host, err)
 	} else {
-		baseGCLogDir := filepath.Dir(gcLogSearchString)
+		var gcLogsToCollect []string
 		gcLogs, err := findFiles(conf, gcLogSearchString)
 		if err != nil {
 			logger.Printf("ERROR: host %v unable to find gc log files at %v with error %v", host, gcLogSearchString, err)
 		}
 		for _, gclog := range gcLogs {
-			fullLogPath := filepath.Join(baseGCLogDir, gclog)
 			alreadyFound := false
 			for _, f := range logFiles {
 				//skip files already added
-				if f == fullLogPath {
+				if f == gclog {
 					alreadyFound = true
 					break
 				}
 			}
 			if !alreadyFound {
-				logFiles = append(logFiles, gclog)
+				gcLogsToCollect = append(gcLogsToCollect, gclog)
 			}
 		}
+		gcLogDir := filepath.Dir(gcLogSearchString)
+		collected, failed := copyFiles(conf, "log", gcLogDir, gcLogsToCollect)
+		files = append(files, collected...)
+		failedFiles = append(failedFiles, failed...)
 	}
-	collected, failed = copyFiles(conf, "log", logFiles)
-	files = append(files, collected...)
-	failedFiles = append(failedFiles, failed...)
+
 	return files, failedFiles
 }
 
@@ -181,7 +181,7 @@ func setupDiagDir(conf HostCaptureConfiguration) error {
 
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
-func copyFiles(conf HostCaptureConfiguration, destDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles) {
+func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles) {
 	outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
@@ -190,7 +190,14 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, filesToCopy []stri
 
 	for i := range filesToCopy {
 		log := filesToCopy[i]
-		fileName := filepath.Join(outputLoc, host, destDir, filepath.Base(log))
+
+		var fileName string
+		extraPath := filepath.Dir(strings.TrimPrefix(log, baseDir))
+		if extraPath == "" {
+			fileName = filepath.Join(outputLoc, host, destDir, filepath.Base(log))
+		} else {
+			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
+		}
 		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,
@@ -224,9 +231,9 @@ func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
 
-	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("ls -1 %v", searchDir))
+	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f", searchDir))
 	if err != nil {
-		return []string{}, fmt.Errorf("ls -l failed due to error %v", err)
+		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
 	}
 
 	rawFoundFiles := strings.Split(out, "\n")
