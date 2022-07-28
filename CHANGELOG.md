@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2] - 2022-07-18
+### Added
+- dynamically find the gc.log #19
+- recursively search all log and conf directories #27
+### Fixed
+- when archiving directory we hit an error #24
+
 ## [0.1.1] - 2022-07-18
 ### Added
 - added dynamic container names with two new flags to use custom ones --coordinator-container and --executors-container
