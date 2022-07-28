@@ -72,9 +72,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 		}
 		if dremioConfDir == "" {
 			if isK8s {
-				dremioConfDir = "/opt/dremio/conf/..data"
+				dremioConfDir = "/opt/dremio/conf/..data/"
 			} else {
-				dremioConfDir = "/etc/dremio"
+				dremioConfDir = "/etc/dremio/"
 			}
 		}
 		logOutput := os.Stdout
