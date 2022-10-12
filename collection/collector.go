@@ -70,7 +70,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	if err != nil {
 		return err
 	}
-	// Cleanup - we may want to move this into
+	// Cleanup - we may want to move this into archiveDiagDirectory
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
