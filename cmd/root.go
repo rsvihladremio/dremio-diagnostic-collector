@@ -166,7 +166,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
 	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
-	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 5, "the maximum number of days to go back for log retreival")
+	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (0 will get everything)")
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")

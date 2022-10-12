@@ -232,8 +232,15 @@ func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
 	age := conf.LogAge
+	var out string
+	var err error
 
-	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f -mtime %v", searchDir, age))
+	// Only use mtime for logs and if the logAge is != 0
+	if age == 0 {
+		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f", searchDir))
+	} else {
+		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f -mtime %v", searchDir, age))
+	}
 	if err != nil {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
 	}

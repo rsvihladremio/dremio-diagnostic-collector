@@ -103,7 +103,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge,
+				LogAge:                    logAge, // We dont want to specify an age for config files
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -131,7 +131,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge,
+				LogAge:                    logAge, // We dont want to specify an age for config files
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()
