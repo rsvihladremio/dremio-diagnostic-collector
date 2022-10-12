@@ -42,6 +42,7 @@ var outputLoc string
 var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
+var logAge int
 var GitSha = "unknown"
 var Version = "dev"
 
@@ -86,7 +87,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			DremioConfDir:             filepath.Clean(dremioConfDir),
 			DremioLogDir:              filepath.Clean(dremioLogDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
+			LogAge:                    logAge,
 		}
+
 		err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
 		if err != nil {
 			fmt.Println("COMMAND HELP TEXT:")
@@ -163,6 +166,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
 	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
+	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 5, "the maximum number of days to go back for log retreival")
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
@@ -177,7 +181,7 @@ func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s b
 	}
 	if args.ExecutorsStr == "" {
 		if isK8s {
-			return errors.New("the executor was empty you must pass a namespace, a colon and a label that will match your coordinators --executor or -c arguments. Example: -e \"default:mylabel=executor\"")
+			return errors.New("the executor string was empty you must pass a namespace, a colon and a label that will match your executors --executor or -e arguments. Example: -e \"default:mylabel=executor\"")
 		}
 		return errors.New("the executor string was empty you must pass a single host or a comma separated lists of hosts to --executor or -e arguments. Example: -e 192.168.64.12,192.168.65.10")
 	}

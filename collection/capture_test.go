@@ -125,6 +125,7 @@ func TestFindFiles(t *testing.T) {
 		DremioConfDir:             "",
 		DremioLogDir:              "",
 		DurationDiagnosticTooling: 0,
+		LogAge:                    5,
 	}
 	searchStr := "/opt/file*"
 	files, err := findFiles(conf, searchStr)
@@ -148,7 +149,7 @@ func TestFindFiles(t *testing.T) {
 		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
 	}
 
-	expectedArgs := []string{"bash", "-c", "find /opt/file* -maxdepth 3 -type f"}
+	expectedArgs := []string{"bash", "-c", "find /opt/file* -maxdepth 3 -type f -mtime 5"}
 	if !reflect.DeepEqual(calls["args"], expectedArgs) {
 		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
 	}
@@ -171,6 +172,7 @@ func TestGetStartupFlags(t *testing.T) {
 		DremioConfDir:             "",
 		DremioLogDir:              "",
 		DurationDiagnosticTooling: 0,
+		LogAge:                    5,
 	}
 	pid := 1
 	flags, err := GetStartupFlags(conf, pid)
@@ -226,6 +228,7 @@ func TestFindGCLocation(t *testing.T) {
 		DremioConfDir:             "",
 		DremioLogDir:              "",
 		DurationDiagnosticTooling: 0,
+		LogAge:                    5,
 	}
 	location, err := findGCLogLocation(conf)
 	if err != nil {

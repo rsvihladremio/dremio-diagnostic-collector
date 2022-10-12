@@ -38,6 +38,7 @@ type HostCaptureConfiguration struct {
 	DremioLogDir              string
 	DurationDiagnosticTooling int
 	GCLogOverride             string
+	LogAge                    int
 }
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
@@ -230,8 +231,9 @@ func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
+	age := conf.LogAge
 
-	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f", searchDir))
+	out, err := c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f -mtime %v", searchDir, age))
 	if err != nil {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
 	}
