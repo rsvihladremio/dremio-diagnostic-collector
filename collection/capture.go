@@ -48,6 +48,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	dremioConfDir := conf.DremioConfDir
 	dremioLogDir := conf.DremioLogDir
 	logger := conf.Logger
+	logAge := conf.LogAge
 
 	err := setupDiagDir(conf)
 	if err != nil {
@@ -60,7 +61,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
 	confFiles := []string{}
-	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/")
+	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/", false)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioConfDir, err)
 	} else {
@@ -72,7 +73,14 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	failedFiles = append(failedFiles, failed...)
 
 	logFiles := []string{}
-	foundLogFiles, err := findFiles(conf, dremioLogDir+"/")
+	var filterLogs bool
+	// set flag to filter or not ased on default valu
+	if logAge == 0 {
+		filterLogs = false
+	} else {
+		filterLogs = true
+	}
+	foundLogFiles, err := findFiles(conf, dremioLogDir+"/", filterLogs)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioLogDir, err)
 	} else {
@@ -87,7 +95,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 		logger.Printf("ERROR: host %v unable to find gc log location with error %v", host, err)
 	} else {
 		var gcLogsToCollect []string
-		gcLogs, err := findFiles(conf, gcLogSearchString)
+		gcLogs, err := findFiles(conf, gcLogSearchString, filterLogs)
 		if err != nil {
 			logger.Printf("ERROR: host %v unable to find gc log files at %v with error %v", host, gcLogSearchString, err)
 		}
@@ -224,10 +232,18 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 	return collectedFiles, failedFiles
 }
 
+type FindErr struct {
+	Cmd string
+}
+
+func (fe FindErr) Error() string {
+	return fmt.Sprintf("find failed due to error %v:", fe.Cmd)
+}
+
 // findFiles runs a simple ls -1 command to find all the top level files and nothing more
 // this does mean you will have some errors.
 // it will also attempt to find the gclogs based on startup flags if there is no gclog override specified
-func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error) {
+func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]string, error) {
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
@@ -235,11 +251,16 @@ func findFiles(conf HostCaptureConfiguration, searchDir string) ([]string, error
 	var out string
 	var err error
 
-	// Only use mtime for logs and if the logAge is != 0
-	if age == 0 {
-		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f", searchDir))
+	// Protect against wildcard search base
+	if searchDir == "*" {
+		return []string{}, FindErr{Cmd: "wildcard search bases rejected"}
+	}
+
+	// Only use mtime for logs
+	if filter {
+		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v", searchDir), "-maxdepth", "3", "-type", "f", fmt.Sprintf("-mtime %v", age))
 	} else {
-		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v -maxdepth 3 -type f -mtime %v", searchDir, age))
+		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v", searchDir), "-maxdepth", "3", "-type", "f")
 	}
 	if err != nil {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)

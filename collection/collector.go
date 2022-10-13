@@ -56,6 +56,11 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	dremioConfDir := collectionArgs.DremioConfDir
 	dremioLogDir := collectionArgs.DremioLogDir
 	logAge := collectionArgs.LogAge
+
+	// silently set log age to -ve sicne we're always searchign retrospectively
+	if logAge > 0 {
+		logAge = 0 - logAge
+	}
 	outputDir, err := os.MkdirTemp("", "*")
 	if err != nil {
 		return err
@@ -103,7 +108,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge, // We dont want to specify an age for config files
+				LogAge:                    logAge,
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -131,7 +136,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge, // We dont want to specify an age for config files
+				LogAge:                    logAge,
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()

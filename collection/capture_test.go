@@ -128,7 +128,7 @@ func TestFindFiles(t *testing.T) {
 		LogAge:                    5,
 	}
 	searchStr := "/opt/file*"
-	files, err := findFiles(conf, searchStr)
+	files, err := findFiles(conf, searchStr, true)
 	if err != nil {
 		t.Fatal(err)
 	}
