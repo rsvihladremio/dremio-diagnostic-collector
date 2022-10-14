@@ -1,5 +1,14 @@
 # Changelog
 
+# Changelog
+
+## [0.1.3] - 2022-10-14
+### Added
+-  limit log collection by age #10
+### Fixed
+- block wildcard searches #33
+- warn and continue when archiving paths that are nil (i.e. the "..data" paths you get in Dremio k8s) #34
+
 ## [0.1.2] - 2022-07-18
 ### Added
 - dynamically find the gc.log #19
