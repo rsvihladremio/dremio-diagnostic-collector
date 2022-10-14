@@ -41,6 +41,14 @@ type HostCaptureConfiguration struct {
 	LogAge                    int
 }
 
+type FindErr struct {
+	Cmd string
+}
+
+func (fe FindErr) Error() string {
+	return fmt.Sprintf("find failed due to error %v:", fe.Cmd)
+}
+
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
 func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles) {
@@ -232,14 +240,6 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 	return collectedFiles, failedFiles
 }
 
-type FindErr struct {
-	Cmd string
-}
-
-func (fe FindErr) Error() string {
-	return fmt.Sprintf("find failed due to error %v:", fe.Cmd)
-}
-
 // findFiles runs a simple ls -1 command to find all the top level files and nothing more
 // this does mean you will have some errors.
 // it will also attempt to find the gclogs based on startup flags if there is no gclog override specified
@@ -247,7 +247,7 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
-	age := conf.LogAge
+	logAge := conf.LogAge
 	var out string
 	var err error
 
@@ -258,9 +258,10 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 
 	// Only use mtime for logs
 	if filter {
-		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v", searchDir), "-maxdepth", "3", "-type", "f", fmt.Sprintf("-mtime %v", age))
+		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
 	} else {
-		out, err = c.HostExecute(host, isCoordinator, "bash", "-c", fmt.Sprintf("find %v", searchDir), "-maxdepth", "3", "-type", "f")
+		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f")
+
 	}
 	if err != nil {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
