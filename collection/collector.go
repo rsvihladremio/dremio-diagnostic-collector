@@ -45,6 +45,7 @@ type Args struct {
 	DremioConfDir             string
 	DremioLogDir              string
 	DurationDiagnosticTooling int
+	LogAge                    int
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -54,6 +55,12 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	outputLoc := collectionArgs.OutputLoc
 	dremioConfDir := collectionArgs.DremioConfDir
 	dremioLogDir := collectionArgs.DremioLogDir
+	logAge := collectionArgs.LogAge
+
+	// silently set log age to -ve sicne we're always searchign retrospectively
+	if logAge > 0 {
+		logAge = 0 - logAge
+	}
 	outputDir, err := os.MkdirTemp("", "*")
 	if err != nil {
 		return err
@@ -68,10 +75,12 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	if err != nil {
 		return err
 	}
+	// Cleanup - we may want to move this into archiveDiagDirectory
 	defer func() {
+		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
 		if err := os.RemoveAll(outputDir); err != nil {
-			log.Printf("WARN: unable to remove %v due to error %v. It will need to removed manually", outputDir, err)
+			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
 		}
 	}()
 	coordinators, err := c.FindHosts(coordinatorStr)
@@ -99,6 +108,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
+				LogAge:                    logAge,
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -126,6 +136,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
+				LogAge:                    logAge,
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()

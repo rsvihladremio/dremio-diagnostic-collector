@@ -19,7 +19,6 @@ package kubernetes
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
@@ -55,7 +54,7 @@ func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, a
 	tokens := strings.Split(hostString, ".")
 	namespace := tokens[0]
 	podName := tokens[1]
-	kubectlArgs := []string{c.kubectlPath, "exec", "-it", "-n", namespace, "-c", c.getContainerName(isCoordinator), podName, "--"}
+	kubectlArgs := []string{c.kubectlPath, "exec", "-n", namespace, "-c", c.getContainerName(isCoordinator), podName, "--"}
 	kubectlArgs = append(kubectlArgs, args...)
 	return c.cli.Execute(kubectlArgs...)
 }
@@ -82,9 +81,9 @@ func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err 
 			continue
 		}
 		rawPod := strings.TrimSpace(pod)
-		log.Print(rawPod)
+		//log.Print(rawPod)
 		pod := rawPod[4:]
-		log.Print(pod)
+		//log.Print(pod)
 		podWithNamespace := fmt.Sprintf("%v.%v", namespace, pod)
 		pods = append(pods, podWithNamespace)
 	}

@@ -21,7 +21,6 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -126,23 +125,26 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 		file := collectedFile.Path
 		fi, err := os.Stat(filepath.Clean(file))
 		if err != nil {
-			return fmt.Errorf("error while checking path %v with error %v", filepath.Clean(file), err)
-		}
-		if fi.IsDir() {
-			continue
-		}
-		log.Printf("zipping file %v", file)
-		f, err := w.Create(file[len(baseDir):])
-		if err != nil {
-			return err
-		}
-		rf, err := os.Open(filepath.Clean(file))
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(f, rf)
-		if err != nil {
-			return err
+			// log instead of return error to make non-fatal. We might be missing some files in
+			// the archive but as long as we log it, something is better than nothing
+			log.Printf("error while checking path %v with error %v", filepath.Clean(file), err)
+		} else {
+			if fi.IsDir() {
+				continue
+			}
+			log.Printf("zipping file %v", file)
+			f, err := w.Create(file[len(baseDir):])
+			if err != nil {
+				return err
+			}
+			rf, err := os.Open(filepath.Clean(file))
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(f, rf)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

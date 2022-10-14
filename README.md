@@ -97,4 +97,6 @@ Flags:
   -o, --output string                         either a common separated list or a ip range of executors nodes to connect to (default "diag.zip")
   -s, --ssh-key string                        location of ssh key to use to login
   -u, --ssh-user string                       user to use during ssh operations to login
+  -a, --log-age int                           the maximum number of days to go back for log retreival
+  
 ```

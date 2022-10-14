@@ -49,7 +49,7 @@ func TestKubectlExec(t *testing.T) {
 	if len(calls) != 1 {
 		t.Errorf("expected 1 call but got %v", len(calls))
 	}
-	expectedCall := []string{"kubectl", "exec", "-it", "-n", namespace, "-c", "dremio-master-coordinator", podName, "--", "ls", "-l"}
+	expectedCall := []string{"kubectl", "exec", "-n", namespace, "-c", "dremio-master-coordinator", podName, "--", "ls", "-l"}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}
