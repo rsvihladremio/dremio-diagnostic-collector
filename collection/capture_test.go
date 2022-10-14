@@ -149,7 +149,7 @@ func TestFindFiles(t *testing.T) {
 		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
 	}
 
-	expectedArgs := []string{"bash", "-c", "find /opt/file*", "-maxdepth", "3", "-type", "f", "-mtime 5"}
+	expectedArgs := []string{"find", "/opt/file*", "-maxdepth", "3", "-type", "f", "-mtime", "-5"}
 	if !reflect.DeepEqual(calls["args"], expectedArgs) {
 		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
 	}
