@@ -64,10 +64,13 @@ ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key 
 ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator-dremio --executors default:role=executor-dremio --output diag.tar.gz
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+        osHelp := func() error{
+	        return cmd.Help()
+        }
 		osExit := func() {
 			os.Exit(1)
-		}
-		run(cmd, osExit)
+		} 
+		run(osHelp, osExit)
 	},
 }
 
@@ -144,7 +147,7 @@ func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s b
 	return nil
 }
 
-func run(c *cobra.Command, osExit func()) {
+func run(helpFunc func() error, osExit func()) {
 	if sshKeyLoc == "" {
 		sshDefault, err := sshDefault()
 		if err != nil {
@@ -175,7 +178,7 @@ func run(c *cobra.Command, osExit func()) {
 	if err != nil {
 		fmt.Println("COMMAND HELP TEXT:")
 		fmt.Println("")
-		err := c.Help()
+		err := helpFunc()
 		if err != nil {
 			log.Fatalf("unable to print help %v", err)
 		}
