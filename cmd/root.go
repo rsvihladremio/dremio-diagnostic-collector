@@ -64,63 +64,10 @@ ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key 
 ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator-dremio --executors default:role=executor-dremio --output diag.tar.gz
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if sshKeyLoc == "" {
-			sshDefault, err := sshDefault()
-			if err != nil {
-				log.Fatalf("unexpected error getting ssh directory '%v'. This is a critical error and should result in a bug report.", err)
-			}
-			sshKeyLoc = sshDefault
-		}
-		if dremioConfDir == "" {
-			if isK8s {
-				dremioConfDir = "/opt/dremio/conf/..data/"
-			} else {
-				dremioConfDir = "/etc/dremio/"
-			}
-		}
-		logOutput := os.Stdout
-
-		collectionArgs := collection.Args{
-			CoordinatorStr:            coordinatorStr,
-			ExecutorsStr:              executorsStr,
-			OutputLoc:                 filepath.Clean(outputLoc),
-			DremioConfDir:             filepath.Clean(dremioConfDir),
-			DremioLogDir:              filepath.Clean(dremioLogDir),
-			DurationDiagnosticTooling: durationDiagnosticTooling,
-			LogAge:                    logAge,
-		}
-
-		err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
-		if err != nil {
-			fmt.Println("COMMAND HELP TEXT:")
-			fmt.Println("")
-			err := cmd.Help()
-			if err != nil {
-				log.Fatalf("unable to print help %v", err)
-			}
-			fmt.Println("")
-			fmt.Println("")
-			fmt.Printf("Invalid command flag detected: %v\n", err)
-			fmt.Println("")
+		osExit := func() {
 			os.Exit(1)
 		}
-		fmt.Println(getVersion())
-		var collectorStrategy collection.Collector
-		if isK8s {
-			log.Print("using Kubernetes kubectl based collection")
-			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
-		} else {
-			log.Print("using SSH based collection")
-			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
-		}
-		err = collection.Execute(collectorStrategy,
-			logOutput,
-			collectionArgs,
-		)
-
-		if err != nil {
-			log.Fatalf("unexpected error running collection '%v'", err)
-		}
+		run(cmd, osExit)
 	},
 }
 
@@ -195,4 +142,64 @@ func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s b
 		}
 	}
 	return nil
+}
+
+func run(c *cobra.Command, osExit func()) {
+	if sshKeyLoc == "" {
+		sshDefault, err := sshDefault()
+		if err != nil {
+			log.Fatalf("unexpected error getting ssh directory '%v'. This is a critical error and should result in a bug report.", err)
+		}
+		sshKeyLoc = sshDefault
+	}
+	if dremioConfDir == "" {
+		if isK8s {
+			dremioConfDir = "/opt/dremio/conf/..data/"
+		} else {
+			dremioConfDir = "/etc/dremio/"
+		}
+	}
+	logOutput := os.Stdout
+
+	collectionArgs := collection.Args{
+		CoordinatorStr:            coordinatorStr,
+		ExecutorsStr:              executorsStr,
+		OutputLoc:                 filepath.Clean(outputLoc),
+		DremioConfDir:             filepath.Clean(dremioConfDir),
+		DremioLogDir:              filepath.Clean(dremioLogDir),
+		DurationDiagnosticTooling: durationDiagnosticTooling,
+		LogAge:                    logAge,
+	}
+
+	err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
+	if err != nil {
+		fmt.Println("COMMAND HELP TEXT:")
+		fmt.Println("")
+		err := c.Help()
+		if err != nil {
+			log.Fatalf("unable to print help %v", err)
+		}
+		fmt.Println("")
+		fmt.Println("")
+		fmt.Printf("Invalid command flag detected: %v\n", err)
+		fmt.Println("")
+		osExit()
+	}
+	fmt.Println(getVersion())
+	var collectorStrategy collection.Collector
+	if isK8s {
+		log.Print("using Kubernetes kubectl based collection")
+		collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
+	} else {
+		log.Print("using SSH based collection")
+		collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
+	}
+	err = collection.Execute(collectorStrategy,
+		logOutput,
+		collectionArgs,
+	)
+
+	if err != nil {
+		log.Fatalf("unexpected error running collection '%v'", err)
+	}
 }
