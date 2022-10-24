@@ -71,11 +71,19 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			}
 			sshKeyLoc = sshDefault
 		}
+		// Update paths to ensure if run on windows that we still use a forward slash "/"
 		if dremioConfDir == "" {
 			if isK8s {
 				dremioConfDir = "/opt/dremio/conf/..data/"
 			} else {
 				dremioConfDir = "/etc/dremio/"
+			}
+		}
+		if dremioLogDir == "" {
+			if isK8s {
+				dremioConfDir = "/opt/dremio/data/log/"
+			} else {
+				dremioConfDir = "/var/log/dremio/"
 			}
 		}
 		logOutput := os.Stdout
