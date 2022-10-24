@@ -215,7 +215,11 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 		} else {
 			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
 		}
-		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
+
+		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
+		cleanFileName := strings.Replace(fileName, `C:\`, `\`, -1)
+
+		if out, err := c.CopyFromHost(host, isCoordinator, log, cleanFileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,
 				Err:  err,
