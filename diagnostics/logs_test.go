@@ -14,5 +14,5 @@
    limitations under the License.
 */
 
-//diagnostics contains all the commands that run server diagnostics to find problems on the host
+// diagnostics contains all the commands that run server diagnostics to find problems on the host
 package diagnostics

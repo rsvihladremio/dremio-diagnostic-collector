@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//collection package provides the interface for collection implementation and the actual collection execution
+// collection package provides the interface for collection implementation and the actual collection execution
 package collection
 
 import (
