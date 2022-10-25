@@ -215,6 +215,7 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 		} else {
 			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
 		}
+
 		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,

@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -91,8 +92,8 @@ func TestKubectlSearch(t *testing.T) {
 func TestKubectCopyFrom(t *testing.T) {
 	namespace := "testns"
 	podName := "pod"
-	source := "/podroot/test.log"
-	destination := "/mydir/test.log"
+	source := filepath.Join(string(filepath.Separator), "podroot", "test.log")
+	destination := filepath.Join(string(filepath.Separator), "mydir", "test.log")
 	cli := &tests.MockCli{
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
@@ -116,6 +117,41 @@ func TestKubectCopyFrom(t *testing.T) {
 		t.Errorf("expected 1 call but got %v", len(calls))
 	}
 	expectedCall := []string{"kubectl", "cp", "-n", namespace, "-c", "dremio-master-coordinator", fmt.Sprintf("%v:%v", podName, source), destination}
+	if !reflect.DeepEqual(calls[0], expectedCall) {
+		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
+	}
+}
+
+func TestKubectCopyFromWindowsHost(t *testing.T) {
+	namespace := "testns"
+	podName := "pod"
+	source := filepath.Join("podroot", "test.log")
+	destination := filepath.Join("C:", string(filepath.Separator), "mydir", "test.log")
+	cli := &tests.MockCli{
+		StoredResponse: []string{"success"},
+		StoredErrors:   []error{nil},
+	}
+	k := KubectlK8sActions{
+		cli:                  cli,
+		kubectlPath:          "kubectl",
+		coordinatorContainer: "dremio-master-coordinator",
+		executorContainer:    "dremio-executor",
+	}
+	out, err := k.CopyFromHost(fmt.Sprintf("%v.%v", namespace, podName), true, source, destination)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+
+	if out != "success" {
+		t.Errorf("expected success but got %v", out)
+	}
+	calls := cli.Calls
+	if len(calls) != 1 {
+		t.Errorf("expected 1 call but got %v", len(calls))
+	}
+	//we remove the C: due to issue found in https://github.com/kubernetes/kubernetes/issues/77310"
+	expectedDestination := filepath.Join(string(filepath.Separator), "mydir", "test.log")
+	expectedCall := []string{"kubectl", "cp", "-n", namespace, "-c", "dremio-master-coordinator", fmt.Sprintf("%v:%v", podName, source), expectedDestination}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}

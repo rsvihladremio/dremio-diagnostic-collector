@@ -18,8 +18,12 @@
 package collection
 
 import (
+	"bytes"
 	"log"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +86,10 @@ func (m *MockCollector) CopyFromHost(hostString string, isCoordinator bool, sour
 	m.Calls = append(m.Calls, args)
 	response := m.Returns[m.CallCounter]
 	m.CallCounter++
+	if response[1] == nil {
+		return response[0].(string), nil
+
+	}
 	return response[0].(string), response[1].(error)
 }
 func (m *MockCollector) FindHosts(searchTerm string) (podName []string, err error) {
@@ -237,5 +245,49 @@ func TestFindGCLocation(t *testing.T) {
 	expected := "/opt/dremio/data/log/gc.log*"
 	if location != expected {
 		t.Errorf("expected '%v' but was '%v'", expected, location)
+	}
+}
+
+func TestCopyFiles(t *testing.T) {
+	myHost := "pod-big-0"
+	var returnValues [][]interface{}
+	tmpDir := t.TempDir()
+	fileToCopy := "abdc.txt"
+	filesToCopy := filepath.Join(tmpDir, fileToCopy)
+	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0600); err != nil {
+		t.Fatalf("unable to write setup file due to error %v", err)
+	}
+	e := []interface{}{filesToCopy, nil}
+	returnValues = append(returnValues, e)
+	mockCollector := &MockCollector{
+		Returns: returnValues,
+	}
+	var logOutput bytes.Buffer
+	logger := log.New(&logOutput, "TESTER", log.Ldate|log.Ltime|log.Lshortfile)
+	config := HostCaptureConfiguration{
+		Host:                      myHost,
+		IsCoordinator:             false,
+		Logger:                    logger,
+		Collector:                 mockCollector,
+		OutputLocation:            "",
+		DremioConfDir:             "",
+		DremioLogDir:              "",
+		DurationDiagnosticTooling: 0,
+		LogAge:                    5,
+	}
+
+	collectedFiles, failedFiles := copyFiles(config, "/my/local/dir", "/remote/dir", []string{fileToCopy})
+	if len(collectedFiles) != 1 {
+		t.Errorf("expecting to find a file from the copy file but had %v", len(collectedFiles))
+	}
+	if len(failedFiles) != 0 {
+		t.Errorf("expecting to NOT find a file from the failed file list but had %v", len(failedFiles))
+	}
+	if !strings.Contains(logOutput.String(), "INFO: host pod-big-0 copied abdc.txt to "+filepath.Join("pod-big-0", "my", "local", "dir", "abdc.txt")) {
+		t.Errorf("expected to have copied messaged in log but found none '%s'", logOutput.String())
+	}
+
+	if strings.Contains(logOutput.String(), "ERROR") {
+		t.Errorf("expected to have no ERROR in log but found one %s", logOutput.String())
 	}
 }
