@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//package tests provides helper functions and mocks for running tests
+// package tests provides helper functions and mocks for running tests
 package tests
 
 import (
@@ -36,14 +36,14 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 
 	tr, err := zip.OpenReader(zipArchive)
 	if err != nil {
-		t.Fatalf("unexpected error getting opening file %v due to error %v", cleanedExpectedFile, err)
+		t.Fatalf("unexpected error opening zip file %v due to error %v", cleanedExpectedFile, err)
 	}
 	defer tr.Close()
 	var found bool
 	var buf bytes.Buffer
 	for _, f := range tr.File {
 		fmt.Printf("Contents of %s:\n", f.Name)
-		if f.Name == "/"+filepath.Base(cleanedExpectedFile) {
+		if f.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 		}
 		rc, err := f.Open()
@@ -89,9 +89,10 @@ func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
 	if err != nil {
 		t.Fatalf("unexpected error ungziping file %v due to error %v", cleanedExpectedFile, err)
 	}
+	defer f.Close()
 	tr, err := gzip.NewReader(f)
 	if err != nil {
-		t.Fatalf("unexpected error getting opening file %v due to error %v", cleanedExpectedFile, err)
+		t.Fatalf("unexpected error reading gzip format from file %v due to error %v", cleanedExpectedFile, err)
 	}
 	defer tr.Close()
 	var buf bytes.Buffer
@@ -121,11 +122,11 @@ func extraGZip(t *testing.T, gzipArchive string) string {
 	if err != nil {
 		t.Fatalf("unexpected error ungziping file %v due to error %v", cleanedArchiveFile, err)
 	}
+	defer f.Close()
 	tr, err := gzip.NewReader(f)
 	if err != nil {
-		t.Fatalf("unexpected error getting opening file %v due to error %v", cleanedArchiveFile, err)
+		t.Fatalf("unexpected error reading tar.gz file %v due to error %v", cleanedArchiveFile, err)
 	}
-	defer tr.Close()
 	tarFile := filepath.Clean(cleanedArchiveFile + "tar")
 	newFile, err := os.Create(tarFile)
 	if err != nil {
@@ -164,6 +165,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	if err != nil {
 		t.Fatalf("unexpected error untaring file %v due to error %v", archiveFile, err)
 	}
+	defer f.Close()
 
 	tr := tar.NewReader(f)
 	var found bool
@@ -177,7 +179,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 			t.Fatal(err)
 		}
 		fmt.Printf("Contents of %s:\n", hdr.Name)
-		if hdr.Name == "/"+filepath.Base(cleanedExpectedFile) {
+		if hdr.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 		}
 		for {
