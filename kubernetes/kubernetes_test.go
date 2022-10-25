@@ -92,8 +92,8 @@ func TestKubectlSearch(t *testing.T) {
 func TestKubectCopyFrom(t *testing.T) {
 	namespace := "testns"
 	podName := "pod"
-	source := "/podroot/test.log"
-	destination := "/mydir/test.log"
+	source := filepath.Join(string(filepath.Separator), "podroot", "test.log")
+	destination := filepath.Join(string(filepath.Separator), "mydir", "test.log")
 	cli := &tests.MockCli{
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},
