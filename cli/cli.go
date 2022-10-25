@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//package cli provides wrapper support for executing commands, this is so
+// package cli provides wrapper support for executing commands, this is so
 // we can test the rest of the implementations quickly.
 package cli
 
