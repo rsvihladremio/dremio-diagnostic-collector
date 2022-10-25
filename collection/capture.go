@@ -216,17 +216,14 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
 		}
 
-		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
-		cleanFileName := strings.Replace(fileName, `C:`, ``, -1)
-
-		if out, err := c.CopyFromHost(host, isCoordinator, log, cleanFileName); err != nil {
+		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
-				Path: cleanFileName,
+				Path: fileName,
 				Err:  err,
 			})
 			logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
 		} else {
-			fileInfo, err := os.Stat(cleanFileName)
+			fileInfo, err := os.Stat(fileName)
 			//we assume a file size of zero if we are not able to retrieve the file size for some reason
 			size := int64(0)
 			if err != nil {
@@ -238,7 +235,7 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 				Path: fileName,
 				Size: size,
 			})
-			logger.Printf("INFO: host %v copied %v to %v", host, log, cleanFileName)
+			logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
 		}
 	}
 	return collectedFiles, failedFiles
