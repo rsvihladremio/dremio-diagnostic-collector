@@ -23,6 +23,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
@@ -71,11 +72,19 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			}
 			sshKeyLoc = sshDefault
 		}
+		// Update paths to ensure if run on windows that we still use a forward slash "/"
 		if dremioConfDir == "" {
 			if isK8s {
 				dremioConfDir = "/opt/dremio/conf/..data/"
 			} else {
 				dremioConfDir = "/etc/dremio/"
+			}
+		}
+		if dremioLogDir == "" {
+			if isK8s {
+				dremioConfDir = "/opt/dremio/data/log/"
+			} else {
+				dremioConfDir = "/var/log/dremio/"
 			}
 		}
 		logOutput := os.Stdout
@@ -89,6 +98,13 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			DurationDiagnosticTooling: durationDiagnosticTooling,
 			LogAge:                    logAge,
 		}
+
+		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
+		// since https://pkg.go.dev/path/filepath?utm_source=gopls#Clean shows that Clean will replace the slash with OS local seperator
+		confdir := collectionArgs.DremioConfDir
+		logdir := collectionArgs.DremioLogDir
+		collectionArgs.DremioConfDir = strings.Replace(confdir, `\`, `/`, -1)
+		collectionArgs.DremioLogDir = strings.Replace(logdir, `\`, `/`, -1)
 
 		err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
 		if err != nil {
