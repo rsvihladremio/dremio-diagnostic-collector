@@ -38,7 +38,12 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	if err != nil {
 		t.Fatalf("unexpected error opening zip file %v due to error %v", cleanedExpectedFile, err)
 	}
-	defer tr.Close()
+	defer func() {
+		err := tr.Close()
+		if err != nil {
+			t.Logf("WARN: unable to close zip archive due to %v", err)
+		}
+	}()
 	var found bool
 	var buf bytes.Buffer
 	for _, f := range tr.File {
@@ -89,12 +94,22 @@ func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
 	if err != nil {
 		t.Fatalf("unexpected error ungziping file %v due to error %v", cleanedExpectedFile, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Logf("WARN unable to close gzip with error %v", err)
+		}
+	}()
 	tr, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatalf("unexpected error reading gzip format from file %v due to error %v", cleanedExpectedFile, err)
 	}
-	defer tr.Close()
+	defer func() {
+		err := tr.Close()
+		if err != nil {
+			t.Logf("WARN unable to close gzip reader with error %v", err)
+		}
+	}()
 	var buf bytes.Buffer
 	for {
 		_, err := io.CopyN(&buf, tr, 1024)
@@ -122,7 +137,12 @@ func extraGZip(t *testing.T, gzipArchive string) string {
 	if err != nil {
 		t.Fatalf("unexpected error ungziping file %v due to error %v", cleanedArchiveFile, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Logf("WARN unable to close gzip file due to error %v", err)
+		}
+	}()
 	tr, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatalf("unexpected error reading tar.gz file %v due to error %v", cleanedArchiveFile, err)
@@ -135,7 +155,7 @@ func extraGZip(t *testing.T, gzipArchive string) string {
 	defer func() {
 		err = newFile.Close()
 		if err != nil {
-			t.Logf("unable to close %v to due error %v", tarFile, err)
+			t.Logf("WARN unable to close %v to due error %v", tarFile, err)
 		}
 	}()
 
@@ -165,7 +185,12 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	if err != nil {
 		t.Fatalf("unexpected error untaring file %v due to error %v", archiveFile, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Logf("WARN unable to close tar file due to error %v", err)
+		}
+	}()
 
 	tr := tar.NewReader(f)
 	var found bool

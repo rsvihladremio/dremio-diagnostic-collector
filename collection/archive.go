@@ -34,7 +34,12 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	if err != nil {
 		return err
 	}
-	defer tarFile.Close()
+	defer func() {
+		err := tarFile.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", tarFileName, err)
+		}
+	}()
 	// Create a new tar archive.
 	tw := tar.NewWriter(tarFile)
 	defer func() {
@@ -61,7 +66,12 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		if err != nil {
 			return err
 		}
-		defer rf.Close()
+		defer func() {
+			err := rf.Close()
+			if err != nil {
+				log.Printf("unable to close file %v due to error %v", tarFileName, err)
+			}
+		}()
 		hdr := &tar.Header{
 			Name: file[len(baseDir):],
 			Mode: 0600,
@@ -87,7 +97,13 @@ func GZipDiag(zipFileName string, baseDir string, file string) error {
 	if err != nil {
 		return err
 	}
-	defer zipFile.Close()
+	defer func() {
+		err := zipFile.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+
+	}()
 	// Create a new gzip archive.
 	w := gzip.NewWriter(zipFile)
 	defer func() {
@@ -101,7 +117,12 @@ func GZipDiag(zipFileName string, baseDir string, file string) error {
 	if err != nil {
 		return err
 	}
-	defer rf.Close()
+	defer func() {
+		err := rf.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+	}()
 	_, err = io.Copy(w, rf)
 	if err != nil {
 		return err
@@ -115,7 +136,12 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 	if err != nil {
 		return err
 	}
-	defer zipFile.Close()
+	defer func() {
+		err := zipFile.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+	}()
 	// Create a new zip archive.
 	w := zip.NewWriter(zipFile)
 	defer func() {
@@ -137,16 +163,21 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 				continue
 			}
 			log.Printf("zipping file %v", file)
-			f, err := w.Create(file[len(baseDir):])
+			fileWithoutDir := file[len(baseDir):]
+			f, err := w.Create(fileWithoutDir)
 			if err != nil {
 				return err
 			}
-			//defer f.Close()
 			rf, err := os.Open(filepath.Clean(file))
 			if err != nil {
 				return err
 			}
-			defer rf.Close()
+			defer func() {
+				err := rf.Close()
+				if err != nil {
+					log.Printf("WARN unable to close file %v due to error %v", file, err)
+				}
+			}()
 			_, err = io.Copy(f, rf)
 			if err != nil {
 				return err
