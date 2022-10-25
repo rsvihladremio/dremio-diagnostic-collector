@@ -255,7 +255,7 @@ func TestCopyFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	fileToCopy := "abdc.txt"
 	filesToCopy := filepath.Join(tmpDir, fileToCopy)
-	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0755); err != nil {
+	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0600); err != nil {
 		t.Fatalf("unable to write setup file due to error %v", err)
 	}
 	e := []interface{}{filesToCopy, nil}
@@ -300,7 +300,7 @@ func TestCopyFilesWhenCColonIsUsed(t *testing.T) {
 	tmpDir := t.TempDir()
 	fileToCopy := "abdc.txt"
 	filesToCopy := filepath.Join(tmpDir, fileToCopy)
-	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0755); err != nil {
+	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0600); err != nil {
 		t.Fatalf("unable to write setup file due to error %v", err)
 	}
 	e := []interface{}{filesToCopy, nil}
