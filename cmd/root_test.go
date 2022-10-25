@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//cmd package contains all the command line flag and initialization logic for commands
+// cmd package contains all the command line flag and initialization logic for commands
 package cmd
 
 import (

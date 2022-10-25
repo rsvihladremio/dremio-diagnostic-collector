@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//ssh package provides functions for collections of logs via scp and ssh
+// ssh package provides functions for collections of logs via scp and ssh
 package ssh
 
 import (
@@ -32,7 +32,7 @@ func NewCmdSSHActions(sshKey, sshUser string) *CmdSSHActions {
 	}
 }
 
-//CmdSSHActions depends on the scp and ssh programs being present and
+// CmdSSHActions depends on the scp and ssh programs being present and
 // then assumes ssh public key auth is in place since it has no support for using
 // password based authentication
 type CmdSSHActions struct {

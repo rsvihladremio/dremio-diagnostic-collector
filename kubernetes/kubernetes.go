@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//kubernetes package provides access to log collections on k8s
+// kubernetes package provides access to log collections on k8s
 package kubernetes
 
 import (
@@ -35,7 +35,7 @@ func NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer s
 	}
 }
 
-//KubectlK8sActions provides a way to collect and copy files using kubectl
+// KubectlK8sActions provides a way to collect and copy files using kubectl
 type KubectlK8sActions struct {
 	cli                  cli.CmdExecutor
 	kubectlPath          string

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//main is the standard go entry point for the application
+// main is the standard go entry point for the application
 package main
 
 import "github.com/rsvihladremio/dremio-diagnostic-collector/cmd"
