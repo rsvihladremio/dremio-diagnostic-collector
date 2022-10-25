@@ -19,6 +19,7 @@ package cli
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -26,11 +27,19 @@ import (
 func TestCli(t *testing.T) {
 
 	c := Cli{}
-	out, err := c.Execute("ls", "-a", filepath.Join("testdata", "ls"))
+	var err error
+	var out string
+	var expectedOut string
+	if runtime.GOOS == "windows" {
+		out, err = c.Execute("cmd.exe", "/c", "dir", "/B", filepath.Join("testdata", "ls"))
+		expectedOut = "file1\r\nfile2\r\n"
+	} else {
+		out, err = c.Execute("ls", "-a", filepath.Join("testdata", "ls"))
+		expectedOut = "file1\nfile2\n"
+	}
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	expectedOut := "file1\nfile2\n"
 	// have to use contains because we are getting some extra output
 	if !strings.Contains(out, expectedOut) {
 		t.Errorf("expected %q but was %q", expectedOut, out)
@@ -40,11 +49,19 @@ func TestCli(t *testing.T) {
 func TestCliWithNoArgsForTheCommand(t *testing.T) {
 
 	c := Cli{}
-	out, err := c.Execute("ls")
+	var err error
+	var out string
+	var expectedOut string
+	if runtime.GOOS == "windows" {
+		out, err = c.Execute("cmd.exe")
+		expectedOut = "Microsoft"
+	} else {
+		out, err = c.Execute("ls")
+		expectedOut = "cli.go"
+	}
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	expectedOut := "cli.go"
 	// have to use contains because we are getting some extra output
 	if !strings.Contains(out, expectedOut) {
 		t.Errorf("expected %q but was %q", expectedOut, out)
