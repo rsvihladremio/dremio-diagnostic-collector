@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//package tests provides helper functions and mocks for running tests
+// package tests provides helper functions and mocks for running tests
 package tests
 
 type MockCli struct {

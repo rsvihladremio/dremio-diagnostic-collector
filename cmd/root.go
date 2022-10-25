@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//cmd package contains all the command line flag and initialization logic for commands
+// cmd package contains all the command line flag and initialization logic for commands
 package cmd
 
 import (
@@ -47,8 +47,8 @@ var logAge int
 var GitSha = "unknown"
 var Version = "dev"
 
-//var isEmbeddedK8s bool
-//var isEmbeddedSSH bool
+// var isEmbeddedK8s bool
+// var isEmbeddedSSH bool
 func getVersion() string {
 	return fmt.Sprintf("ddc %v-%v\n", Version, GitSha)
 }

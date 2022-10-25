@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-//collection package provides the interface for collection implementation and the actual collection execution
+// collection package provides the interface for collection implementation and the actual collection execution
 package collection
 
 import (
@@ -217,16 +217,16 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 		}
 
 		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
-		cleanFileName := strings.Replace(fileName, `C:\`, `\`, -1)
+		cleanFileName := strings.Replace(fileName, `C:`, ``, -1)
 
 		if out, err := c.CopyFromHost(host, isCoordinator, log, cleanFileName); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
-				Path: fileName,
+				Path: cleanFileName,
 				Err:  err,
 			})
 			logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
 		} else {
-			fileInfo, err := os.Stat(fileName)
+			fileInfo, err := os.Stat(cleanFileName)
 			//we assume a file size of zero if we are not able to retrieve the file size for some reason
 			size := int64(0)
 			if err != nil {
@@ -238,7 +238,7 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 				Path: fileName,
 				Size: size,
 			})
-			logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
+			logger.Printf("INFO: host %v copied %v to %v", host, log, cleanFileName)
 		}
 	}
 	return collectedFiles, failedFiles
@@ -281,7 +281,7 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 	return foundFiles, nil
 }
 
-//findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
+// findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
 func findGCLogLocation(conf HostCaptureConfiguration) (gcLogLoc string, err error) {
 	if conf.GCLogOverride != "" {
 		return conf.GCLogOverride + "*", nil
@@ -306,7 +306,7 @@ func findGCLogLocation(conf HostCaptureConfiguration) (gcLogLoc string, err erro
 	return logLocation + "*", nil
 }
 
-//ListJavaProcessPids uses jcmd to list the processes running on the jvm
+// ListJavaProcessPids uses jcmd to list the processes running on the jvm
 func ListJavaProcessPids(conf HostCaptureConfiguration) (pidList string, err error) {
 	host := conf.Host
 	collector := conf.Collector
@@ -318,7 +318,7 @@ func ListJavaProcessPids(conf HostCaptureConfiguration) (pidList string, err err
 	return out, nil
 }
 
-//GetDremioPID loops through the output of jcmd -l and finds the dremio pid
+// GetDremioPID loops through the output of jcmd -l and finds the dremio pid
 func GetDremioPID(pidList string) (pid int, err error) {
 	for _, line := range strings.Split(pidList, "\n") {
 		if strings.HasSuffix(strings.TrimSpace(line), "com.dremio.dac.daemon.DremioDaemon") {
@@ -332,7 +332,7 @@ func GetDremioPID(pidList string) (pid int, err error) {
 	return -1, fmt.Errorf("unable to find process 'com.dremio.dac.daemon.DremioDaemon' inside '%v'", pidList)
 }
 
-//GetStartupFlags uses jcmd to get the startup parameters for a given pid
+// GetStartupFlags uses jcmd to get the startup parameters for a given pid
 func GetStartupFlags(conf HostCaptureConfiguration, pid int) (flags string, err error) {
 	host := conf.Host
 	collector := conf.Collector
