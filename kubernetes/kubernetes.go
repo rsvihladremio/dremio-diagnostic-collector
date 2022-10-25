@@ -60,14 +60,17 @@ func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, a
 }
 
 func (c *KubectlK8sActions) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error) {
+	fmt.Println(destination)
 	if strings.HasPrefix(destination, `C:`) {
 		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
 		//only replace once because more doesn't make sense
 		destination = strings.Replace(destination, `C:`, ``, 1)
 	}
+	fmt.Println(destination)
 	tokens := strings.Split(hostString, ".")
 	namespace := tokens[0]
 	podName := tokens[1]
+	fmt.Println(destination)
 	return c.cli.Execute(c.kubectlPath, "cp", "-n", namespace, "-c", c.getContainerName(isCoordinator), fmt.Sprintf("%v:%v", podName, source), destination)
 }
 

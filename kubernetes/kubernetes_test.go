@@ -126,7 +126,7 @@ func TestKubectCopyFromWindowsHost(t *testing.T) {
 	namespace := "testns"
 	podName := "pod"
 	source := filepath.Join("podroot", "test.log")
-	destination := filepath.Join("C:", "mydir", "test.log")
+	destination := filepath.Join("C:", string(filepath.Separator), "mydir", "test.log")
 	cli := &tests.MockCli{
 		StoredResponse: []string{"success"},
 		StoredErrors:   []error{nil},

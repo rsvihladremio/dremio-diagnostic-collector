@@ -283,7 +283,7 @@ func TestCopyFiles(t *testing.T) {
 	if len(failedFiles) != 0 {
 		t.Errorf("expecting to NOT find a file from the failed file list but had %v", len(failedFiles))
 	}
-	if !strings.Contains(logOutput.String(), "INFO: host pod-big-0 copied abdc.txt to pod-big-0/my/local/dir/abdc.txt") {
+	if !strings.Contains(logOutput.String(), "INFO: host pod-big-0 copied abdc.txt to "+filepath.Join("pod-big-0", "my", "local", "dir", "abdc.txt")) {
 		t.Errorf("expected to have copied messaged in log but found none '%s'", logOutput.String())
 	}
 
