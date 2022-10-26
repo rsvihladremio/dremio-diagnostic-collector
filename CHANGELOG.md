@@ -1,6 +1,14 @@
 # Changelog
 
-# Changelog
+## [0.1.4] - 2022-10-26
+### Added
+- testing for windows environments
+### Fixed
+- newer version of golang ci
+- moved errors to defer calls
+- running ddc from windows sent the wrong path seperator to pods
+- running ddc from windows causes syntaxual issues with drive letter notation
+
 
 ## [0.1.3] - 2022-10-14
 ### Added
