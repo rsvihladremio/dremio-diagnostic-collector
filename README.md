@@ -94,7 +94,7 @@ Flags:
   -h, --help                                  help for ddc
   -k, --k8s                                   use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags
   -p, --kubectl-path string                   where to find kubectl (default "kubectl")
-  -o, --output string                         either a common separated list or a ip range of executors nodes to connect to (default "diag.zip")
+  -o, --output string                         filename of the resulting archived (tar) and compressed (gzip) file (default "diag.tgz")
   -s, --ssh-key string                        location of ssh key to use to login
   -u, --ssh-user string                       user to use during ssh operations to login
   -a, --log-age int                           the maximum number of days to go back for log retreival
