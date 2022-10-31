@@ -20,10 +20,13 @@ package collection
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
 )
+
+var expectedOutput string
 
 func TestZip(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -56,7 +59,11 @@ func TestZip(t *testing.T) {
 			Size: fi.Size(),
 		},
 	})
-	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open " + fakePath + ": The system cannot find the path specified."
+	} else {
+		expectedOutput = "open " + fakePath + ": no such file or directory"
+	}
 	if err.Error() != expectedOutput {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
 	}
@@ -93,7 +100,11 @@ func TestTar(t *testing.T) {
 			Size: fi.Size(),
 		},
 	})
-	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open " + fakePath + ": The system cannot find the path specified."
+	} else {
+		expectedOutput = "open " + fakePath + ": no such file or directory"
+	}
 	if err.Error() != expectedOutput {
 		t.Fatalf("unexpected error taring file %v due to error %v", testFile, err)
 	}
@@ -118,7 +129,11 @@ func TestGZip(t *testing.T) {
 
 	fakePath := tmpDir + "/does-not-exist/test.gzip"
 	err = GZipDiag(fakePath, tmpDir, testFile)
-	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if runtime.GOOS == "windows" {
+		expectedOutput = "open " + fakePath + ": The system cannot find the path specified."
+	} else {
+		expectedOutput = "open " + fakePath + ": no such file or directory"
+	}
 	if err.Error() != expectedOutput {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
 	}
