@@ -48,6 +48,19 @@ func TestZip(t *testing.T) {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
 	}
 	tests.ZipContainsFile(t, testFile, archiveFile)
+
+	fakePath := tmpDir + "/does-not-exist/test.zip"
+	err = ZipDiag(fakePath, tmpDir, []CollectedFile{
+		{
+			Path: testFile,
+			Size: fi.Size(),
+		},
+	})
+	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if err.Error() != expectedOutput {
+		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
+	}
+
 }
 
 func TestTar(t *testing.T) {
@@ -72,6 +85,19 @@ func TestTar(t *testing.T) {
 		t.Fatalf("unexpected error taring file %v due to error %v", testFile, err)
 	}
 	tests.TarContainsFile(t, testFile, archiveFile)
+
+	fakePath := tmpDir + "/does-not-exist/test.tar"
+	err = TarDiag(fakePath, tmpDir, []CollectedFile{
+		{
+			Path: testFile,
+			Size: fi.Size(),
+		},
+	})
+	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if err.Error() != expectedOutput {
+		t.Fatalf("unexpected error taring file %v due to error %v", testFile, err)
+	}
+
 }
 
 func TestGZip(t *testing.T) {
@@ -89,4 +115,11 @@ func TestGZip(t *testing.T) {
 	}
 
 	tests.GzipContainsFile(t, testFile, archiveFile)
+
+	fakePath := tmpDir + "/does-not-exist/test.gzip"
+	err = GZipDiag(fakePath, tmpDir, testFile)
+	expectedOutput := "open " + fakePath + ": no such file or directory"
+	if err.Error() != expectedOutput {
+		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
+	}
 }
