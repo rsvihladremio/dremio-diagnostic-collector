@@ -101,7 +101,7 @@ func TestTar(t *testing.T) {
 		},
 	})
 	if runtime.GOOS == "windows" {
-		expectedOutput = "open " + filepath.Clean(fakePath) + ": The system cannot find the path specified"
+		expectedOutput = "open " + filepath.Clean(fakePath) + ": The system cannot find the path specified."
 	} else {
 		expectedOutput = "open " + filepath.Clean(fakePath) + ": no such file or directory"
 	}
