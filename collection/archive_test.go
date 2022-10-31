@@ -65,7 +65,7 @@ func TestZip(t *testing.T) {
 		expectedOutput = "open " + fakePath + ": no such file or directory"
 	}
 	if err.Error() != expectedOutput {
-		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
+		t.Fatalf("unmatched error response\nexpected: %v\nresponse: %v", expectedOutput, err)
 	}
 
 }
@@ -101,12 +101,12 @@ func TestTar(t *testing.T) {
 		},
 	})
 	if runtime.GOOS == "windows" {
-		expectedOutput = "open " + fakePath + ": The system cannot find the path specified."
+		expectedOutput = "open " + fakePath + ": The system cannot find the path specified"
 	} else {
 		expectedOutput = "open " + fakePath + ": no such file or directory"
 	}
 	if err.Error() != expectedOutput {
-		t.Fatalf("unexpected error taring file %v due to error %v", testFile, err)
+		t.Fatalf("unmatched error response\nexpected: %v\nresponse: %v", expectedOutput, err)
 	}
 
 }
@@ -135,6 +135,6 @@ func TestGZip(t *testing.T) {
 		expectedOutput = "open " + fakePath + ": no such file or directory"
 	}
 	if err.Error() != expectedOutput {
-		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
+		t.Fatalf("unmatched error response\nexpected: %v\nresponse: %v", expectedOutput, err)
 	}
 }
