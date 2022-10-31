@@ -176,7 +176,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&executorsStr, "executors", "e", "", "either a common separated list or a ip range of executors nodes to connect to")
 	rootCmd.Flags().StringVarP(&sshKeyLoc, "ssh-key", "s", "", "location of ssh key to use to login")
 	rootCmd.Flags().StringVarP(&sshUser, "ssh-user", "u", "", "user to use during ssh operations to login")
-	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.zip", "either a common separated list or a ip range of executors nodes to connect to")
+	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.tgz", "filename of the resulting archived (tar) and compressed (gzip) file")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
