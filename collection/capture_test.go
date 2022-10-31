@@ -248,6 +248,37 @@ func TestFindGCLocation(t *testing.T) {
 	}
 }
 
+func TestGcLogOverride(t *testing.T) {
+	expectedOutput := "/opt/dremio/gclogs"
+	var returnValues [][]interface{}
+	e := []interface{}{expectedOutput, nil}
+	returnValues = append(returnValues, e)
+	mockCollector := &MockCollector{
+		Returns: returnValues,
+	}
+	myHost := "thishost"
+	conf := HostCaptureConfiguration{
+		Logger:                    &log.Logger{},
+		IsCoordinator:             false,
+		Collector:                 mockCollector,
+		Host:                      myHost,
+		OutputLocation:            "",
+		DremioConfDir:             "",
+		DremioLogDir:              "",
+		DurationDiagnosticTooling: 0,
+		LogAge:                    5,
+		GCLogOverride:             "/opt/dremio/gclogs",
+	}
+	location, err := findGCLogLocation(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := "/opt/dremio/gclogs"
+	if location != expected {
+		t.Errorf("expected '%v' but was '%v'", expected, location)
+	}
+}
+
 func TestCopyFiles(t *testing.T) {
 	myHost := "pod-big-0"
 	var returnValues [][]interface{}
@@ -290,4 +321,5 @@ func TestCopyFiles(t *testing.T) {
 	if strings.Contains(logOutput.String(), "ERROR") {
 		t.Errorf("expected to have no ERROR in log but found one %s", logOutput.String())
 	}
+
 }

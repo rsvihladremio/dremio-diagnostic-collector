@@ -44,6 +44,8 @@ type Args struct {
 	OutputLoc                 string
 	DremioConfDir             string
 	DremioLogDir              string
+	DremioGcDir               string
+	GCLogOverride             string
 	DurationDiagnosticTooling int
 	LogAge                    int
 }
@@ -55,6 +57,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	outputLoc := collectionArgs.OutputLoc
 	dremioConfDir := collectionArgs.DremioConfDir
 	dremioLogDir := collectionArgs.DremioLogDir
+	dremioGcDir := collectionArgs.GCLogOverride
 	logAge := collectionArgs.LogAge
 
 	outputDir, err := os.MkdirTemp("", "*")
@@ -103,6 +106,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				OutputLocation:            coordinatorDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
+				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
 			}
@@ -131,6 +135,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				OutputLocation:            executorDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
+				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
 			}

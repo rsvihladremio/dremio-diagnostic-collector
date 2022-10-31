@@ -281,7 +281,7 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 // findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
 func findGCLogLocation(conf HostCaptureConfiguration) (gcLogLoc string, err error) {
 	if conf.GCLogOverride != "" {
-		return conf.GCLogOverride + "*", nil
+		return conf.GCLogOverride, nil
 	}
 	pidList, err := ListJavaProcessPids(conf)
 	if err != nil {
