@@ -33,6 +33,7 @@ import (
 
 var dremioConfDir string
 var dremioLogDir string
+var dremioGcDir string
 var coordinatorContainer string
 var executorsContainer string
 var coordinatorStr string
@@ -95,6 +96,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			OutputLoc:                 filepath.Clean(outputLoc),
 			DremioConfDir:             filepath.Clean(dremioConfDir),
 			DremioLogDir:              filepath.Clean(dremioLogDir),
+			GCLogOverride:             filepath.Clean(dremioGcDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
 			LogAge:                    logAge,
 		}
@@ -183,6 +185,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
 	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
 	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)")
+	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
+
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
