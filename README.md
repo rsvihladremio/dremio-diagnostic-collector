@@ -78,7 +78,7 @@ examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator-dremio --executors default:role=executor-dremio --output diag.tar.gz
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator --executors default:app=dremio-executor --output diag.tar.gz
 
 Usage:
   ddc [flags]
