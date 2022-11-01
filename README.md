@@ -83,21 +83,25 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 Usage:
   ddc [flags]
 
+Usage:
+  ddc [flags]
+
 Flags:
   -c, --coordinator string                    coordinator node to connect to for collection
       --coordinator-container string          for use with -k8s flag: sets the container name to use to retrieve logs in the coordinators (default "dremio-master-coordinator")
   -d, --diag-tooling-collection-seconds int   the duration to run diagnostic collection tools like iostat, jstack etc (default 60)
   -C, --dremio-conf-dir string                directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/
+  -g, --dremio-gc-dir string                  directory where to find the GC logs (default "/var/log/dremio")
   -l, --dremio-log-dir string                 directory where to find the logs (default "/var/log/dremio")
   -e, --executors string                      either a common separated list or a ip range of executors nodes to connect to
       --executors-container string            for use with -k8s flag: sets the container name to use to retrieve logs in the executors (default "dremio-executor")
   -h, --help                                  help for ddc
   -k, --k8s                                   use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags
   -p, --kubectl-path string                   where to find kubectl (default "kubectl")
-  -o, --output string                         filename of the resulting archived (tar) and compressed (gzip) file (default "diag.tgz")
+  -a, --log-age int                           the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)
+  -o, --output string                         either a common separated list or a ip range of executors nodes to connect to (default "diag.zip")
   -s, --ssh-key string                        location of ssh key to use to login
   -u, --ssh-user string                       user to use during ssh operations to login
-  -a, --log-age int                           the maximum number of days to go back for log retreival
   
 ```
 
