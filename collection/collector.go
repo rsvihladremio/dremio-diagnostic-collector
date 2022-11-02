@@ -48,6 +48,8 @@ type Args struct {
 	GCLogOverride             string
 	DurationDiagnosticTooling int
 	LogAge                    int
+	JfrEnable                 int
+	SudoUser                  string
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -59,6 +61,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	dremioLogDir := collectionArgs.DremioLogDir
 	dremioGcDir := collectionArgs.GCLogOverride
 	logAge := collectionArgs.LogAge
+	jfrEnable := collectionArgs.JfrEnable
+	sudoUser := collectionArgs.SudoUser
 
 	outputDir, err := os.MkdirTemp("", "*")
 	if err != nil {
@@ -109,6 +113,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
+				JfrEnable:                 jfrEnable,
+				SudoUser:                  sudoUser,
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -138,6 +144,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
+				JfrEnable:                 jfrEnable,
+				SudoUser:                  sudoUser,
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()

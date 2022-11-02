@@ -45,6 +45,8 @@ var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
 var logAge int
+var jfrEnable int
+var sudoUser string
 var GitSha = "unknown"
 var Version = "dev"
 
@@ -63,7 +65,7 @@ examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator-dremio --executors default:role=executor-dremio --output diag.tar.gz
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator-dremio --executors default:app=dremio-executor --output diag.tar.gz
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sshKeyLoc == "" {
@@ -99,6 +101,8 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:role=coordinator
 			GCLogOverride:             filepath.Clean(dremioGcDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
 			LogAge:                    logAge,
+			JfrEnable:                 jfrEnable,
+			SudoUser:                  sudoUser,
 		}
 
 		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
@@ -186,6 +190,8 @@ func init() {
 	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
 	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)")
 	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
+	rootCmd.Flags().IntVarP(&jfrEnable, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
+	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
