@@ -39,7 +39,7 @@ type HostCaptureConfiguration struct {
 	DurationDiagnosticTooling int
 	GCLogOverride             string
 	LogAge                    int
-	JfrEnable                 int
+	jfrduration               int
 	SudoUser                  string
 }
 
@@ -59,7 +59,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	dremioLogDir := conf.DremioLogDir
 	logger := conf.Logger
 	logAge := conf.LogAge
-	jfrEnable := conf.JfrEnable
+	jfrduration := conf.jfrduration
 
 	err := setupDiagDir(conf)
 	if err != nil {
@@ -70,7 +70,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf)
 
 	// Trigger a JFR if it is required
-	if jfrEnable > 0 {
+	if jfrduration > 0 {
 		captureJFR(conf)
 	}
 	files = append(files, capturedDiagnosticFiles...)
@@ -190,7 +190,7 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 	//outputLoc := conf.OutputLocation
 	isCoordinator := conf.IsCoordinator
 	logger := conf.Logger
-	jfrDuration := conf.JfrEnable
+	jfrDuration := conf.jfrduration
 	sudoUser := conf.SudoUser
 
 	// run jfr against the host:
@@ -225,8 +225,14 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 				pid = l[0]
 			}
 		}
+		// Check for a running JFR
+		err := checkJfr(conf, pid)
+		if err != nil {
+			return err
+		}
 		// non sudo user (typically with k8s) will have jcmd access
 		// sudo access is more typically needed with on-prem installs (ssh)
+		logger.Printf("INFO: starting JFR on host %v for %v seconds for pid %v", host, jfrDuration, pid)
 		if sudoUser == "" {
 			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnable(pid)...)
 			if err != nil {
@@ -250,6 +256,48 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 		}
 	}
 	return err
+}
+
+// Checks there are no existing JFRs running under the given PID
+// Although it is possible to run multiple JFRs, it isnt a good idea
+// from this tool, in case a customer unintentionally started several
+// and potentially ran into problems.
+func checkJfr(conf HostCaptureConfiguration, pid string) error {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	logger := conf.Logger
+	sudoUser := conf.SudoUser
+
+	logger.Printf("INFO: checking host %v for existing JFRs", host)
+	// non sudo user (typically with k8s) will have jcmd access
+	// sudo access is more typically needed with on-prem installs (ssh)
+	if sudoUser == "" {
+		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheck(pid)...)
+		if err != nil {
+			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
+		} else {
+			resp := strings.Split(o, "\n")
+			for _, line := range resp {
+				if strings.Contains(line, "Recording") {
+					return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
+				}
+			}
+		}
+	} else {
+		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheckSudo(sudoUser, pid)...)
+		if err != nil {
+			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
+		} else {
+			resp := strings.Split(o, "\n")
+			for _, line := range resp {
+				if strings.Contains(line, "Recording") {
+					return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // setupDiagDir creates all necessary subfolders for the host subfolder in the diag tarball

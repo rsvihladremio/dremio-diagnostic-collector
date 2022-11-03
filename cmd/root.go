@@ -45,7 +45,7 @@ var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
 var logAge int
-var jfrEnable int
+var jfrduration int
 var sudoUser string
 var GitSha = "unknown"
 var Version = "dev"
@@ -101,7 +101,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			GCLogOverride:             filepath.Clean(dremioGcDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
 			LogAge:                    logAge,
-			JfrEnable:                 jfrEnable,
+			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
 		}
 
@@ -190,7 +190,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
 	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)")
 	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
-	rootCmd.Flags().IntVarP(&jfrEnable, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
+	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 
 	// TODO implement embedded k8s and ssh support using go libs
