@@ -7,45 +7,18 @@
 
 collect logs of dremio for analysis
 
-## Install
 
-[Binaries are here](https://github.com/rsvihladremio/dremio-diagnostic-collector/releases)
+## Quick Start
 
-### Mac
-
-Use hombrew
-
-```sh
-brew tap rsvihladremio/ddc
-brew install ddc
-```
-
-### Linux
-
-Use shell script
+On Linux, Mac and WSL run the following script
 
 ```sh
 /bin/bash -c "$(curl https://raw.githubusercontent.com/rsvihladremio/dremio-diagnostic-collector/main/script/install)"
 ```
 
-### Windows
+For all other platforms consult the [installation options](docs/install.md)
 
-Use powershell script
-
-```pwsh
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser # Optional: Needed to run a remote script the first time
-irm https://raw.githubusercontent.com/rsvihladremio/dremio-diagnostic-collector/main/script/install.ps1  | iex 
-```
-## Collection
-
-As of the today the following is collected
-
-* All top level logs in the specified log folder which is the -l or the --dremio-log-dir flag
-* All top level conf files in the specified conf folder which is the -C or --dremio-conf-dir flag
-* iostat diagnostic if it is available
-* flight recorder (jrf) if required
-
-### To collect from Kubernetes deployed clusters
+### dremio on k8s
 
 Just need to specify the namespace and labels of the coordinators and the executors, next you can specify an output file with -o flag
 .tgz, .zip, and .tar.gz are supported
@@ -54,18 +27,25 @@ Just need to specify the namespace and labels of the coordinators and the execut
 /bin/ddc -k -e default:app=dremio-executor -c default:app=dremio-coordinator -o ~/Downloads/k8s-diag.tgz
 ```
 
-### To collect from on-prem
+If you have issues consult the [k8s docs](docs/k8s.md)
 
-This feature relies in ssh and [ssh public authentication](https://www.ssh.com/academy/ssh/public-key-authentication).
-This is well documented in [Windows](https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement),
-[Linux](https://www.redhat.com/sysadmin/key-based-authentication-ssh), and [Mac](https://www.linode.com/docs/guides/connect-to-server-over-ssh-on-mac/)
+### dremio on prem
 
-You must specify a --ssh-user and an -ssh-key the key must be configured to access the servers and not require a prompt to use (if encrypted using ssh agent will allow it to work).
-The -e and -c flags will take a comma separated list of hosts
+specific executors that you want to collect from with the -e flag and coordinators with the -c flag. Specify ssh user, and ssh key to use.
 
 ```sh
 /bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
 ```
+
+If you have issues consult the [ssh docs](docs/ssh.md)
+
+## What is collected?
+
+As of the today the following is collected
+
+* All top level logs in the specified log folder which is the -l or the --dremio-log-dir flag
+* All top level conf files in the specified conf folder which is the -C or --dremio-conf-dir flag
+* iostat diagnostic if it is available
 
 ### A note on JFRs
 
@@ -79,9 +59,7 @@ The help is pretty straight forward and comes with examples
 
 ```sh
 ddc -h
-COMMAND HELP TEXT:
-
-ddc jfr-additions-260d353
+ 
 ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
@@ -110,82 +88,8 @@ Flags:
   -s, --ssh-key string                        location of ssh key to use to login
   -u, --ssh-user string                       user to use during ssh operations to login
   -b, --sudo-user string                      if any diagnostcs commands need a sudo user (i.e. for jcmd)
-
+ 
 ```
 
 
-## Developing
-
-On Linux, Mac, and WSL there are some shell scripts modeled off the [GitHub ones](https://github.com/github/scripts-to-rule-them-all)
-
-to get started run
-
-```sh
-./script/bootstrap
-```
-
-after a pull it is a good idea to run
-
-```sh
-./script/update
-```
-
-tests
-
-```sh
-./script/test
-```
-
-before checkin run
-
-```sh
-./script/cibuild
-```
-
-to cut a release do the following
-
-```sh
-#dont forget to update changelog.md with the release notes
-git tag v0.1.1
-git push origin v0.1.1
-./script/release v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
-### Windows
-Similarly on Windows there are powershell scripts of the same design
-
-to get started run
-
-```powershell
-.\script\bootstrap.ps1
-```
-
-after a pull it is a good idea to run
-
-```powershell
-.\script\update.ps1
-```
-
-tests
-
-```powershell
-.\script\test.ps1
-```
-
-before checkin run
-
-```powershell
-.\script\cibuild.ps1
-```
-
-to cut a release do the following
-
-```powershell
-#dont forget to update changelog.md with the release notes
-git tag v0.1.1
-.\script\release.ps1 v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
 
