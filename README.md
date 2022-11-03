@@ -7,35 +7,38 @@
 
 collect logs of dremio for analysis
 
-## Install
 
-[Binaries are here](https://github.com/rsvihladremio/dremio-diagnostic-collector/releases)
+## Quick Start
 
-### Mac
-
-Use hombrew
-
-```sh
-brew tap rsvihladremio/ddc
-brew install ddc
-```
-
-### Linux
-
-Use shell script
+On Linux, Mac and WSL run the following script
 
 ```sh
 /bin/bash -c "$(curl https://raw.githubusercontent.com/rsvihladremio/dremio-diagnostic-collector/main/script/install)"
 ```
 
-### Windows
+For all other platforms consult the [installation options](docs/install.md)
 
-Use powershell script
+### dremio on k8s
 
-```pwsh
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser # Optional: Needed to run a remote script the first time
-irm https://raw.githubusercontent.com/rsvihladremio/dremio-diagnostic-collector/main/script/install.ps1  | iex 
+Just need to specify the namespace and labels of the coordinators and the executors, next you can specify an output file with -o flag
+.tgz, .zip, and .tar.gz are supported
+
+```sh
+/bin/ddc -k -e default:app=dremio-executor -c default:app=dremio-coordinator -o ~/Downloads/k8s-diag.tgz
 ```
+
+If you have issues consult the [k8s docs](docs/k8s.md)
+
+### dremio on prem
+
+specific executors that you want to collect from with the -e flag and coordinators with the -c flag. Specify ssh user, and ssh key to use.
+
+```sh
+/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
+```
+
+If you have issues consult the [ssh docs](docs/ssh.md)
+
 ## Collection
 
 As of the today the following is collected
@@ -106,78 +109,4 @@ Flags:
 ```
 
 
-## Developing
-
-On Linux, Mac, and WSL there are some shell scripts modeled off the [GitHub ones](https://github.com/github/scripts-to-rule-them-all)
-
-to get started run
-
-```sh
-./script/bootstrap
-```
-
-after a pull it is a good idea to run
-
-```sh
-./script/update
-```
-
-tests
-
-```sh
-./script/test
-```
-
-before checkin run
-
-```sh
-./script/cibuild
-```
-
-to cut a release do the following
-
-```sh
-#dont forget to update changelog.md with the release notes
-git tag v0.1.1
-git push origin v0.1.1
-./script/release v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
-### Windows
-Similarly on Windows there are powershell scripts of the same design
-
-to get started run
-
-```powershell
-.\script\bootstrap.ps1
-```
-
-after a pull it is a good idea to run
-
-```powershell
-.\script\update.ps1
-```
-
-tests
-
-```powershell
-.\script\test.ps1
-```
-
-before checkin run
-
-```powershell
-.\script\cibuild.ps1
-```
-
-to cut a release do the following
-
-```powershell
-#dont forget to update changelog.md with the release notes
-git tag v0.1.1
-.\script\release.ps1 v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
 
