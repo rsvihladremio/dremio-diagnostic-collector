@@ -43,6 +43,7 @@ As of the today the following is collected
 * All top level logs in the specified log folder which is the -l or the --dremio-log-dir flag
 * All top level conf files in the specified conf folder which is the -C or --dremio-conf-dir flag
 * iostat diagnostic if it is available
+* flight recorder (jrf) if required
 
 ### To collect from Kubernetes deployed clusters
 
@@ -66,22 +67,27 @@ The -e and -c flags will take a comma separated list of hosts
 /bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
 ```
 
+### A note on JFRs
+
+Java flight recorder will run on nodes that have a compatible JDK installed. Although it is possible to invoke multiple JFRs on a JVM, this tool checks for existing JFRs before triggering a new one. This is to avoid users unintentionally spawning many JFRs against their running Dremio JVM to avoid any potential issues.
+
+For more information on the JCMD command and how to use it see: https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr006.html
+
 ### more help
 
 The help is pretty straight forward and comes with examples
 
 ```sh
 ddc -h
-ddc main-7375a13
+COMMAND HELP TEXT:
+
+ddc jfr-additions-260d353
 ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator --executors default:app=dremio-executor --output diag.tar.gz
-
-Usage:
-  ddc [flags]
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator-dremio --executors default:app=dremio-executor --output diag.tar.gz
 
 Usage:
   ddc [flags]
@@ -96,13 +102,15 @@ Flags:
   -e, --executors string                      either a common separated list or a ip range of executors nodes to connect to
       --executors-container string            for use with -k8s flag: sets the container name to use to retrieve logs in the executors (default "dremio-executor")
   -h, --help                                  help for ddc
+  -j, --jfr int                               enables collection of java flight recorder (jfr), time specified in seconds
   -k, --k8s                                   use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags
   -p, --kubectl-path string                   where to find kubectl (default "kubectl")
   -a, --log-age int                           the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)
-  -o, --output string                         either a common separated list or a ip range of executors nodes to connect to (default "diag.zip")
+  -o, --output string                         filename of the resulting archived (tar) and compressed (gzip) file (default "diag.tgz")
   -s, --ssh-key string                        location of ssh key to use to login
   -u, --ssh-user string                       user to use during ssh operations to login
-  
+  -b, --sudo-user string                      if any diagnostcs commands need a sudo user (i.e. for jcmd)
+
 ```
 
 

@@ -228,6 +228,7 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 		// Check for a running JFR
 		err := checkJfr(conf, pid)
 		if err != nil {
+			logger.Printf(err.Error())
 			return err
 		}
 		// non sudo user (typically with k8s) will have jcmd access
@@ -237,20 +238,24 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnable(pid)...)
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
+				return err
 			} else {
 				_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
 				if err != nil {
 					logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+					return err
 				}
 			}
 		} else {
 			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnableSudo(sudoUser, pid)...)
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
+				return err
 			} else {
 				_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
 				if err != nil {
 					logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+					return err
 				}
 			}
 		}
