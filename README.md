@@ -39,35 +39,13 @@ specific executors that you want to collect from with the -e flag and coordinato
 
 If you have issues consult the [ssh docs](docs/ssh.md)
 
-## Collection
+## What is collected?
 
 As of the today the following is collected
 
 * All top level logs in the specified log folder which is the -l or the --dremio-log-dir flag
 * All top level conf files in the specified conf folder which is the -C or --dremio-conf-dir flag
 * iostat diagnostic if it is available
-
-### To collect from Kubernetes deployed clusters
-
-Just need to specify the namespace and labels of the coordinators and the executors, next you can specify an output file with -o flag
-.tgz, .zip, and .tar.gz are supported
-
-```sh
-/bin/ddc -k -e default:app=dremio-executor -c default:app=dremio-coordinator -o ~/Downloads/k8s-diag.tgz
-```
-
-### To collect from on-prem
-
-This feature relies in ssh and [ssh public authentication](https://www.ssh.com/academy/ssh/public-key-authentication).
-This is well documented in [Windows](https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement),
-[Linux](https://www.redhat.com/sysadmin/key-based-authentication-ssh), and [Mac](https://www.linode.com/docs/guides/connect-to-server-over-ssh-on-mac/)
-
-You must specify a --ssh-user and an -ssh-key the key must be configured to access the servers and not require a prompt to use (if encrypted using ssh agent will allow it to work).
-The -e and -c flags will take a comma separated list of hosts
-
-```sh
-/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
-```
 
 ### more help
 
