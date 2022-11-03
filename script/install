@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # script/install: Script to install from source, eventually when there 
 #                 are releases this will switch to latest release
@@ -18,6 +18,10 @@ elif [[ "$OSTYPE" == "msys" ]]; then
 else
         echo script for os type $OSTYPE is unsupported, build from sournce instead 
 	exit 1
+fi
+
+if [[ "$ARCH" == "x86_64" ]]; then
+    ARCH="amd64"
 fi
 
 DOWNLOAD=ddc-$OS-$ARCH.zip
