@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
 )
@@ -196,6 +197,9 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 	logger := conf.Logger
 	jfrDuration := conf.jfrduration
 	sudoUser := conf.SudoUser
+	logdir := conf.DremioLogDir
+	start := time.Now().Format("2006-01-02T15-04-05")
+	jfrUniqId := logdir + "/" + start
 
 	// run jfr against the host:
 	// get the ps output and then deal with the filtering here
@@ -244,7 +248,7 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
 				return err
 			}
-			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", jfrUniqId+".jfr")...)
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
 				return err
@@ -256,7 +260,7 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
 				return err
 			}
-			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", jfrUniqId+".jfr")...)
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
 				return err
