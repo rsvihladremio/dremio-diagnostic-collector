@@ -71,8 +71,12 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	// Trigger a JFR if it is required
 	if jfrduration > 0 {
-		captureJFR(conf)
+		err := captureJFR(conf)
+		if err != nil {
+			logger.Printf("ERROR: JFR failed on host %v with error %v", host, err)
+		}
 	}
+
 	files = append(files, capturedDiagnosticFiles...)
 	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
@@ -239,24 +243,23 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
 				return err
-			} else {
-				_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
-				if err != nil {
-					logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
-					return err
-				}
 			}
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+				return err
+			}
+
 		} else {
 			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnableSudo(sudoUser, pid)...)
 			if err != nil {
 				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
 				return err
-			} else {
-				_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
-				if err != nil {
-					logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
-					return err
-				}
+			}
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", "/opt/dremio/data/"+host+".jfr")...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+				return err
 			}
 		}
 	}
@@ -281,26 +284,26 @@ func checkJfr(conf HostCaptureConfiguration, pid string) error {
 		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheck(pid)...)
 		if err != nil {
 			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
-		} else {
-			resp := strings.Split(o, "\n")
-			for _, line := range resp {
-				if strings.Contains(line, "Recording") {
-					return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
-				}
+		}
+		resp := strings.Split(o, "\n")
+		for _, line := range resp {
+			if strings.Contains(line, "Recording") {
+				return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
 			}
 		}
+
 	} else {
 		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheckSudo(sudoUser, pid)...)
 		if err != nil {
 			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
-		} else {
-			resp := strings.Split(o, "\n")
-			for _, line := range resp {
-				if strings.Contains(line, "Recording") {
-					return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
-				}
+		}
+		resp := strings.Split(o, "\n")
+		for _, line := range resp {
+			if strings.Contains(line, "Recording") {
+				return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
 			}
 		}
+
 	}
 	return nil
 }
