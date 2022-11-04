@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
@@ -84,6 +85,7 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have '%v' but was %v", string(expectedText), row)
 	}
+	CompareFileModtime(t, cleanedExpectedFile, zipArchive)
 }
 
 func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
@@ -128,6 +130,7 @@ func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have '%v' but was %v", string(expectedText), row)
 	}
+	CompareFileModtime(t, cleanedExpectedFile, cleanedArchiveFile)
 }
 
 func extraGZip(t *testing.T, gzipArchive string) string {
@@ -229,4 +232,30 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have %v but was %v", string(expectedText), row)
 	}
+	CompareFileModtime(t, cleanedExpectedFile, cleanedArchiveFile)
+}
+
+func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
+
+	expFile, err := os.Open(expectedFile)
+	if err != nil {
+		t.Fatalf("unexpected error untaring file %v due to error %v", expectedFile, err)
+	}
+	arcFile, err := os.Open(archiveFile)
+	if err != nil {
+		t.Fatalf("unexpected error untaring file %v due to error %v", expectedFile, err)
+	}
+	expStat, err := expFile.Stat()
+	if err != nil {
+		t.Errorf("error getting file stat from file %v, error was %v", expectedFile, err)
+	}
+	arcStat, err := arcFile.Stat()
+	if err != nil {
+		t.Errorf("error getting file stat from file %v, error was %v", archiveFile, err)
+	}
+
+	if expStat.ModTime().Round(time.Second) != arcStat.ModTime().Round(time.Second) {
+		t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expStat.ModTime(), archiveFile, arcStat.ModTime())
+	}
+
 }
