@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
@@ -240,7 +241,10 @@ func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
 	parts := strings.Split(expectedFile, "/")
 	l := len(parts) - 1
 	expFile := parts[l]
-	ext := filepath.Ext(expFile)
+	parts = strings.Split(archiveFile, "/")
+	l = len(parts) - 1
+	arcFile := parts[l]
+	ext := filepath.Ext(arcFile)
 	if ext == ".zip" {
 		r, err := zip.OpenReader(archiveFile)
 		if err != nil {
@@ -263,13 +267,34 @@ func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
 		if err != nil {
 			t.Errorf("error getting file stat from file %v, error was %v", archiveFile, err)
 		}
-		// depending on this test, we compare the exact mod time of the file. However if you see the test file and you wish to build some tolerance
-		// you can use something like expStat.ModTime().Round(time.Second) != arcStat.ModTime().Round(time.Second)
-		if expStat.ModTime() != arcStat.ModTime() {
-			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expFile, expStat.ModTime(), archiveFile, arcStat.ModTime())
+		// We have to add some tolerance to the mod time otherwise the delay in the file copy and the compression will differ slightly
+		// and throw an error. Also we have to apply a timezone "tweak" as the file might be in local time so we compare in UTC
+		expTime := expStat.ModTime().Round(2 * time.Second).UTC()
+		arcTime := arcStat.ModTime().Round(2 * time.Second).UTC()
+		if expTime != arcTime {
+			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expTime, archiveFile, arcTime)
 		}
-	} else if ext == ".tgz" {
-		//r, err := gzip.Reader(archiveFile)
+	} else if ext == ".tgz" || ext == ".tar" || ext == "gzip" {
+		a, err := os.Open(archiveFile)
+		if err != nil {
+			t.Errorf("error opening %v. Error was %v", archiveFile, err)
+		}
+		e, err := os.Open(expectedFile)
+		if err != nil {
+			t.Errorf("error opening %v. Error was %v", expFile, err)
+		}
+		arcStat, err := a.Stat()
+		if err != nil {
+			t.Errorf("error getting file stat from file %v, error was %v", expFile, err)
+		}
+		expStat, err := e.Stat()
+		if err != nil {
+			t.Errorf("error getting file stat from file %v, error was %v", archiveFile, err)
+		}
+		expTime := expStat.ModTime().Round(2 * time.Second).UTC()
+		arcTime := arcStat.ModTime().Round(2 * time.Second).UTC()
+		if expTime != arcTime {
+			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expTime, archiveFile, arcTime)
+		}
 	}
-
 }
