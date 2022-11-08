@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
@@ -135,9 +136,12 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			log.Print("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
+		// Create ref to real file system (since with testing we redirect the argument to a mock object)
+		cfs := helpers.FileSystem{}
 		err = collection.Execute(collectorStrategy,
 			logOutput,
 			collectionArgs,
+			cfs,
 		)
 
 		if err != nil {

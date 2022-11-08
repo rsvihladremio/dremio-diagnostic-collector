@@ -25,9 +25,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	"sync"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
 var DirPerms fs.FileMode = 0750
@@ -52,7 +53,7 @@ type Args struct {
 	SudoUser                  string
 }
 
-func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
+func Execute(c Collector, logOutput io.Writer, collectionArgs Args, cfs helpers.Filesystem) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -64,17 +65,17 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
 
-	outputDir, err := os.MkdirTemp("", "*")
+	outputDir, err := cfs.MkdirTemp("", "*")
 	if err != nil {
 		return err
 	}
 	executorDir := filepath.Join(outputDir, "executors")
-	err = os.Mkdir(executorDir, DirPerms)
+	err = cfs.Mkdir(executorDir, DirPerms)
 	if err != nil {
 		return err
 	}
 	coordinatorDir := filepath.Join(outputDir, "coordinators")
-	err = os.Mkdir(coordinatorDir, DirPerms)
+	err = cfs.Mkdir(coordinatorDir, DirPerms)
 	if err != nil {
 		return err
 	}
@@ -82,7 +83,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
-		if err := os.RemoveAll(outputDir); err != nil {
+		if err := cfs.RemoveAll(outputDir); err != nil {
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
 		}
 	}()
