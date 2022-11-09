@@ -51,7 +51,7 @@ type RealFile struct {
 // RealFileSystem wrapper
 type FileSystem struct{}
 
-//Name
+// Name
 func (f *RealFile) Name() string {
 	return f.file.Name()
 }
@@ -131,7 +131,7 @@ type FakeFile struct {
 type FakeFileSystem struct {
 }
 
-//Name
+// Name
 func (f *FakeFile) Name() string {
 	return "fakeFile.txt"
 }
@@ -142,7 +142,7 @@ func (f *FakeFile) Write(b []byte) (n int, err error) {
 	return 0, err
 }
 
-//Sync
+// Sync
 func (f *FakeFile) Sync() error {
 	return nil
 }
