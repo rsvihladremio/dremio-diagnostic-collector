@@ -25,9 +25,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	"sync"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
 var DirPerms fs.FileMode = 0750
@@ -39,6 +40,7 @@ type Collector interface {
 }
 
 type Args struct {
+	Cfs                       helpers.FileSystem
 	CoordinatorStr            string
 	ExecutorsStr              string
 	OutputLoc                 string
@@ -48,6 +50,8 @@ type Args struct {
 	GCLogOverride             string
 	DurationDiagnosticTooling int
 	LogAge                    int
+	JfrDuration               int
+	SudoUser                  string
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -59,18 +63,21 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	dremioLogDir := collectionArgs.DremioLogDir
 	dremioGcDir := collectionArgs.GCLogOverride
 	logAge := collectionArgs.LogAge
+	jfrduration := collectionArgs.JfrDuration
+	sudoUser := collectionArgs.SudoUser
+	cfs := collectionArgs.Cfs
 
-	outputDir, err := os.MkdirTemp("", "*")
+	outputDir, err := cfs.MkdirTemp("", "*")
 	if err != nil {
 		return err
 	}
 	executorDir := filepath.Join(outputDir, "executors")
-	err = os.Mkdir(executorDir, DirPerms)
+	err = cfs.Mkdir(executorDir, DirPerms)
 	if err != nil {
 		return err
 	}
 	coordinatorDir := filepath.Join(outputDir, "coordinators")
-	err = os.Mkdir(coordinatorDir, DirPerms)
+	err = cfs.Mkdir(coordinatorDir, DirPerms)
 	if err != nil {
 		return err
 	}
@@ -78,7 +85,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
-		if err := os.RemoveAll(outputDir); err != nil {
+		if err := cfs.RemoveAll(outputDir); err != nil {
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
 		}
 	}()
@@ -109,6 +116,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
+				jfrduration:               jfrduration,
+				SudoUser:                  sudoUser,
 			}
 			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -138,6 +147,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				GCLogOverride:             dremioGcDir,
 				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
 				LogAge:                    logAge,
+				jfrduration:               jfrduration,
+				SudoUser:                  sudoUser,
 			}
 			writtenFiles, failedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -170,7 +181,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		return err
 	}
 	summaryFile := filepath.Join(outputDir, "summary.json")
-	err = os.WriteFile(summaryFile, []byte(o), 0600)
+	err = cfs.WriteFile(summaryFile, []byte(o), 0600)
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}

@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
 )
@@ -39,6 +40,8 @@ type HostCaptureConfiguration struct {
 	DurationDiagnosticTooling int
 	GCLogOverride             string
 	LogAge                    int
+	jfrduration               int
+	SudoUser                  string
 }
 
 type FindErr struct {
@@ -57,6 +60,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	dremioLogDir := conf.DremioLogDir
 	logger := conf.Logger
 	logAge := conf.LogAge
+	jfrduration := conf.jfrduration
 
 	err := setupDiagDir(conf)
 	if err != nil {
@@ -65,6 +69,15 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	}
 
 	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf)
+
+	// Trigger a JFR if it is required
+	if jfrduration > 0 {
+		err := captureJFR(conf)
+		if err != nil {
+			logger.Printf("ERROR: JFR failed on host %v with error %v", host, err)
+		}
+	}
+
 	files = append(files, capturedDiagnosticFiles...)
 	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
@@ -82,7 +95,8 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	logFiles := []string{}
 	var filterLogs bool
-	// set flag to filter or not ased on default valu
+
+	// set flag to filter or not based on default value
 	if logAge == 0 {
 		filterLogs = false
 	} else {
@@ -144,7 +158,6 @@ func captureDiagnostics(conf HostCaptureConfiguration) (files []CollectedFile, f
 	if err != nil {
 		logger.Printf("ERROR: host %v failed iostat with error %v", host, err)
 	} else {
-
 		//take the captured text and write it out to iostat.txt
 		logger.Printf("INFO: host %v finished iostat", host)
 		fileName := filepath.Join(outputLoc, host, "iostat.txt")
@@ -170,7 +183,134 @@ func captureDiagnostics(conf HostCaptureConfiguration) (files []CollectedFile, f
 			})
 		}
 	}
+
 	return files, failedFiles
+}
+
+// Since a JFR typically takes longer to run, we want to trigger it but then come back later to pickup the resulting files
+// We dont check to see if there is already a JFR running.
+func captureJFR(conf HostCaptureConfiguration) (err error) {
+	host := conf.Host
+	c := conf.Collector
+	//outputLoc := conf.OutputLocation
+	isCoordinator := conf.IsCoordinator
+	logger := conf.Logger
+	jfrDuration := conf.jfrduration
+	sudoUser := conf.SudoUser
+	logdir := conf.DremioLogDir
+	start := time.Now().Format("2006-01-02T15-04-05")
+	jfrUniqID := logdir + "/" + start
+
+	// run jfr against the host:
+	// get the ps output and then deal with the filtering here
+	// instead of via the shell
+	var pid string
+
+	// Existing methods here could be used, but no capability for sudo user for jcmd
+	// we could add this in the future
+	/*
+		var p int
+		pidList, err := ListJavaProcessPids(conf)
+		if err != nil {
+			return fmt.Errorf("unable to find gc logs due to error '%v'", err)
+		}
+		p, err = GetDremioPID(pidList)
+		if err != nil {
+			return fmt.Errorf("unable to find gc logs due to error '%v'", err)
+		}
+		pid = fmt.Sprint(p)
+	*/
+
+	// Get the process id using the ps command instead of jcmd (above).
+	o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrPid()...)
+	if err != nil {
+		logger.Printf("ERROR: host %v failed to get PS output for JFR %v", host, err)
+	} else {
+		po := strings.Split(o, "\n")
+		for _, line := range po {
+			if strings.Contains(line, "DremioDaemon") {
+				l := strings.Fields(line)
+				pid = l[0]
+			}
+		}
+		// Check for a running JFR
+		err := checkJfr(conf, pid)
+		if err != nil {
+			logger.Printf(err.Error())
+			return err
+		}
+		// non sudo user (typically with k8s) will have jcmd access
+		// sudo access is more typically needed with on-prem installs (ssh)
+		// TODO add logging levels and log all this output with a -vv or -v level
+		logger.Printf("INFO: starting JFR on host %v for %v seconds for pid %v", host, jfrDuration, pid)
+		if sudoUser == "" {
+			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnable(pid)...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
+				return err
+			}
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRun(pid, jfrDuration, "dremio", jfrUniqID+".jfr")...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+				return err
+			}
+
+		} else {
+			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnableSudo(sudoUser, pid)...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to enable JFR with error %v", host, err)
+				return err
+			}
+			_, err = c.HostExecute(host, isCoordinator, diagnostics.JfrRunSudo(sudoUser, pid, jfrDuration, "dremio", jfrUniqID+".jfr")...)
+			if err != nil {
+				logger.Printf("ERROR: host %v failed to run JFR with error %v", host, err)
+				return err
+			}
+		}
+	}
+	return err
+}
+
+// Checks there are no existing JFRs running under the given PID
+// Although it is possible to run multiple JFRs, it isnt a good idea
+// from this tool, in case a customer unintentionally started several
+// and potentially ran into problems.
+func checkJfr(conf HostCaptureConfiguration, pid string) error {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	logger := conf.Logger
+	sudoUser := conf.SudoUser
+
+	logger.Printf("INFO: checking host %v for existing JFRs", host)
+	// non sudo user (typically with k8s) will have jcmd access
+	// sudo access is more typically needed with on-prem installs (ssh)
+	if sudoUser == "" {
+		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheck(pid)...)
+		if err != nil {
+			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
+		}
+		resp := strings.Split(o, "\n")
+		for _, line := range resp {
+			if strings.Contains(line, "Recording") {
+				return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
+			}
+		}
+
+	} else {
+		o, err := c.HostExecute(host, isCoordinator, diagnostics.JfrCheckSudo(sudoUser, pid)...)
+		if err != nil {
+			return fmt.Errorf("ERROR: host %v failed to run JFR check error %v", host, err)
+		}
+		resp := strings.Split(o, "\n")
+		for _, line := range resp {
+			if strings.Contains(line, "Recording") {
+				return fmt.Errorf("WARN: host %v is already running one or more JFRs for pid %v", host, pid)
+			}
+		}
+
+	}
+	return nil
 }
 
 // setupDiagDir creates all necessary subfolders for the host subfolder in the diag tarball
@@ -189,7 +329,12 @@ func setupDiagDir(conf HostCaptureConfiguration) error {
 		return err
 	}
 
-	if err := os.Mkdir(filepath.Join(outputLoc, host, "logs"), DirPerms); err != nil {
+	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "archive"), DirPerms); err != nil {
+		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "json", "archive"), DirPerms); err != nil {
 		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
 		return err
 	}
