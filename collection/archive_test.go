@@ -18,6 +18,7 @@
 package collection
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -30,7 +31,12 @@ var expectedOutput string
 
 func TestZip(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
+	testFile := filepath.Join(tmpDir, "test-zip.txt")
+	defer func() {
+		if err := os.Remove(testFile); err != nil {
+			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
+		}
+	}()
 	err := os.WriteFile(testFile, []byte("my row"), 0600)
 	if err != nil {
 		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
@@ -52,7 +58,7 @@ func TestZip(t *testing.T) {
 	}
 	tests.ZipContainsFile(t, testFile, archiveFile)
 
-	fakePath := tmpDir + "/does-not-exist/test.zip"
+	fakePath := tmpDir + "/does-not-exist/test-zip.zip"
 	err = ZipDiag(fakePath, tmpDir, []CollectedFile{
 		{
 			Path: testFile,
@@ -72,7 +78,12 @@ func TestZip(t *testing.T) {
 
 func TestTar(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
+	testFile := filepath.Join(tmpDir, "test-tar.txt")
+	defer func() {
+		if err := os.Remove(testFile); err != nil {
+			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
+		}
+	}()
 	err := os.WriteFile(testFile, []byte("my row"), 0600)
 	if err != nil {
 		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
@@ -93,7 +104,7 @@ func TestTar(t *testing.T) {
 	}
 	tests.TarContainsFile(t, testFile, archiveFile)
 
-	fakePath := tmpDir + "/does-not-exist/test.tar"
+	fakePath := tmpDir + "/does-not-exist/test-tar.tar"
 	err = TarDiag(fakePath, tmpDir, []CollectedFile{
 		{
 			Path: testFile,
@@ -113,7 +124,12 @@ func TestTar(t *testing.T) {
 
 func TestGZip(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
+	testFile := filepath.Join(tmpDir, "test-gzip.txt")
+	defer func() {
+		if err := os.Remove(testFile); err != nil {
+			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
+		}
+	}()
 	err := os.WriteFile(testFile, []byte("my row"), 0600)
 	if err != nil {
 		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
