@@ -29,6 +29,7 @@ type Filesystem interface {
 	MkdirTemp(name string, pattern string) (string, error)
 	RemoveAll(path string) error
 	Remove(name string) error
+	WriteFile(name string, data []byte, perms os.FileMode) error
 	//TempDir(dir, prefix string) (string, error)
 	//TempFile(dir, prefix string) (File, error)
 }
@@ -102,14 +103,19 @@ func (f FileSystem) MkdirAll(name string, perms os.FileMode) error {
 }
 
 // Remove
-func (fs FileSystem) Remove(path string) error {
+func (f FileSystem) Remove(path string) error {
 	err := os.Remove(path)
 	return err
 }
 
 // RemoveAll
-func (fs FileSystem) RemoveAll(path string) error {
+func (f FileSystem) RemoveAll(path string) error {
 	err := os.RemoveAll(path)
+	return err
+}
+
+func (f FileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+	err := os.WriteFile(name, data, perms)
 	return err
 }
 

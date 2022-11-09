@@ -94,6 +94,11 @@ func (f FakeFileSystem) RemoveAll(path string) error {
 	return err
 }
 
+func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+	err := os.WriteFile(name, data, perms)
+	return err
+}
+
 // Tempdir
 /*func (f FakeFileSystem) TempDir(dir string, pattern string) (string, error) {
 	path, err := os.MkdirTemp(dir, pattern)
@@ -214,10 +219,10 @@ func TestExecute(t *testing.T) {
 
 	fakeArgs.CoordinatorStr = "dremio"
 	fakeArgs.ExecutorsStr = "dremio"
-	host := "dremio-coordinator-0"
-	expected = "ERROR: host " + host + " failed iostat with error ERROR: host " + host + " command failed for iostat -y -x -d -c -t 1 5"
+	fakeArgs.OutputLoc = "/missng"
+	expected = "blah"
 	err = Execute(mockCollector, logOutput, fakeArgs, fakeFs)
-	if err.Error() != expected {
+	if err != nil && err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
 

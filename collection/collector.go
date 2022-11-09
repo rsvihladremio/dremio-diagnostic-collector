@@ -179,7 +179,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args, cfs helpers.
 		return err
 	}
 	summaryFile := filepath.Join(outputDir, "summary.json")
-	err = os.WriteFile(summaryFile, []byte(o), 0600)
+	err = cfs.WriteFile(summaryFile, []byte(o), 0600)
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
