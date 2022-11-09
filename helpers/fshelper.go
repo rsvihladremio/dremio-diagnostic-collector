@@ -34,8 +34,6 @@ type Filesystem interface {
 	RemoveAll(path string) error
 	Remove(name string) error
 	WriteFile(name string, data []byte, perms os.FileMode) error
-	//TempDir(dir, prefix string) (string, error)
-	//TempFile(dir, prefix string) (File, error)
 }
 
 type File interface {
@@ -63,7 +61,7 @@ func (f *RealFile) Write(b []byte) (n int, err error) {
 	return f.file.Write(b)
 }
 
-//Sync
+// Sync
 func (f *RealFile) Sync() error {
 	return f.file.Sync()
 }
@@ -96,11 +94,13 @@ func (f FileSystem) Mkdir(name string, perms os.FileMode) error {
 	return err
 }
 
+// MkdirTemp
 func (f FileSystem) MkdirTemp(name string, pattern string) (string, error) {
 	dir, err := os.MkdirTemp(name, pattern)
 	return dir, err
 }
 
+// MkdirAll
 func (f FileSystem) MkdirAll(name string, perms os.FileMode) error {
 	err := os.MkdirAll(name, perms)
 	return err
@@ -118,11 +118,13 @@ func (f FileSystem) RemoveAll(path string) error {
 	return err
 }
 
+// WriteFile
 func (f FileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
 	err := os.WriteFile(name, data, perms)
 	return err
 }
 
+// Fake file handlers (for testing)
 type FakeFile struct {
 }
 
@@ -167,11 +169,13 @@ func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
 	return err
 }
 
+// MkdirTemp
 func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
 	dir, err := os.MkdirTemp(name, pattern)
 	return dir, err
 }
 
+// MkdirAll
 func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
 	err := os.MkdirAll(name, perms)
 	return err
@@ -189,6 +193,7 @@ func (f FakeFileSystem) RemoveAll(path string) error {
 	return err
 }
 
+// Writefile
 func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
 	err := os.WriteFile(name, data, perms)
 	return err
