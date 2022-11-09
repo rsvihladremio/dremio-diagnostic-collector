@@ -96,7 +96,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	logFiles := []string{}
 	var filterLogs bool
 
-	// set flag to filter or not ased on default value
+	// set flag to filter or not based on default value
 	if logAge == 0 {
 		filterLogs = false
 	} else {
@@ -241,6 +241,7 @@ func captureJFR(conf HostCaptureConfiguration) (err error) {
 		}
 		// non sudo user (typically with k8s) will have jcmd access
 		// sudo access is more typically needed with on-prem installs (ssh)
+		// TODO add logging levels and log all this output with a -vv or -v level
 		logger.Printf("INFO: starting JFR on host %v for %v seconds for pid %v", host, jfrDuration, pid)
 		if sudoUser == "" {
 			_, err := c.HostExecute(host, isCoordinator, diagnostics.JfrEnable(pid)...)
@@ -328,12 +329,12 @@ func setupDiagDir(conf HostCaptureConfiguration) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log/archive"), DirPerms); err != nil {
+	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "archive"), DirPerms); err != nil {
 		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log/json/archive"), DirPerms); err != nil {
+	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "json", "archive"), DirPerms); err != nil {
 		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
 		return err
 	}
