@@ -69,7 +69,7 @@ func (f *RealFile) Sync() error {
 
 // Close
 func (f *RealFile) Close() error {
-	return f.Close()
+	return f.file.Close()
 }
 
 // Stat
