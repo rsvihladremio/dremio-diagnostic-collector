@@ -27,9 +27,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 )
 
 func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
@@ -48,7 +46,9 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	}()
 	var found bool
 	var buf bytes.Buffer
+	var names []string
 	for _, f := range tr.File {
+		names = append(names, f.Name)
 		fmt.Printf("Contents of %s:\n", f.Name)
 		if f.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
@@ -76,7 +76,7 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	}
 
 	if !found {
-		t.Error("expected to find the newly archived file but did not")
+		t.Errorf("expected to find the newly archived file %v but did not in %v", expectedFile, names)
 	}
 	expectedText, err := os.ReadFile(cleanedExpectedFile)
 	if err != nil {
@@ -86,7 +86,6 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have '%v' but was %v", string(expectedText), row)
 	}
-	CompareFileModtime(t, cleanedExpectedFile, zipArchive)
 }
 
 func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
@@ -131,7 +130,6 @@ func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have '%v' but was %v", string(expectedText), row)
 	}
-	CompareFileModtime(t, cleanedExpectedFile, cleanedArchiveFile)
 }
 
 func extraGZip(t *testing.T, gzipArchive string) string {
@@ -199,6 +197,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	tr := tar.NewReader(f)
 	var found bool
 	var buf bytes.Buffer
+	var names []string
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -208,6 +207,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 			t.Fatal(err)
 		}
 		fmt.Printf("Contents of %s:\n", hdr.Name)
+		names = append(names, hdr.Name)
 		if hdr.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 		}
@@ -223,7 +223,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 		fmt.Println()
 	}
 	if !found {
-		t.Errorf("expected to find the newly archived %v file but did not", cleanedExpectedFile)
+		t.Errorf("expected to find the newly archived %v file but did not, inside was %v", cleanedExpectedFile, names)
 	}
 	expectedText, err := os.ReadFile(cleanedExpectedFile)
 	if err != nil {
@@ -232,69 +232,5 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	row := buf.String()
 	if row != string(expectedText) {
 		t.Errorf("expected content to have %v but was %v", string(expectedText), row)
-	}
-	CompareFileModtime(t, cleanedExpectedFile, cleanedArchiveFile)
-}
-
-func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
-
-	parts := strings.Split(expectedFile, string(os.PathSeparator))
-	l := len(parts) - 1
-	expFile := parts[l]
-	parts = strings.Split(archiveFile, string(os.PathSeparator))
-	l = len(parts) - 1
-	arcFile := parts[l]
-	ext := filepath.Ext(arcFile)
-	if ext == ".zip" {
-		r, err := zip.OpenReader(archiveFile)
-		if err != nil {
-			t.Errorf("error opening %v from %v. Error was %v", expFile, archiveFile, err)
-		}
-		defer r.Close()
-		a, err := r.Open(expFile)
-		if err != nil {
-			t.Errorf("error opening %v from %v. Error was %v", expFile, archiveFile, err)
-		}
-		e, err := os.Open(filepath.Clean(expectedFile))
-		if err != nil {
-			t.Errorf("error opening %v. Error was %v", expFile, err)
-		}
-		arcStat, err := a.Stat()
-		if err != nil {
-			t.Errorf("error getting file stat from file %v, error was %v", expFile, err)
-		}
-		expStat, err := e.Stat()
-		if err != nil {
-			t.Errorf("error getting file stat from file %v, error was %v", archiveFile, err)
-		}
-		// We have to add some tolerance to the mod time otherwise the delay in the file copy and the compression will differ slightly
-		// and throw an error. Also we have to apply a timezone "tweak" as the file might be in local time so we compare in UTC
-		expTime := expStat.ModTime().Round(2 * time.Second).UTC()
-		arcTime := arcStat.ModTime().Round(2 * time.Second).UTC()
-		if expTime != arcTime {
-			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expTime, archiveFile, arcTime)
-		}
-	} else if ext == ".tgz" || ext == ".tar" || ext == "gzip" {
-		a, err := os.Open(filepath.Clean(archiveFile))
-		if err != nil {
-			t.Errorf("error opening %v. Error was %v", archiveFile, err)
-		}
-		e, err := os.Open(filepath.Clean(expectedFile))
-		if err != nil {
-			t.Errorf("error opening %v. Error was %v", expFile, err)
-		}
-		arcStat, err := a.Stat()
-		if err != nil {
-			t.Errorf("error getting file stat from file %v, error was %v", expFile, err)
-		}
-		expStat, err := e.Stat()
-		if err != nil {
-			t.Errorf("error getting file stat from file %v, error was %v", archiveFile, err)
-		}
-		expTime := expStat.ModTime().Round(2 * time.Second).UTC()
-		arcTime := arcStat.ModTime().Round(2 * time.Second).UTC()
-		if expTime != arcTime {
-			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expTime, archiveFile, arcTime)
-		}
 	}
 }

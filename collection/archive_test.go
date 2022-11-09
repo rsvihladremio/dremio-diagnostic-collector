@@ -18,7 +18,6 @@
 package collection
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,22 +30,21 @@ var expectedOutput string
 
 func TestZip(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test-zip.txt")
-	defer func() {
-		if err := os.Remove(testFile); err != nil {
-			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
-		}
-	}()
-	err := os.WriteFile(testFile, []byte("my row"), 0600)
+	testFileRaw := filepath.Join("testdata", "test.txt")
+	testFile, err := filepath.Abs(testFileRaw)
 	if err != nil {
-		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
+		t.Fatalf("not able to get absolute path for test file %v", err)
 	}
 	fi, err := os.Stat(testFile)
 	if err != nil {
 		t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
 	}
 	archiveFile := tmpDir + ".zip"
-	err = ZipDiag(archiveFile, tmpDir, []CollectedFile{
+	testDataDir, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatalf("not able to get absolute path for testdata dir %v", err)
+	}
+	err = ZipDiag(archiveFile, testDataDir, []CollectedFile{
 		{
 			Path: testFile,
 			Size: fi.Size(),
@@ -58,7 +56,7 @@ func TestZip(t *testing.T) {
 	}
 	tests.ZipContainsFile(t, testFile, archiveFile)
 
-	fakePath := tmpDir + "/does-not-exist/test-zip.zip"
+	fakePath := tmpDir + "/does-not-exist/test.zip"
 	err = ZipDiag(fakePath, tmpDir, []CollectedFile{
 		{
 			Path: testFile,
@@ -78,22 +76,21 @@ func TestZip(t *testing.T) {
 
 func TestTar(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test-tar.txt")
-	defer func() {
-		if err := os.Remove(testFile); err != nil {
-			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
-		}
-	}()
-	err := os.WriteFile(testFile, []byte("my row"), 0600)
+	testFileRaw := filepath.Join("testdata", "test.txt")
+	testFile, err := filepath.Abs(testFileRaw)
 	if err != nil {
-		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
+		t.Fatalf("not able to get absolute path for test file %v", err)
+	}
+	archiveFile := tmpDir + ".tar"
+	baseDir, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatalf("not able to get absolute path for base dir %v", err)
 	}
 	fi, err := os.Stat(testFile)
 	if err != nil {
-		t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
+		t.Fatalf("unable to get os stat for file %v due to error %v", testFile, err)
 	}
-	archiveFile := tmpDir + ".tar"
-	err = TarDiag(archiveFile, tmpDir, []CollectedFile{
+	err = TarDiag(archiveFile, baseDir, []CollectedFile{
 		{
 			Path: testFile,
 			Size: fi.Size(),
@@ -124,18 +121,12 @@ func TestTar(t *testing.T) {
 
 func TestGZip(t *testing.T) {
 	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test-gzip.txt")
-	defer func() {
-		if err := os.Remove(testFile); err != nil {
-			log.Printf("WARN unexpected error removing test file %s with error %t", testFile, err)
-		}
-	}()
-	err := os.WriteFile(testFile, []byte("my row"), 0600)
+	testFileRaw := filepath.Join("testdata", "test.txt")
+	testFile, err := filepath.Abs(testFileRaw)
 	if err != nil {
-		t.Fatalf("unexpected error making file %v due to error %v", testFile, err)
+		t.Fatalf("not able to get absolute path for test file %v", err)
 	}
 	archiveFile := tmpDir + ".gzip"
-
 	err = GZipDiag(archiveFile, tmpDir, testFile)
 	if err != nil {
 		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
