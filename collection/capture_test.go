@@ -115,7 +115,6 @@ func (m *MockCollector) HostExecute(hostString string, isCoordinator bool, args 
 	return response[0].(string), response[1].(error)
 }
 func TestFindFiles(t *testing.T) {
-
 	expectedOutput := "/opt/file1\n/opt/file2\n"
 	var returnValues [][]interface{}
 	e := []interface{}{expectedOutput, nil}

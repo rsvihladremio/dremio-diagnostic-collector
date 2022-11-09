@@ -53,7 +53,10 @@ type Cli struct {
 }
 
 func (c *Cli) Execute(args ...string) (string, error) {
-	//log.Printf("args: %v", args) // useful for debugging
+	// useful for debugging
+	/*for _, arg := range args {
+		log.Printf("arg of args: %v", arg)
+	}*/
 	log.Printf("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
