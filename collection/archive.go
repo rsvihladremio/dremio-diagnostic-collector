@@ -29,7 +29,6 @@ import (
 
 func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	// Create a buffer to write our archive to.
-
 	tarFile, err := os.Create(filepath.Clean(tarFileName))
 	if err != nil {
 		return err
@@ -58,10 +57,6 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 			continue
 		}
 		log.Printf("taring file %v", file)
-		fileInfo, err := os.Stat(file)
-		if err != nil {
-			return err
-		}
 		rf, err := os.Open(filepath.Clean(file))
 		if err != nil {
 			return err
@@ -73,14 +68,20 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 			}
 		}()
 		hdr := &tar.Header{
-			Name: file[len(baseDir):],
-			Mode: 0600,
-			Size: fileInfo.Size(),
+			Name:    file[len(baseDir):],
+			Mode:    0600,
+			Size:    fi.Size(),
+			ModTime: fi.ModTime().UTC(),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
-		_, err = io.Copy(tw, rf)
+		fileBytes, err := os.ReadFile(collectedFile.Path)
+
+		if err != nil {
+			return err
+		}
+		_, err = tw.Write(fileBytes)
 		if err != nil {
 			return err
 		}
@@ -164,7 +165,13 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 			}
 			log.Printf("zipping file %v", file)
 			fileWithoutDir := file[len(baseDir):]
-			f, err := w.Create(fileWithoutDir)
+			header, err := zip.FileInfoHeader(fi)
+			if err != nil {
+				return err
+			}
+			header.Modified = fi.ModTime().UTC()
+			header.Name = fileWithoutDir
+			f, err := w.CreateHeader(header)
 			if err != nil {
 				return err
 			}
@@ -178,7 +185,11 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 					log.Printf("WARN unable to close file %v due to error %v", file, err)
 				}
 			}()
-			_, err = io.Copy(f, rf)
+			fileBytes, err := os.ReadFile(collectedFile.Path)
+			if err != nil {
+				return err
+			}
+			_, err = f.Write(fileBytes)
 			if err != nil {
 				return err
 			}
