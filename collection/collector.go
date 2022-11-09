@@ -40,6 +40,7 @@ type Collector interface {
 }
 
 type Args struct {
+	Cfs                       helpers.FileSystem
 	CoordinatorStr            string
 	ExecutorsStr              string
 	OutputLoc                 string
@@ -53,7 +54,7 @@ type Args struct {
 	SudoUser                  string
 }
 
-func Execute(c Collector, logOutput io.Writer, collectionArgs Args, cfs helpers.Filesystem) error {
+func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -64,6 +65,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args, cfs helpers.
 	logAge := collectionArgs.LogAge
 	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
+	cfs := collectionArgs.Cfs
 
 	outputDir, err := cfs.MkdirTemp("", "*")
 	if err != nil {

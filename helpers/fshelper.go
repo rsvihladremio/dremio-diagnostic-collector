@@ -19,7 +19,10 @@
 
 package helpers
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Filesystem interface {
 	Stat(name string) (os.FileInfo, error)
@@ -119,10 +122,73 @@ func (f FileSystem) WriteFile(name string, data []byte, perms os.FileMode) error
 	return err
 }
 
-// Temptdir
-/*
-func (fs FileSystem) TempDir(dir string, pattern string) (string, error) {
-	path, err := os.MkdirTemp(dir, pattern)
-	return path, err
+type FakeFile struct {
 }
-*/
+
+type FakeFileSystem struct {
+}
+
+//Name
+func (f *FakeFile) Name() string {
+	return "fakeFile.txt"
+}
+
+// Write
+func (f *FakeFile) Write(b []byte) (n int, err error) {
+	fmt.Printf("Written: %v", b)
+	return 0, err
+}
+
+//Sync
+func (f *FakeFile) Sync() error {
+	return nil
+}
+
+// Close
+func (f *FakeFile) Close() error {
+	return nil
+}
+
+// Stat
+func (f FakeFileSystem) Stat(name string) (os.FileInfo, error) {
+	return os.Stat(name)
+}
+
+// Create
+func (f FakeFileSystem) Create(name string) (File, error) {
+	fmt.Println("Testing create")
+	return &FakeFile{}, nil
+}
+
+// Mkdir
+func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
+	err := os.Mkdir(name, perms)
+	return err
+}
+
+func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
+	dir, err := os.MkdirTemp(name, pattern)
+	return dir, err
+}
+
+func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
+	err := os.MkdirAll(name, perms)
+	return err
+}
+
+// Remove
+func (f FakeFileSystem) Remove(path string) error {
+	err := os.Remove(path)
+	return err
+}
+
+// RemoveAll
+func (f FakeFileSystem) RemoveAll(path string) error {
+	err := os.RemoveAll(path)
+	return err
+}
+
+func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+	err := os.WriteFile(name, data, perms)
+	return err
+}

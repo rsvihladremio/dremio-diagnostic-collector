@@ -28,84 +28,6 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
 )
 
-type FakeFile struct {
-}
-
-type FakeFileSystem struct {
-}
-
-//Name
-func (f *FakeFile) Name() string {
-	return "fakeFile.txt"
-}
-
-// Write
-func (f *FakeFile) Write(b []byte) (n int, err error) {
-	fmt.Printf("Written: %v", b)
-	return 0, err
-}
-
-//Sync
-func (f *FakeFile) Sync() error {
-	return nil
-}
-
-// Close
-func (f *FakeFile) Close() error {
-	return nil
-}
-
-// Stat
-func (f FakeFileSystem) Stat(name string) (os.FileInfo, error) {
-	return os.Stat(name)
-}
-
-// Create
-func (f FakeFileSystem) Create(name string) (helpers.File, error) {
-	fmt.Println("Testing create")
-	return &FakeFile{}, nil
-}
-
-// Mkdir
-func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
-	err := os.Mkdir(name, perms)
-	return err
-}
-
-func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
-	dir, err := os.MkdirTemp(name, pattern)
-	return dir, err
-}
-
-func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
-	err := os.MkdirAll(name, perms)
-	return err
-}
-
-// Remove
-func (f FakeFileSystem) Remove(path string) error {
-	err := os.Remove(path)
-	return err
-}
-
-// RemoveAll
-func (f FakeFileSystem) RemoveAll(path string) error {
-	err := os.RemoveAll(path)
-	return err
-}
-
-func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
-	err := os.WriteFile(name, data, perms)
-	return err
-}
-
-// Tempdir
-/*func (f FakeFileSystem) TempDir(dir string, pattern string) (string, error) {
-	path, err := os.MkdirTemp(dir, pattern)
-	return path, err
-}
-*/
-
 type MockCollector2 struct {
 	Returns []string
 	Calls   []string
@@ -175,9 +97,10 @@ func TestExecute(t *testing.T) {
 		Returns: returnValues,
 	}
 	logOutput := os.Stdout
-	fakeFs := FakeFileSystem{}
+	fakeFs := helpers.FakeFileSystem{}
 	fakeTmp, _ := fakeFs.MkdirTemp("dremio", "*")
 	fakeArgs := Args{
+		Cfs:                       helpers.FileSystem(fakeFs),
 		CoordinatorStr:            "10.1.2.3",
 		ExecutorsStr:              "10.2.3.4",
 		OutputLoc:                 fakeTmp,
@@ -189,14 +112,14 @@ func TestExecute(t *testing.T) {
 		LogAge:                    1,
 	}
 	expected := "ERROR: no hosts found matching 10.1.2.3"
-	err := Execute(mockCollector, logOutput, fakeArgs, fakeFs)
+	err := Execute(mockCollector, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
 
 	fakeArgs.CoordinatorStr = "dremio-coordinator-99"
 	expected = "ERROR: no hosts found matching dremio-coordinator-99"
-	err = Execute(mockCollector, logOutput, fakeArgs, fakeFs)
+	err = Execute(mockCollector, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
@@ -204,7 +127,7 @@ func TestExecute(t *testing.T) {
 	fakeArgs.CoordinatorStr = "dremio"
 	//fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected = "ERROR: no hosts found matching 10.2.3.4"
-	err = Execute(mockCollector, logOutput, fakeArgs, fakeFs)
+	err = Execute(mockCollector, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
@@ -212,17 +135,8 @@ func TestExecute(t *testing.T) {
 	fakeArgs.CoordinatorStr = "dremio"
 	fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected = "ERROR: no hosts found matching dremio-executor-99"
-	err = Execute(mockCollector, logOutput, fakeArgs, fakeFs)
+	err = Execute(mockCollector, logOutput, fakeArgs)
 	if err.Error() != expected {
-		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
-	}
-
-	fakeArgs.CoordinatorStr = "dremio"
-	fakeArgs.ExecutorsStr = "dremio"
-	fakeArgs.OutputLoc = "/missng"
-	expected = "blah"
-	err = Execute(mockCollector, logOutput, fakeArgs, fakeFs)
-	if err != nil && err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
 
