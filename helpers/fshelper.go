@@ -22,6 +22,7 @@ package helpers
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Filesystem interface {
@@ -79,7 +80,7 @@ func (f FileSystem) Stat(name string) (os.FileInfo, error) {
 
 // Create
 func (f FileSystem) Create(name string) (File, error) {
-	fd, err := os.Create(name)
+	fd, err := os.Create(filepath.Clean(name))
 	if err != nil {
 		return nil, err
 	}
