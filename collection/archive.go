@@ -57,10 +57,6 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 			continue
 		}
 		log.Printf("taring file %v", file)
-		fileInfo, err := os.Stat(file)
-		if err != nil {
-			return err
-		}
 		rf, err := os.Open(filepath.Clean(file))
 		if err != nil {
 			return err
@@ -74,8 +70,8 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		hdr := &tar.Header{
 			Name:    file[len(baseDir):],
 			Mode:    0600,
-			Size:    fileInfo.Size(),
-			ModTime: fileInfo.ModTime(),
+			Size:    fi.Size(),
+			ModTime: fi.ModTime().UTC(),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
@@ -173,6 +169,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 			if err != nil {
 				return err
 			}
+			header.Modified = fi.ModTime().UTC()
 			header.Name = fileWithoutDir
 			f, err := w.CreateHeader(header)
 			if err != nil {

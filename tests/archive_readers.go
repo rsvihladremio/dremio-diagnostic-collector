@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
@@ -44,14 +45,18 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 			t.Logf("WARN: unable to close zip archive due to %v", err)
 		}
 	}()
+
 	var found bool
 	var buf bytes.Buffer
 	var names []string
+	var matchingFileModTime time.Time
 	for _, f := range tr.File {
 		names = append(names, f.Name)
 		fmt.Printf("Contents of %s:\n", f.Name)
 		if f.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
+			//using utc for comparison later
+			matchingFileModTime = f.ModTime().UTC()
 		}
 		rc, err := f.Open()
 		if err != nil {
@@ -78,6 +83,11 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	if !found {
 		t.Errorf("expected to find the newly archived file %v but did not in %v", expectedFile, names)
 	}
+	// validating the mod time is not ancient
+	if matchingFileModTime.Year() < 2011 {
+		t.Errorf("mod time is older than 2011 for zipped up file %v, this is a bug as we expect them to be modern", matchingFileModTime)
+	}
+
 	expectedText, err := os.ReadFile(cleanedExpectedFile)
 	if err != nil {
 		t.Fatal(err)
@@ -122,6 +132,10 @@ func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
 			t.Fatal(err)
 		}
 	}
+	if err != nil {
+		t.Errorf("cannot read stat to get accurate comparision %s", err)
+	}
+
 	expectedText, err := os.ReadFile(cleanedExpectedFile)
 	if err != nil {
 		t.Fatal(err)
@@ -198,6 +212,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	var found bool
 	var buf bytes.Buffer
 	var names []string
+	var matchingFileModTime time.Time
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -206,6 +221,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		matchingFileModTime = hdr.ModTime.UTC()
 		fmt.Printf("Contents of %s:\n", hdr.Name)
 		names = append(names, hdr.Name)
 		if hdr.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
@@ -224,6 +240,10 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 	}
 	if !found {
 		t.Errorf("expected to find the newly archived %v file but did not, inside was %v", cleanedExpectedFile, names)
+	}
+	// validating the mod time is not ancient
+	if matchingFileModTime.Year() < 2011 {
+		t.Errorf("mod time is older than 2011 for zipped up file %v, this is a bug as we expect them to be modern", matchingFileModTime)
 	}
 	expectedText, err := os.ReadFile(cleanedExpectedFile)
 	if err != nil {
