@@ -255,7 +255,7 @@ func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
 		if err != nil {
 			t.Errorf("error opening %v from %v. Error was %v", expFile, archiveFile, err)
 		}
-		e, err := os.Open(expectedFile)
+		e, err := os.Open(filepath.Clean(expectedFile))
 		if err != nil {
 			t.Errorf("error opening %v. Error was %v", expFile, err)
 		}
@@ -275,11 +275,11 @@ func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
 			t.Errorf("error when comparing mod times:  \n%v has time of %v\n %v has time of %v", expectedFile, expTime, archiveFile, arcTime)
 		}
 	} else if ext == ".tgz" || ext == ".tar" || ext == "gzip" {
-		a, err := os.Open(archiveFile)
+		a, err := os.Open(filepath.Clean(archiveFile))
 		if err != nil {
 			t.Errorf("error opening %v. Error was %v", archiveFile, err)
 		}
-		e, err := os.Open(expectedFile)
+		e, err := os.Open(filepath.Clean(expectedFile))
 		if err != nil {
 			t.Errorf("error opening %v. Error was %v", expFile, err)
 		}
