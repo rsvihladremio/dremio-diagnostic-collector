@@ -304,14 +304,19 @@ func TestCopyFiles(t *testing.T) {
 		DremioLogDir:              "",
 		DurationDiagnosticTooling: 0,
 		LogAge:                    5,
+		SizeLimit:                 999,
+		ExcludeFiles:              []string{""},
 	}
 
-	collectedFiles, failedFiles := copyFiles(config, "/my/local/dir", "/remote/dir", []string{fileToCopy})
+	collectedFiles, failedFiles, skippedFiles := copyFiles(config, "/my/local/dir", "/remote/dir", []string{fileToCopy})
 	if len(collectedFiles) != 1 {
 		t.Errorf("expecting to find a file from the copy file but had %v", len(collectedFiles))
 	}
 	if len(failedFiles) != 0 {
 		t.Errorf("expecting to NOT find a file from the failed file list but had %v", len(failedFiles))
+	}
+	if len(skippedFiles) != 0 {
+		t.Errorf("expecting to NOT find a file from the skipped file list but had %v", len(failedFiles))
 	}
 	if !strings.Contains(logOutput.String(), "INFO: host pod-big-0 copied abdc.txt to "+filepath.Join("pod-big-0", "my", "local", "dir", "abdc.txt")) {
 		t.Errorf("expected to have copied messaged in log but found none '%s'", logOutput.String())
