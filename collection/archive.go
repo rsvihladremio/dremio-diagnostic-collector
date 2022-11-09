@@ -22,7 +22,6 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -81,7 +80,8 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
-		fileBytes, err := ioutil.ReadFile(collectedFile.Path)
+		fileBytes, err := os.ReadFile(collectedFile.Path)
+
 		if err != nil {
 			return err
 		}
@@ -188,7 +188,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 					log.Printf("WARN unable to close file %v due to error %v", file, err)
 				}
 			}()
-			fileBytes, err := ioutil.ReadFile(collectedFile.Path)
+			fileBytes, err := os.ReadFile(collectedFile.Path)
 			if err != nil {
 				return err
 			}
