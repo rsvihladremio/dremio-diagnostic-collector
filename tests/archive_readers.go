@@ -238,10 +238,10 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 
 func CompareFileModtime(t *testing.T, expectedFile string, archiveFile string) {
 
-	parts := strings.Split(expectedFile, "/")
+	parts := strings.Split(expectedFile, string(os.PathSeparator))
 	l := len(parts) - 1
 	expFile := parts[l]
-	parts = strings.Split(archiveFile, "/")
+	parts = strings.Split(archiveFile, string(os.PathSeparator))
 	l = len(parts) - 1
 	arcFile := parts[l]
 	ext := filepath.Ext(arcFile)
