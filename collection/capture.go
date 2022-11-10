@@ -432,9 +432,12 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
 	} else {
 		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f")
-
 	}
-	if err != nil {
+
+	// For find commands we simply ignore exit status 1 and continue
+	// since this is usually something like a "Permission denied" which, in the
+	// context of a find command can be ignored.
+	if err != nil && !strings.Contains(string(err.Error()), "exit status 1") {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
 	}
 
