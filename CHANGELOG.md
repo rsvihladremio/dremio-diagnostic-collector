@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.5] - 2022-11-10
+### Added
+- Support for JFR collection
+- Ability to exclude files (exact match)
+- Flag to specify GC log location
+
+### Fixed
+- Collected file timestamps being reset to 1970 dates
+
 ## [0.1.4] - 2022-10-26
 ### Added
 - testing for windows environments
