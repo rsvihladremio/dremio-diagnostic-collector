@@ -383,6 +383,7 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 		}
 
 		// The skip flag is only reset on each new file in the file of files to copy
+		// TODO - at some future point we may want to support regex and / or exclude lists from a config file
 		if !skip {
 			if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
 				failedFiles = append(failedFiles, FailedFiles{
