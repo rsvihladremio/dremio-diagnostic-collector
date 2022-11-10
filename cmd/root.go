@@ -47,6 +47,7 @@ var durationDiagnosticTooling int
 var logAge int
 var jfrduration int
 var sudoUser string
+var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
 
@@ -103,6 +104,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			LogAge:                    logAge,
 			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
+			ExcludeFiles:              excludeFiles,
 		}
 
 		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
@@ -193,10 +195,12 @@ func init() {
 	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
+	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")
+
 }
 
 func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s bool) error {

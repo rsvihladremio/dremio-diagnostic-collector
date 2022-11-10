@@ -52,6 +52,8 @@ type Args struct {
 	LogAge                    int
 	JfrDuration               int
 	SudoUser                  string
+	SizeLimit                 int64
+	ExcludeFiles              []string
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -66,6 +68,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
 	cfs := collectionArgs.Cfs
+	limit := collectionArgs.SizeLimit
+	excludefiles := collectionArgs.ExcludeFiles
 
 	outputDir, err := cfs.MkdirTemp("", "*")
 	if err != nil {
@@ -95,6 +99,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	}
 	var files []CollectedFile
 	var totalFailedFiles []FailedFiles
+	var totalSkippedFiles []string
 	var nodesConnectedTo int
 	var m sync.Mutex
 	var wg sync.WaitGroup
@@ -118,10 +123,13 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				LogAge:                    logAge,
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
+				SizeLimit:                 limit,
+				ExcludeFiles:              excludefiles,
 			}
-			writtenFiles, failedFiles := Capture(coordinatorCaptureConf)
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
+			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
 			files = append(files, writtenFiles...)
 			m.Unlock()
 		}(coordinator)
@@ -149,10 +157,12 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				LogAge:                    logAge,
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
+				ExcludeFiles:              excludefiles,
 			}
-			writtenFiles, failedFiles := Capture(executorCaptureConf)
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
+			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
 			files = append(files, writtenFiles...)
 			m.Unlock()
 		}(executor)
@@ -175,6 +185,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	collectionInfo.Coordinators = coordinators
 	collectionInfo.Executors = executors
 	collectionInfo.FailedFiles = totalFailedFiles
+	collectionInfo.SkippedFiles = totalSkippedFiles
 
 	o, err := collectionInfo.String()
 	if err != nil {
