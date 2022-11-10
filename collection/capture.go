@@ -42,6 +42,8 @@ type HostCaptureConfiguration struct {
 	LogAge                    int
 	jfrduration               int
 	SudoUser                  string
+	SizeLimit                 int64
+	ExcludeFiles              []string
 }
 
 type FindErr struct {
@@ -54,7 +56,7 @@ func (fe FindErr) Error() string {
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles) {
+func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 	dremioConfDir := conf.DremioConfDir
 	dremioLogDir := conf.DremioLogDir
@@ -65,10 +67,13 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	err := setupDiagDir(conf)
 	if err != nil {
 		logger.Printf("ERROR: failed to setup diag directory for host %v due to error %v, will not collect diags for this host", host, err)
-		return []CollectedFile{}, []FailedFiles{}
+		return []CollectedFile{}, []FailedFiles{}, skippedFiles
 	}
 
+	// Capture any diags like iostat etc
 	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf)
+	files = append(files, capturedDiagnosticFiles...)
+	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
 	// Trigger a JFR if it is required
 	if jfrduration > 0 {
@@ -78,21 +83,23 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 		}
 	}
 
-	files = append(files, capturedDiagnosticFiles...)
-	failedFiles = append(failedFiles, failedDiagnosticFiles...)
-
+	// Capture config files
 	confFiles := []string{}
 	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/", false)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioConfDir, err)
 	} else {
 		confFiles = append(confFiles, foundConfigFiles...)
+
 	}
 
-	collected, failed := copyFiles(conf, "conf", dremioConfDir, confFiles)
+	// Append ongoing list of colelcted, failed and skipped files
+	collected, failed, skipped := copyFiles(conf, "conf", dremioConfDir, confFiles)
 	files = append(files, collected...)
 	failedFiles = append(failedFiles, failed...)
+	skippedFiles = append(skippedFiles, skipped...)
 
+	// Capture log files
 	logFiles := []string{}
 	var filterLogs bool
 
@@ -108,9 +115,10 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	} else {
 		logger.Printf("INFO: host %v finished finding files to copy out of the log directory", host)
 		logFiles = append(logFiles, foundLogFiles...)
-		collected, failed := copyFiles(conf, "log", dremioLogDir, logFiles)
+		collected, failed, skipped := copyFiles(conf, "log", dremioLogDir, logFiles)
 		files = append(files, collected...)
 		failedFiles = append(failedFiles, failed...)
+		skippedFiles = append(skippedFiles, skipped...)
 	}
 	gcLogSearchString, err := findGCLogLocation(conf)
 	if err != nil {
@@ -135,12 +143,13 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 			}
 		}
 		gcLogDir := filepath.Dir(gcLogSearchString)
-		collected, failed := copyFiles(conf, "log", gcLogDir, gcLogsToCollect)
+		collected, failed, skipped := copyFiles(conf, "log", gcLogDir, gcLogsToCollect)
 		files = append(files, collected...)
 		failedFiles = append(failedFiles, failed...)
+		skippedFiles = append(skippedFiles, skipped...)
 	}
 
-	return files, failedFiles
+	return files, failedFiles, skippedFiles
 }
 
 // captureDiagnostics runs iostat on the host, in the future it will run several diagnostics and capture them the same
@@ -343,16 +352,18 @@ func setupDiagDir(conf HostCaptureConfiguration) error {
 
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
-func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles) {
+func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
+	excludeFiles := conf.ExcludeFiles
+	var skip bool
 
 	for i := range filesToCopy {
 		log := filesToCopy[i]
-
+		skip = false
 		var fileName string
 		extraPath := filepath.Dir(strings.TrimPrefix(log, baseDir))
 		if extraPath == "" {
@@ -361,29 +372,44 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
 		}
 
-		if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
-			failedFiles = append(failedFiles, FailedFiles{
-				Path: fileName,
-				Err:  err,
-			})
-			logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
-		} else {
-			fileInfo, err := os.Stat(fileName)
-			//we assume a file size of zero if we are not able to retrieve the file size for some reason
-			size := int64(0)
-			if err != nil {
-				logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
-			} else {
-				size = fileInfo.Size()
+		// Check each file to see if its excluded
+		// if it is then add it to the skipped list
+		// and set a flag to skip collection
+		for _, exf := range excludeFiles {
+			if exf == filepath.Base(fileName) {
+				skippedFiles = append(skippedFiles, fileName)
+				skip = true
 			}
-			collectedFiles = append(collectedFiles, CollectedFile{
-				Path: fileName,
-				Size: size,
-			})
-			logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
 		}
+
+		// The skip flag is only reset on each new file in the file of files to copy
+		// TODO - at some future point we may want to support regex and / or exclude lists from a config file
+		if !skip {
+			if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
+				failedFiles = append(failedFiles, FailedFiles{
+					Path: fileName,
+					Err:  err,
+				})
+				logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
+			} else {
+				fileInfo, err := os.Stat(fileName)
+				//we assume a file size of zero if we are not able to retrieve the file size for some reason
+				size := int64(0)
+				if err != nil {
+					logger.Printf("WARN cannot get file size for file %v due to error %v. Storing size as 0", fileName, err)
+				} else {
+					size = fileInfo.Size()
+				}
+				collectedFiles = append(collectedFiles, CollectedFile{
+					Path: fileName,
+					Size: size,
+				})
+				logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
+			}
+		}
+
 	}
-	return collectedFiles, failedFiles
+	return collectedFiles, failedFiles, skippedFiles
 }
 
 // findFiles runs a simple ls -1 command to find all the top level files and nothing more
@@ -407,9 +433,12 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
 	} else {
 		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f")
-
 	}
-	if err != nil {
+
+	// For find commands we simply ignore exit status 1 and continue
+	// since this is usually something like a "Permission denied" which, in the
+	// context of a find command can be ignored.
+	if err != nil && !strings.Contains(string(err.Error()), "exit status 1") {
 		return []string{}, fmt.Errorf("file search failed failed due to error %v", err)
 	}
 

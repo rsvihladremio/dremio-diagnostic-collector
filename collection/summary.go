@@ -27,6 +27,7 @@ type SummaryInfo struct {
 	ClusterInfo         ClusterInfo     `json:"clusterInfo"`
 	CollectedFiles      []CollectedFile `json:"collectedFiles"`
 	FailedFiles         []FailedFiles   `json:"failedFiles"`
+	SkippedFiles        []string        `json:"skippedFiles"`
 	StartTimeUTC        time.Time       `json:"startTimeUTC"`
 	EndTimeUTC          time.Time       `json:"endTimeUTC"`
 	TotalRuntimeSeconds int64           `json:"totalRuntimeSeconds"`
