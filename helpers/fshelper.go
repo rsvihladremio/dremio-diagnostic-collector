@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-// oshelper package provides functions to wrapper os file system calls
+// fshelper provides functions to wrapper os file system calls
 // to better facilitate testing
 
 package helpers
@@ -42,6 +42,8 @@ type File interface {
 	Sync() error
 	Close() error
 }
+
+var DDCfs FileSystem
 
 // Real file
 type RealFile struct {

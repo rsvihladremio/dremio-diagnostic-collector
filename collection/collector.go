@@ -54,6 +54,25 @@ type Args struct {
 	SudoUser                  string
 	SizeLimit                 int64
 	ExcludeFiles              []string
+	CopyStrategy              helpers.CopyStrategy
+}
+
+type HostCaptureConfiguration struct {
+	Logger                    *log.Logger
+	IsCoordinator             bool
+	Collector                 Collector
+	Host                      string
+	OutputLocation            string
+	DremioConfDir             string
+	DremioLogDir              string
+	DurationDiagnosticTooling int
+	GCLogOverride             string
+	LogAge                    int
+	jfrduration               int
+	SudoUser                  string
+	SizeLimit                 int64
+	ExcludeFiles              []string
+	CopyStrategy              helpers.CopyStrategy
 }
 
 func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
@@ -71,10 +90,24 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
-	outputDir, err := cfs.MkdirTemp("", "*")
+	// Obtain a base dir depending on the copy strategy
+	baseDir, err := helpers.CreateBaseDir(collectionArgs.CopyStrategy)
 	if err != nil {
 		return err
 	}
+	// Tag this base dir onto a temp dir on the local filesystem
+	tmpDir, err := cfs.MkdirTemp("", "*")
+	if err != nil {
+		return err
+	}
+	outputDir := filepath.Join(tmpDir, baseDir)
+	cfs.MkdirAll(outputDir, DirPerms)
+	if err != nil {
+		return err
+	}
+	// Write the temp path + base dir back to the copy strategy
+	collectionArgs.CopyStrategy.BaseDir = outputDir
+
 	executorDir := filepath.Join(outputDir, "executors")
 	err = cfs.Mkdir(executorDir, DirPerms)
 	if err != nil {
@@ -85,6 +118,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	if err != nil {
 		return err
 	}
+
 	// Cleanup - we may want to move this into archiveDiagDirectory
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
@@ -125,6 +159,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				SudoUser:                  sudoUser,
 				SizeLimit:                 limit,
 				ExcludeFiles:              excludefiles,
+				CopyStrategy:              collectionArgs.CopyStrategy,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -158,6 +193,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
 				ExcludeFiles:              excludefiles,
+				CopyStrategy:              collectionArgs.CopyStrategy,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -201,6 +237,14 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		Size: int64(len([]byte(o))),
 	})
 
+	// Setup healthchek format directories
+	var nodes []string
+	nodes = append(nodes, coordinators...)
+	nodes = append(nodes, executors...)
+	err = helpers.SetupDirs(filepath.Dir(outputLoc), nodes)
+	if err != nil {
+		log.Printf("WARN: error setting up dirs for health check data. Error was %v", err)
+	}
 	return archiveDiagDirectory(outputLoc, outputDir, files)
 }
 

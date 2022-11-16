@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
@@ -50,6 +51,7 @@ var sudoUser string
 var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
+var format string
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -129,15 +131,41 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			os.Exit(1)
 		}
 		fmt.Println(getVersion())
+
+		// Setup base dir for Heath check output data
+		//err := helpers.SetupDirs()
+
+		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
+		// which then determines whether the commands are routed to the SSH or K8s commands
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
+			//err := kubernetes.GetKubernetesConfig(kubectlPath, coordinatorStr, outputLoc)
+			if err != nil {
+				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
+			}
 		} else {
 			log.Print("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
-		// Create ref to real file system (since with testing we redirect the argument to a mock object)
+
+		// CopyStrategy
+		cs := helpers.CopyStrategy{
+			StrategyName: "",
+			FileType:     "",
+			Source:       "",
+			NodeType:     "",
+		}
+		switch format {
+		case "healthcheck":
+			cs.StrategyName = "healthcheck"
+		case "default":
+			cs.StrategyName = "default"
+		}
+		collectionArgs.CopyStrategy = cs
+
+		// Launch the collection
 		err = collection.Execute(collectorStrategy,
 			logOutput,
 			collectionArgs,
@@ -196,6 +224,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (default is healthcheck)")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")

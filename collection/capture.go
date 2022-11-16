@@ -19,7 +19,6 @@ package collection
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,8 +26,10 @@ import (
 	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
+/*
 type HostCaptureConfiguration struct {
 	Logger                    *log.Logger
 	IsCoordinator             bool
@@ -45,10 +46,16 @@ type HostCaptureConfiguration struct {
 	SizeLimit                 int64
 	ExcludeFiles              []string
 }
+*/
 
 type FindErr struct {
 	Cmd string
 }
+
+// Module wide variable to persist across functions
+var cs helpers.CopyStrategy
+
+//var cs helpers.CopyStrategy
 
 func (fe FindErr) Error() string {
 	return fmt.Sprintf("find failed due to error %v:", fe.Cmd)
@@ -63,6 +70,8 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	logger := conf.Logger
 	logAge := conf.LogAge
 	jfrduration := conf.jfrduration
+	cs.StrategyName = conf.CopyStrategy.StrategyName
+	cs.BaseDir = conf.CopyStrategy.BaseDir
 
 	err := setupDiagDir(conf)
 	if err != nil {
@@ -85,6 +94,8 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	// Capture config files
 	confFiles := []string{}
+	cs.FileType = "config"
+
 	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/", false)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find files in directory %v with error %v", host, dremioConfDir, err)
@@ -93,15 +104,17 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	}
 
-	// Append ongoing list of colelcted, failed and skipped files
+	// Append ongoing list of collected, failed and skipped files
 	collected, failed, skipped := copyFiles(conf, "conf", dremioConfDir, confFiles)
 	files = append(files, collected...)
 	failedFiles = append(failedFiles, failed...)
 	skippedFiles = append(skippedFiles, skipped...)
 
-	// Capture log files
+	// Capture log files and GC log files
 	logFiles := []string{}
 	var filterLogs bool
+	cs.FileType = "logs"
+	//destDir, err := helpers.CreatePath(cs)
 
 	// set flag to filter or not based on default value
 	if logAge == 0 {
@@ -120,6 +133,8 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 		failedFiles = append(failedFiles, failed...)
 		skippedFiles = append(skippedFiles, skipped...)
 	}
+
+	// Capture GC log files
 	gcLogSearchString, err := findGCLogLocation(conf)
 	if err != nil {
 		logger.Printf("ERROR: host %v unable to find gc log location with error %v", host, err)
@@ -353,7 +368,7 @@ func setupDiagDir(conf HostCaptureConfiguration) error {
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
 func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
-	outputLoc := conf.OutputLocation
+	//outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
 	c := conf.Collector
@@ -362,15 +377,31 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 	var skip bool
 
 	for i := range filesToCopy {
-		log := filesToCopy[i]
+		file := filesToCopy[i]
 		skip = false
 		var fileName string
-		extraPath := filepath.Dir(strings.TrimPrefix(log, baseDir))
-		if extraPath == "" {
-			fileName = filepath.Join(outputLoc, host, destDir, filepath.Base(log))
+
+		// Construct the path to copy files to based on the copy strategy
+		cs.Source = host
+		if isCoordinator {
+			cs.NodeType = "coordinator"
 		} else {
-			fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(log))
+			cs.NodeType = "executor"
 		}
+		csPath, err := helpers.CreatePath(cs)
+		if err != nil {
+			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
+		}
+		fileName = filepath.Join(csPath, filepath.Base(file))
+
+		/*
+			extraPath := filepath.Dir(strings.TrimPrefix(file, baseDir))
+			if extraPath == "" {
+				fileName = filepath.Join(outputLoc, host, destDir, filepath.Base(file))
+			} else {
+				fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(file))
+			}
+		*/
 
 		// Check each file to see if its excluded
 		// if it is then add it to the skipped list
@@ -385,12 +416,12 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 		// The skip flag is only reset on each new file in the file of files to copy
 		// TODO - at some future point we may want to support regex and / or exclude lists from a config file
 		if !skip {
-			if out, err := c.CopyFromHost(host, isCoordinator, log, fileName); err != nil {
+			if out, err := c.CopyFromHost(host, isCoordinator, file, fileName); err != nil {
 				failedFiles = append(failedFiles, FailedFiles{
 					Path: fileName,
 					Err:  err,
 				})
-				logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", log, host, err, out)
+				logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", file, host, err, out)
 			} else {
 				fileInfo, err := os.Stat(fileName)
 				//we assume a file size of zero if we are not able to retrieve the file size for some reason
@@ -404,7 +435,7 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 					Path: fileName,
 					Size: size,
 				})
-				logger.Printf("INFO: host %v copied %v to %v", host, log, fileName)
+				logger.Printf("INFO: host %v copied %v to %v", host, file, fileName)
 			}
 		}
 
