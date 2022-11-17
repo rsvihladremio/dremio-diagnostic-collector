@@ -33,6 +33,13 @@ import (
 
 var DirPerms fs.FileMode = 0750
 
+type CopyStrategy interface {
+	SetBaseDir(string) string
+	CreatePath(fileType, source, nodeType string) (path string, err error)
+	SetType(fileType string)
+	GetType() string
+}
+
 type Collector interface {
 	CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error)
 	FindHosts(searchTerm string) (podName []string, err error)
@@ -54,7 +61,7 @@ type Args struct {
 	SudoUser                  string
 	SizeLimit                 int64
 	ExcludeFiles              []string
-	CopyStrategy              helpers.CopyStrategy
+	CopyStrategy              CopyStrategy
 }
 
 type HostCaptureConfiguration struct {
@@ -72,10 +79,10 @@ type HostCaptureConfiguration struct {
 	SudoUser                  string
 	SizeLimit                 int64
 	ExcludeFiles              []string
-	CopyStrategy              helpers.CopyStrategy
+	CopyStrategy              CopyStrategy
 }
 
-func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
+func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -90,34 +97,36 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
-	// Obtain a base dir depending on the copy strategy
-	baseDir, err := helpers.CreateBaseDir(collectionArgs.CopyStrategy)
-	if err != nil {
-		return err
-	}
 	// Tag this base dir onto a temp dir on the local filesystem
 	tmpDir, err := cfs.MkdirTemp("", "*")
 	if err != nil {
 		return err
 	}
-	outputDir := filepath.Join(tmpDir, baseDir)
-	cfs.MkdirAll(outputDir, DirPerms)
-	if err != nil {
-		return err
-	}
-	// Write the temp path + base dir back to the copy strategy
-	collectionArgs.CopyStrategy.BaseDir = outputDir
+	// Obtain a base dir depending on the copy strategy
+	baseDir := copyStry.SetBaseDir(tmpDir)
+	outputDir := baseDir
+	println(baseDir)
+	println(outputDir)
 
-	executorDir := filepath.Join(outputDir, "executors")
-	err = cfs.Mkdir(executorDir, DirPerms)
-	if err != nil {
-		return err
-	}
-	coordinatorDir := filepath.Join(outputDir, "coordinators")
-	err = cfs.Mkdir(coordinatorDir, DirPerms)
-	if err != nil {
-		return err
-	}
+	/*
+		cfs.MkdirAll(outputDir, DirPerms)
+		if err != nil {
+			return err
+		}
+
+		executorDir := filepath.Join(outputDir, "executors")
+		err = cfs.Mkdir(executorDir, DirPerms)
+		if err != nil {
+			return err
+		}
+		coordinatorDir := filepath.Join(outputDir, "coordinators")
+		err = cfs.Mkdir(coordinatorDir, DirPerms)
+		if err != nil {
+			return err
+		}
+	*/
+	executorDir := ""
+	coordinatorDir := ""
 
 	// Cleanup - we may want to move this into archiveDiagDirectory
 	defer func() {
@@ -159,7 +168,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				SudoUser:                  sudoUser,
 				SizeLimit:                 limit,
 				ExcludeFiles:              excludefiles,
-				CopyStrategy:              collectionArgs.CopyStrategy,
+				CopyStrategy:              copyStry,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -193,7 +202,7 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
 				ExcludeFiles:              excludefiles,
-				CopyStrategy:              collectionArgs.CopyStrategy,
+				CopyStrategy:              copyStry,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -237,14 +246,6 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 		Size: int64(len([]byte(o))),
 	})
 
-	// Setup healthchek format directories
-	var nodes []string
-	nodes = append(nodes, coordinators...)
-	nodes = append(nodes, executors...)
-	err = helpers.SetupDirs(filepath.Dir(outputLoc), nodes)
-	if err != nil {
-		log.Printf("WARN: error setting up dirs for health check data. Error was %v", err)
-	}
 	return archiveDiagDirectory(outputLoc, outputDir, files)
 }
 

@@ -150,23 +150,34 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
 
-		// CopyStrategy
-		cs := helpers.CopyStrategy{
-			StrategyName: "",
-			FileType:     "",
-			Source:       "",
-			NodeType:     "",
-		}
+		/*
+			// CopyStrategy
+			cs := helpers.CopyStrategy{
+				StrategyName: "",
+				FileType:     "",
+				Source:       "",
+				NodeType:     "",
+			}
+			switch format {
+			case "healthcheck":
+				cs.StrategyName = "healthcheck"
+			case "default":
+				cs.StrategyName = "default"
+			}
+			collectionArgs.CopyStrategy = cs
+		*/
+
+		var cs collection.CopyStrategy
 		switch format {
 		case "healthcheck":
-			cs.StrategyName = "healthcheck"
+			cs = helpers.NewHCCopyStrategy("hc")
 		case "default":
-			cs.StrategyName = "default"
+			cs = helpers.NewDFCopyStrategy("default")
 		}
-		collectionArgs.CopyStrategy = cs
 
 		// Launch the collection
 		err = collection.Execute(collectorStrategy,
+			cs,
 			logOutput,
 			collectionArgs,
 		)

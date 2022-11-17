@@ -23,25 +23,79 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
 )
 
-type MockCollector2 struct {
+type MockCopyStrategy struct {
 	Returns []string
 	Calls   []string
-	//CallCounter int
 }
 
-type MockCopy2 struct {
+type MockStrategy struct {
+	StrategyName string
+	BaseDir      string
+	FileType     string
+	Source       string
+	NodeType     string
+}
+
+func (s *MockStrategy) SetBaseDir(path string) string {
+	dir := time.Now().Format("20060102_150405-DDC")
+	s.BaseDir = filepath.Join(path, dir)
+	return dir
+}
+
+// Returns the base dir
+func (s *MockStrategy) GetBaseDir() string {
+	dir := s.BaseDir
+	return dir
+}
+
+func (s *MockStrategy) SetType(fileType string) {
+	s.FileType = fileType
+}
+
+func (s *MockStrategy) GetType() string {
+	return s.FileType
+}
+
+func (s *MockStrategy) CreatePath(fileType, source, nodeType string) (path string, err error) {
+	baseDir := s.BaseDir
+	s.FileType = fileType
+	s.Source = source
+	s.NodeType = nodeType
+	var isK8s bool
+	if strings.Contains(source, "dremio-master") || strings.Contains(source, "dremio-executor") || strings.Contains(source, "dremio-coordinator") {
+		isK8s = true
+	}
+	if !isK8s {
+		if nodeType == "coordinator" {
+			path = filepath.Join(baseDir, fileType, source+"-C")
+		} else {
+			path = filepath.Join(baseDir, fileType, source+"-E")
+		}
+	} else {
+		path = filepath.Join(baseDir, fileType, source)
+	}
+	return path, nil
+}
+
+type MockCapCollector struct {
+	Returns []string
+	Calls   []string
+}
+
+type MockCapCopy struct {
 	HostString    string
 	IsCoordinator bool
 	Source        string
 	Destination   string
 }
 
-func (m *MockCollector2) FindHosts(searchTerm string) (response []string, err error) {
+func (m *MockCapCollector) FindHosts(searchTerm string) (response []string, err error) {
 	if searchTerm == "dremio" {
 		response = append(response, "dremio-coordinator-0", "dremio-executor-0", "dremio-executor-1")
 	} else {
@@ -51,8 +105,8 @@ func (m *MockCollector2) FindHosts(searchTerm string) (response []string, err er
 	return response, err
 }
 
-func (m *MockCollector2) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (response string, err error) {
-	copyCall := MockCopy2{
+func (m *MockCapCollector) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (response string, err error) {
+	copyCall := MockCapCopy{
 		HostString:    hostString,
 		IsCoordinator: isCoordinator,
 		Source:        source,
@@ -69,7 +123,7 @@ func (m *MockCollector2) CopyFromHost(hostString string, isCoordinator bool, sou
 	return response, err
 }
 
-func (m *MockCollector2) HostExecute(hostString string, isCoordinator bool, args ...string) (response string, err error) {
+func (m *MockCapCollector) HostExecute(hostString string, isCoordinator bool, args ...string) (response string, err error) {
 	findConf := []string{"find", "/opt/dremio/conf/"}
 	findLog := []string{"find", "/var/log/dremio/"}
 	mockConfFiles := "/opt/dremio/dremio.conf\n/opt/dremio/dremio.env"
@@ -92,7 +146,13 @@ func TestExecute(t *testing.T) {
 	var returnValues []string
 	var callValues []string
 	callValues = append(callValues, "dremio-coordinator-1", "dremio-eecutor-0", "dremio-executor-1")
-	mockCollector := &MockCollector2{
+
+	mockStrategy := &MockStrategy{
+		StrategyName: "dremio",
+		BaseDir:      "/tmp",
+	}
+
+	mockCollector := &MockCapCollector{
 		Calls:   callValues,
 		Returns: returnValues,
 	}
@@ -110,16 +170,17 @@ func TestExecute(t *testing.T) {
 		GCLogOverride:             "",
 		DurationDiagnosticTooling: 5,
 		LogAge:                    1,
+		CopyStrategy:              mockStrategy,
 	}
 	expected := "ERROR: no hosts found matching 10.1.2.3"
-	err := Execute(mockCollector, logOutput, fakeArgs)
+	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
 
 	fakeArgs.CoordinatorStr = "dremio-coordinator-99"
 	expected = "ERROR: no hosts found matching dremio-coordinator-99"
-	err = Execute(mockCollector, logOutput, fakeArgs)
+	err = Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
@@ -127,7 +188,7 @@ func TestExecute(t *testing.T) {
 	fakeArgs.CoordinatorStr = "dremio"
 	//fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected = "ERROR: no hosts found matching 10.2.3.4"
-	err = Execute(mockCollector, logOutput, fakeArgs)
+	err = Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}
@@ -135,7 +196,7 @@ func TestExecute(t *testing.T) {
 	fakeArgs.CoordinatorStr = "dremio"
 	fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected = "ERROR: no hosts found matching dremio-executor-99"
-	err = Execute(mockCollector, logOutput, fakeArgs)
+	err = Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
 	}

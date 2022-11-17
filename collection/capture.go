@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
 /*
@@ -52,11 +51,6 @@ type FindErr struct {
 	Cmd string
 }
 
-// Module wide variable to persist across functions
-var cs helpers.CopyStrategy
-
-//var cs helpers.CopyStrategy
-
 func (fe FindErr) Error() string {
 	return fmt.Sprintf("find failed due to error %v:", fe.Cmd)
 }
@@ -70,14 +64,14 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	logger := conf.Logger
 	logAge := conf.LogAge
 	jfrduration := conf.jfrduration
-	cs.StrategyName = conf.CopyStrategy.StrategyName
-	cs.BaseDir = conf.CopyStrategy.BaseDir
 
-	err := setupDiagDir(conf)
-	if err != nil {
-		logger.Printf("ERROR: failed to setup diag directory for host %v due to error %v, will not collect diags for this host", host, err)
-		return []CollectedFile{}, []FailedFiles{}, skippedFiles
-	}
+	/*
+		err := setupDiagDir(conf)
+		if err != nil {
+			logger.Printf("ERROR: failed to setup diag directory for host %v due to error %v, will not collect diags for this host", host, err)
+			return []CollectedFile{}, []FailedFiles{}, skippedFiles
+		}
+	*/
 
 	// Capture any diags like iostat etc
 	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf)
@@ -94,7 +88,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	// Capture config files
 	confFiles := []string{}
-	cs.FileType = "config"
+	conf.CopyStrategy.SetType("config")
 
 	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/", false)
 	if err != nil {
@@ -113,8 +107,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	// Capture log files and GC log files
 	logFiles := []string{}
 	var filterLogs bool
-	cs.FileType = "logs"
-	//destDir, err := helpers.CreatePath(cs)
+	conf.CopyStrategy.SetType("logs")
 
 	// set flag to filter or not based on default value
 	if logAge == 0 {
@@ -375,20 +368,21 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 	isCoordinator := conf.IsCoordinator
 	excludeFiles := conf.ExcludeFiles
 	var skip bool
+	var nodeType string
+	fileType := conf.CopyStrategy.GetType()
+	s := conf.CopyStrategy
 
 	for i := range filesToCopy {
 		file := filesToCopy[i]
 		skip = false
 		var fileName string
-
 		// Construct the path to copy files to based on the copy strategy
-		cs.Source = host
 		if isCoordinator {
-			cs.NodeType = "coordinator"
+			nodeType = "coordinator"
 		} else {
-			cs.NodeType = "executor"
+			nodeType = "executor"
 		}
-		csPath, err := helpers.CreatePath(cs)
+		csPath, err := s.CreatePath(fileType, host, nodeType)
 		if err != nil {
 			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
 		}
