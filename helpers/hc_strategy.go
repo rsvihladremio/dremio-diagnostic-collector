@@ -16,9 +16,6 @@
 
 /*
 This module creates a strategy to determine, where to put the files we copy from the cluster.
-When we copy files we know where they are from and what their pupose is (e.g. logs, config etc).
-With this info we can construct a path thats formed of these elements to send back to the calling
-function that does the actual file copying.
 */
 
 package helpers
@@ -29,9 +26,13 @@ import (
 	"time"
 )
 
-func NewHCCopyStrategy(name string) *CopyStrategyHC {
+func NewHCCopyStrategy() *CopyStrategyHC {
+	dir := time.Now().Format("20060102_150405-DDC")
+	tmpDir, _ := DDCfs.MkdirTemp("", "*")
 	return &CopyStrategyHC{
-		StrategyName: name,
+		StrategyName: "healthcheck",
+		BaseDir:      dir,
+		TmpDir:       tmpDir,
 	}
 }
 
@@ -40,17 +41,11 @@ This struct holds the details we need to copy files. The strategy is used to det
 */
 type CopyStrategyHC struct {
 	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string // tmp dir used for staging files
 	BaseDir      string // the base dir of where the output is routed
-	FileType     string // what the file(s) are; configs, logs etc
+	ZipPath      string // the base dir of the copied file (may include additional subdirs below BaseDir)
 	Source       string // where the files are from (usually the node or pod)
 	NodeType     string // Usually "coordinator" or "executor" (ssh nodes only identify with a IP)
-}
-
-// The healthceck uses a base directory based on current timestamp
-func (s *CopyStrategyHC) SetBaseDir(path string) string {
-	dir := time.Now().Format("20060102_150405-DDC")
-	s.BaseDir = filepath.Join(path, dir)
-	return s.BaseDir
 }
 
 // Returns the base dir
@@ -59,22 +54,26 @@ func (s *CopyStrategyHC) GetBaseDir() string {
 	return dir
 }
 
-func (s *CopyStrategyHC) SetType(fileType string) {
-	s.FileType = fileType
+// Returns the tmp dir
+func (s *CopyStrategyHC) GetTmpDir() string {
+	dir := s.TmpDir
+	return dir
 }
 
-func (s *CopyStrategyHC) GetType() string {
-	return s.FileType
+// Returns the zip path for the archive
+func (s *CopyStrategyHC) GetZipPath() string {
+	dir := s.ZipPath
+	return dir
 }
 
 /*
 
-The default strategy follows the healthcheck format
+The healthcheck format example
 
-20221110-141414-DDC - ?
+20221110-141414-DDC (the suffix DDC to identify a diag uploadedf from the collector)
 ├── configuration
 │   ├── dremio-executor-0 -- 1.2.3.4-C
-│   ├── dremio-executor-1 -- 12.3.45-E
+│   ├── dremio-executor-1 -- 1.2.3.5-E
 │   ├── dremio-executor-2
 │   └── dremio-master-0
 ├── dremio-cloner
@@ -102,21 +101,32 @@ The default strategy follows the healthcheck format
 
 func (s *CopyStrategyHC) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
-	s.FileType = fileType
+	tmpDir := s.TmpDir
 	s.Source = source
 	s.NodeType = nodeType
+
+	// We only tag a suffix of '-C' / '-E' for ssh nodes, the K8s pods are desriptive enough to determine the coordinator / executpr
 	var isK8s bool
 	if strings.Contains(source, "dremio-master") || strings.Contains(source, "dremio-executor") || strings.Contains(source, "dremio-coordinator") {
 		isK8s = true
 	}
-	if !isK8s {
+	if !isK8s { // SSH node types
 		if nodeType == "coordinator" {
-			path = filepath.Join(baseDir, fileType, source+"-C")
+			path = filepath.Join(tmpDir, baseDir, fileType, source+"-C")
+			s.ZipPath = filepath.Join(baseDir, fileType, source+"-C")
+
 		} else {
-			path = filepath.Join(baseDir, fileType, source+"-E")
+			path = filepath.Join(tmpDir, baseDir, fileType, source+"-E")
+			s.ZipPath = filepath.Join(baseDir, fileType, source+"-E")
 		}
-	} else {
-		path = filepath.Join(baseDir, fileType, source)
+	} else { // K8s node types
+		path = filepath.Join(tmpDir, baseDir, fileType, source)
+		s.ZipPath = filepath.Join(baseDir, fileType, source)
 	}
+	err = DDCfs.MkdirAll(path, DirPerms)
+	if err != nil {
+		return path, err
+	}
+
 	return path, nil
 }

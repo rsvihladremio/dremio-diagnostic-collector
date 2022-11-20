@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
@@ -37,34 +36,30 @@ type MockCopyStrategy struct {
 type MockStrategy struct {
 	StrategyName string
 	BaseDir      string
-	FileType     string
+	TmpDir       string
+	ZipPath      string
 	Source       string
 	NodeType     string
 }
 
-func (s *MockStrategy) SetBaseDir(path string) string {
-	dir := time.Now().Format("20060102_150405-DDC")
-	s.BaseDir = filepath.Join(path, dir)
-	return dir
-}
-
-// Returns the base dir
 func (s *MockStrategy) GetBaseDir() string {
 	dir := s.BaseDir
 	return dir
 }
 
-func (s *MockStrategy) SetType(fileType string) {
-	s.FileType = fileType
+// Returns the base dir
+func (s *MockStrategy) GetTmpDir() string {
+	dir := s.TmpDir
+	return dir
 }
 
-func (s *MockStrategy) GetType() string {
-	return s.FileType
+func (s *MockStrategy) GetZipPath() string {
+	dir := s.ZipPath
+	return dir
 }
 
 func (s *MockStrategy) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
-	s.FileType = fileType
 	s.Source = source
 	s.NodeType = nodeType
 	var isK8s bool

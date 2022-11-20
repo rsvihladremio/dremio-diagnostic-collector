@@ -18,6 +18,7 @@
 package collection
 
 import (
+	"archive/zip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -144,4 +145,46 @@ func TestGZip(t *testing.T) {
 	if err.Error() != expectedOutput {
 		t.Fatalf("unmatched error response\nexpected: %v\nresponse: %v", expectedOutput, err)
 	}
+}
+
+func TestForBaseDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFileRaw := filepath.Join("testdata", "20221118_082401", "archive.txt")
+	testFile, err := filepath.Abs(testFileRaw)
+	if err != nil {
+		t.Fatalf("not able to get absolute path for test file %v", err)
+	}
+	fi, err := os.Stat(testFile)
+	//if err != nil {
+	//	t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
+	//}
+	archiveFile := tmpDir + ".zip"
+	//testDataDir, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatalf("not able to get absolute path for testdata dir %v", err)
+	}
+	// zip up file
+	err = ZipDiag(archiveFile, "2022118_082401", []CollectedFile{
+		{
+			Path: testFile,
+			Size: fi.Size(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
+	}
+
+	// unzip to test contents
+	zf, err := zip.OpenReader(archiveFile)
+	if err != nil {
+		t.Fatalf("unexpected error unzipping zip file %v due to error %v ", archiveFile, err)
+	}
+
+	expected := "2022118_082401/archive.txt"
+	for _, f := range zf.File {
+		if f.Name != expected {
+			t.Errorf("names do not match, expected %v, got %v", expected, f.Name)
+		}
+	}
+
 }

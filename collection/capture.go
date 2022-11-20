@@ -28,25 +28,6 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
 )
 
-/*
-type HostCaptureConfiguration struct {
-	Logger                    *log.Logger
-	IsCoordinator             bool
-	Collector                 Collector
-	Host                      string
-	OutputLocation            string
-	DremioConfDir             string
-	DremioLogDir              string
-	DurationDiagnosticTooling int
-	GCLogOverride             string
-	LogAge                    int
-	jfrduration               int
-	SudoUser                  string
-	SizeLimit                 int64
-	ExcludeFiles              []string
-}
-*/
-
 type FindErr struct {
 	Cmd string
 }
@@ -65,16 +46,8 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	logAge := conf.LogAge
 	jfrduration := conf.jfrduration
 
-	/*
-		err := setupDiagDir(conf)
-		if err != nil {
-			logger.Printf("ERROR: failed to setup diag directory for host %v due to error %v, will not collect diags for this host", host, err)
-			return []CollectedFile{}, []FailedFiles{}, skippedFiles
-		}
-	*/
-
 	// Capture any diags like iostat etc
-	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf)
+	capturedDiagnosticFiles, failedDiagnosticFiles := captureDiagnostics(conf, "diags")
 	files = append(files, capturedDiagnosticFiles...)
 	failedFiles = append(failedFiles, failedDiagnosticFiles...)
 
@@ -88,7 +61,6 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 
 	// Capture config files
 	confFiles := []string{}
-	conf.CopyStrategy.SetType("config")
 
 	foundConfigFiles, err := findFiles(conf, dremioConfDir+"/", false)
 	if err != nil {
@@ -99,7 +71,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	}
 
 	// Append ongoing list of collected, failed and skipped files
-	collected, failed, skipped := copyFiles(conf, "conf", dremioConfDir, confFiles)
+	collected, failed, skipped := copyFiles(conf, "config", dremioConfDir, confFiles)
 	files = append(files, collected...)
 	failedFiles = append(failedFiles, failed...)
 	skippedFiles = append(skippedFiles, skipped...)
@@ -107,7 +79,6 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 	// Capture log files and GC log files
 	logFiles := []string{}
 	var filterLogs bool
-	conf.CopyStrategy.SetType("logs")
 
 	// set flag to filter or not based on default value
 	if logAge == 0 {
@@ -163,21 +134,34 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 // captureDiagnostics runs iostat on the host, in the future it will run several diagnostics and capture them the same
 // time to provide in depth analysis
 // iostat must be installed on the host to be captured for this to work
-func captureDiagnostics(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles) {
+func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files []CollectedFile, failedFiles []FailedFiles) {
 	host := conf.Host
 	c := conf.Collector
-	outputLoc := conf.OutputLocation
 	isCoordinator := conf.IsCoordinator
 	logger := conf.Logger
+	var nodeType string
+	s := conf.CopyStrategy
+	var fileName string
 
 	// run iostat against the host
 	o, err := c.HostExecute(host, isCoordinator, diagnostics.IOStatArgs(conf.DurationDiagnosticTooling)...)
 	if err != nil {
 		logger.Printf("ERROR: host %v failed iostat with error %v", host, err)
 	} else {
+		if isCoordinator {
+			nodeType = "coordinator"
+		} else {
+			nodeType = "executor"
+		}
+		cPath, err := s.CreatePath(fileType, host, nodeType)
+		if err != nil {
+			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
+		}
+
 		//take the captured text and write it out to iostat.txt
 		logger.Printf("INFO: host %v finished iostat", host)
-		fileName := filepath.Join(outputLoc, host, "iostat.txt")
+		fileName = filepath.Join(cPath, filepath.Base("iostat.txt"))
+		//fileName := filepath.Join(outputLoc, host, "iostat.txt")
 		if err := os.WriteFile(fileName, []byte(o), 0600); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,
@@ -330,37 +314,9 @@ func checkJfr(conf HostCaptureConfiguration, pid string) error {
 	return nil
 }
 
-// setupDiagDir creates all necessary subfolders for the host subfolder in the diag tarball
-func setupDiagDir(conf HostCaptureConfiguration) error {
-	host := conf.Host
-	outputLoc := conf.OutputLocation
-	logger := conf.Logger
-
-	if err := os.Mkdir(filepath.Join(outputLoc, host), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host dir", host, err)
-		return err
-	}
-
-	if err := os.Mkdir(filepath.Join(outputLoc, host, "conf"), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host conf dir", host, err)
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "archive"), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Join(outputLoc, host, "log", "json", "archive"), DirPerms); err != nil {
-		logger.Printf("ERROR: host %v had error %v trying to make it's host log dir", host, err)
-		return err
-	}
-	return nil
-}
-
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
-func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	//outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
@@ -369,33 +325,22 @@ func copyFiles(conf HostCaptureConfiguration, destDir string, baseDir string, fi
 	excludeFiles := conf.ExcludeFiles
 	var skip bool
 	var nodeType string
-	fileType := conf.CopyStrategy.GetType()
 	s := conf.CopyStrategy
+	var fileName string
 
 	for i := range filesToCopy {
 		file := filesToCopy[i]
 		skip = false
-		var fileName string
-		// Construct the path to copy files to based on the copy strategy
 		if isCoordinator {
 			nodeType = "coordinator"
 		} else {
 			nodeType = "executor"
 		}
-		csPath, err := s.CreatePath(fileType, host, nodeType)
+		cPath, err := s.CreatePath(fileType, host, nodeType)
 		if err != nil {
 			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
 		}
-		fileName = filepath.Join(csPath, filepath.Base(file))
-
-		/*
-			extraPath := filepath.Dir(strings.TrimPrefix(file, baseDir))
-			if extraPath == "" {
-				fileName = filepath.Join(outputLoc, host, destDir, filepath.Base(file))
-			} else {
-				fileName = filepath.Join(outputLoc, host, destDir, extraPath, filepath.Base(file))
-			}
-		*/
+		fileName = filepath.Join(cPath, filepath.Base(file))
 
 		// Check each file to see if its excluded
 		// if it is then add it to the skipped list

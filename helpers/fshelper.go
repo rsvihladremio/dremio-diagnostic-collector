@@ -21,6 +21,7 @@ package helpers
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -44,6 +45,8 @@ type File interface {
 }
 
 var DDCfs FileSystem
+
+const DirPerms fs.FileMode = 0750
 
 // Real file
 type RealFile struct {

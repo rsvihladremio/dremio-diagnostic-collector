@@ -34,10 +34,10 @@ import (
 var DirPerms fs.FileMode = 0750
 
 type CopyStrategy interface {
-	SetBaseDir(string) string
+	GetBaseDir() string
+	GetTmpDir() string
+	GetZipPath() string
 	CreatePath(fileType, source, nodeType string) (path string, err error)
-	SetType(fileType string)
-	GetType() string
 }
 
 type Collector interface {
@@ -82,7 +82,7 @@ type HostCaptureConfiguration struct {
 	CopyStrategy              CopyStrategy
 }
 
-func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
+func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -97,38 +97,11 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
-	// Tag this base dir onto a temp dir on the local filesystem
-	tmpDir, err := cfs.MkdirTemp("", "*")
-	if err != nil {
-		return err
-	}
 	// Obtain a base dir depending on the copy strategy
-	baseDir := copyStry.SetBaseDir(tmpDir)
-	outputDir := baseDir
-	println(baseDir)
-	println(outputDir)
+	tmpDir := s.GetTmpDir()
+	outputDir := tmpDir
 
-	/*
-		cfs.MkdirAll(outputDir, DirPerms)
-		if err != nil {
-			return err
-		}
-
-		executorDir := filepath.Join(outputDir, "executors")
-		err = cfs.Mkdir(executorDir, DirPerms)
-		if err != nil {
-			return err
-		}
-		coordinatorDir := filepath.Join(outputDir, "coordinators")
-		err = cfs.Mkdir(coordinatorDir, DirPerms)
-		if err != nil {
-			return err
-		}
-	*/
-	executorDir := ""
-	coordinatorDir := ""
-
-	// Cleanup - we may want to move this into archiveDiagDirectory
+	// Cleanup temp dir once complete
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
@@ -136,6 +109,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
 		}
 	}()
+
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
 		return err
@@ -158,7 +132,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 				IsCoordinator:             true,
 				Logger:                    logger,
 				Host:                      host,
-				OutputLocation:            coordinatorDir,
+				OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -168,7 +142,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 				SudoUser:                  sudoUser,
 				SizeLimit:                 limit,
 				ExcludeFiles:              excludefiles,
-				CopyStrategy:              copyStry,
+				CopyStrategy:              s,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -193,7 +167,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 				IsCoordinator:             false,
 				Logger:                    logger,
 				Host:                      host,
-				OutputLocation:            executorDir,
+				OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -202,7 +176,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
 				ExcludeFiles:              excludefiles,
-				CopyStrategy:              copyStry,
+				CopyStrategy:              s,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -246,7 +220,7 @@ func Execute(c Collector, copyStry CopyStrategy, logOutput io.Writer, collection
 		Size: int64(len([]byte(o))),
 	})
 
-	return archiveDiagDirectory(outputLoc, outputDir, files)
+	return archiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
 }
 
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library

@@ -170,9 +170,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		var cs collection.CopyStrategy
 		switch format {
 		case "healthcheck":
-			cs = helpers.NewHCCopyStrategy("hc")
+			cs = helpers.NewHCCopyStrategy()
 		case "default":
-			cs = helpers.NewDFCopyStrategy("default")
+			cs = helpers.NewDFCopyStrategy()
 		}
 
 		// Launch the collection

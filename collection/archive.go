@@ -25,6 +25,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
@@ -164,7 +165,8 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 				continue
 			}
 			log.Printf("zipping file %v", file)
-			fileWithoutDir := file[len(baseDir):]
+			// Trim off the tmp dir to leave file and path you need in the archive
+			fileWithoutDir := strings.TrimPrefix(file, baseDir)
 			header, err := zip.FileInfoHeader(fi)
 			if err != nil {
 				return err

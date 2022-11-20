@@ -16,21 +16,22 @@
 
 /*
 This module creates a strategy to determine, where to put the files we copy from the cluster.
-When we copy files we know where they are from and what their pupose is (e.g. logs, config etc).
-With this info we can construct a path thats formed of these elements to send back to the calling
-function that does the actual file copying.
 */
 
 package helpers
 
 import (
 	"path/filepath"
-	"strings"
+	"time"
 )
 
-func NewDFCopyStrategy(name string) *CopyStrategyDefault {
+func NewDFCopyStrategy() *CopyStrategyDefault {
+	dir := time.Now().Format("20060102_150405-DDC")
+	tmpDir, _ := DDCfs.MkdirTemp("", "*")
 	return &CopyStrategyDefault{
-		StrategyName: name,
+		StrategyName: "default",
+		BaseDir:      dir,
+		TmpDir:       tmpDir,
 	}
 }
 
@@ -39,16 +40,11 @@ This struct holds the details we need to copy files. The strategy is used to det
 */
 type CopyStrategyDefault struct {
 	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string // tmp dir used for staging files
 	BaseDir      string // the base dir of where the output is routed
-	FileType     string // what the file(s) are; configs, logs etc
+	ZipPath      string // the base dir of the copied file (may include additional subdirs below BaseDir)
 	Source       string // where the files are from (usually the node or pod)
 	NodeType     string // Usually "coordinator" or "executor" (ssh nodes only identify with a IP)
-}
-
-// The default uses a base directory based on current timestamp
-func (s *CopyStrategyDefault) SetBaseDir(path string) string {
-	s.BaseDir = path
-	return path
 }
 
 // Returns the base dir
@@ -57,35 +53,54 @@ func (s *CopyStrategyDefault) GetBaseDir() string {
 	return dir
 }
 
-func (s *CopyStrategyDefault) SetType(fileType string) {
-	s.FileType = fileType
+// Returns the tmp dir
+func (s *CopyStrategyDefault) GetTmpDir() string {
+	dir := s.TmpDir
+	return dir
 }
 
-func (s *CopyStrategyDefault) GetType() string {
-	return s.FileType
+// Returns the zip path for the archive
+func (s *CopyStrategyDefault) GetZipPath() string {
+	dir := s.ZipPath
+	return dir
 }
+
+/*
+
+The default format example
+
+./ (the suffix DDC to identify a diag uploadedf from the collector)
+├── coordinators
+│   	├──── logs
+│		│		└─ dremio-master-0 / 1.2.3.4-C
+│		│
+│   	└──── config
+│				└─ dremio-executor-0 / 10.2.3.4-E
+
+...
+
+*/
 
 func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
-	s.FileType = fileType
+	tmpDir := s.TmpDir
 	s.Source = source
 	s.NodeType = nodeType
-	var isK8s bool
-	if strings.Contains(source, "dremio-master") || strings.Contains(source, "dremio-executor") || strings.Contains(source, "dremio-coordinator") {
-		isK8s = true
-	}
-	if !isK8s {
-		if nodeType == "coordinator" {
-			path = filepath.Join(baseDir, "coorindators", fileType, source+"-C")
-		} else {
-			path = filepath.Join(baseDir, "executors", fileType, source+"-E")
-		}
+
+	// With this strategy nodes arealreayd grouped under a parent directory for type
+	// so there is no need for an identifier suffix for SSH nodes
+	if nodeType == "coordinator" {
+		path = filepath.Join(tmpDir, baseDir, "coorindators", source, fileType)
+		s.ZipPath = filepath.Join(baseDir, "coorindators", source, fileType)
 	} else {
-		if nodeType == "coordinator" {
-			path = filepath.Join(baseDir, "coorindators", fileType, source)
-		} else {
-			path = filepath.Join(baseDir, "executors", fileType, source)
-		}
+		path = filepath.Join(tmpDir, baseDir, "executors", source, fileType)
+		s.ZipPath = filepath.Join(baseDir, "executors", source, fileType)
 	}
+
+	err = DDCfs.MkdirAll(path, DirPerms)
+	if err != nil {
+		return path, err
+	}
+
 	return path, nil
 }

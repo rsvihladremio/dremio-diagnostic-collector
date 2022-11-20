@@ -292,6 +292,10 @@ func TestCopyFiles(t *testing.T) {
 	mockCollector := &MockCollector{
 		Returns: returnValues,
 	}
+	mockStrategy := &MockStrategy{
+		StrategyName: "dremio",
+		BaseDir:      "/tmp",
+	}
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "TESTER", log.Ldate|log.Ltime|log.Lshortfile)
 	config := HostCaptureConfiguration{
@@ -306,9 +310,10 @@ func TestCopyFiles(t *testing.T) {
 		LogAge:                    5,
 		SizeLimit:                 999,
 		ExcludeFiles:              []string{""},
+		CopyStrategy:              mockStrategy,
 	}
 
-	collectedFiles, failedFiles, skippedFiles := copyFiles(config, "/my/local/dir", "/remote/dir", []string{fileToCopy})
+	collectedFiles, failedFiles, skippedFiles := copyFiles(config, "log", "/tmp/log", []string{fileToCopy})
 	if len(collectedFiles) != 1 {
 		t.Errorf("expecting to find a file from the copy file but had %v", len(collectedFiles))
 	}
