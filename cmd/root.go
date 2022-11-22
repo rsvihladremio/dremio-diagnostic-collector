@@ -107,6 +107,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
 			ExcludeFiles:              excludeFiles,
+			DDCfs:                     helpers.NewRealFileSystem(),
 		}
 
 		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
@@ -170,9 +171,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		var cs collection.CopyStrategy
 		switch format {
 		case "healthcheck":
-			cs = helpers.NewHCCopyStrategy()
+			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		case "default":
-			cs = helpers.NewDFCopyStrategy()
+			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
 		}
 
 		// Launch the collection

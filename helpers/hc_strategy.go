@@ -26,9 +26,9 @@ import (
 	"time"
 )
 
-func NewHCCopyStrategy() *CopyStrategyHC {
-	dir := time.Now().Format("20060102_150405-DDC")
-	tmpDir, _ := DDCfs.MkdirTemp("", "*")
+func NewHCCopyStrategy(ddcfs Filesystem) *CopyStrategyHC {
+	dir := time.Now().Format("20060102-150405-DDC")
+	tmpDir, _ := ddcfs.MkdirTemp("", "*")
 	return &CopyStrategyHC{
 		StrategyName: "healthcheck",
 		BaseDir:      dir,
@@ -44,8 +44,6 @@ type CopyStrategyHC struct {
 	TmpDir       string // tmp dir used for staging files
 	BaseDir      string // the base dir of where the output is routed
 	ZipPath      string // the base dir of the copied file (may include additional subdirs below BaseDir)
-	Source       string // where the files are from (usually the node or pod)
-	NodeType     string // Usually "coordinator" or "executor" (ssh nodes only identify with a IP)
 }
 
 // Returns the base dir
@@ -60,17 +58,17 @@ func (s *CopyStrategyHC) GetTmpDir() string {
 	return dir
 }
 
-// Returns the zip path for the archive
-func (s *CopyStrategyHC) GetZipPath() string {
-	dir := s.ZipPath
-	return dir
-}
-
 /*
 
 The healthcheck format example
 
-20221110-141414-DDC (the suffix DDC to identify a diag uploadedf from the collector)
+// TODO use - not _
+// use logs not log
+// gzip all files
+// change config to configuration
+
+
+20221110-141414-DDC (the suffix DDC to identify a diag uploaded from the collector)
 ├── configuration
 │   ├── dremio-executor-0 -- 1.2.3.4-C
 │   ├── dremio-executor-1 -- 1.2.3.5-E
@@ -99,11 +97,9 @@ The healthcheck format example
 └── system-tables
 */
 
-func (s *CopyStrategyHC) CreatePath(fileType, source, nodeType string) (path string, err error) {
+func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
-	s.Source = source
-	s.NodeType = nodeType
 
 	// We only tag a suffix of '-C' / '-E' for ssh nodes, the K8s pods are desriptive enough to determine the coordinator / executpr
 	var isK8s bool
@@ -113,17 +109,14 @@ func (s *CopyStrategyHC) CreatePath(fileType, source, nodeType string) (path str
 	if !isK8s { // SSH node types
 		if nodeType == "coordinator" {
 			path = filepath.Join(tmpDir, baseDir, fileType, source+"-C")
-			s.ZipPath = filepath.Join(baseDir, fileType, source+"-C")
 
 		} else {
 			path = filepath.Join(tmpDir, baseDir, fileType, source+"-E")
-			s.ZipPath = filepath.Join(baseDir, fileType, source+"-E")
 		}
 	} else { // K8s node types
 		path = filepath.Join(tmpDir, baseDir, fileType, source)
-		s.ZipPath = filepath.Join(baseDir, fileType, source)
 	}
-	err = DDCfs.MkdirAll(path, DirPerms)
+	err = ddcfs.MkdirAll(path, DirPerms)
 	if err != nil {
 		return path, err
 	}

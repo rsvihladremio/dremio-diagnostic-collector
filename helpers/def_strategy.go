@@ -25,9 +25,9 @@ import (
 	"time"
 )
 
-func NewDFCopyStrategy() *CopyStrategyDefault {
+func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
 	dir := time.Now().Format("20060102_150405-DDC")
-	tmpDir, _ := DDCfs.MkdirTemp("", "*")
+	tmpDir, _ := ddcfs.MkdirTemp("", "*")
 	return &CopyStrategyDefault{
 		StrategyName: "default",
 		BaseDir:      dir,
@@ -81,7 +81,7 @@ The default format example
 
 */
 
-func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (path string, err error) {
+func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
 	s.Source = source
@@ -97,7 +97,7 @@ func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (pat
 		s.ZipPath = filepath.Join(baseDir, "executors", source, fileType)
 	}
 
-	err = DDCfs.MkdirAll(path, DirPerms)
+	err = ddcfs.MkdirAll(path, DirPerms)
 	if err != nil {
 		return path, err
 	}

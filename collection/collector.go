@@ -36,8 +36,7 @@ var DirPerms fs.FileMode = 0750
 type CopyStrategy interface {
 	GetBaseDir() string
 	GetTmpDir() string
-	GetZipPath() string
-	CreatePath(fileType, source, nodeType string) (path string, err error)
+	CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error)
 }
 
 type Collector interface {
@@ -47,7 +46,7 @@ type Collector interface {
 }
 
 type Args struct {
-	Cfs                       helpers.FileSystem
+	DDCfs                     helpers.Filesystem
 	CoordinatorStr            string
 	ExecutorsStr              string
 	OutputLoc                 string
@@ -80,6 +79,7 @@ type HostCaptureConfiguration struct {
 	SizeLimit                 int64
 	ExcludeFiles              []string
 	CopyStrategy              CopyStrategy
+	DDCfs                     helpers.Filesystem
 }
 
 func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
@@ -93,7 +93,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	logAge := collectionArgs.LogAge
 	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
-	cfs := collectionArgs.Cfs
+	ddcfs := collectionArgs.DDCfs
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
@@ -105,7 +105,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	defer func() {
 		log.Printf("cleaning up temp directory %v", outputDir)
 		//temp folders stay around forever unless we tell them to go away
-		if err := cfs.RemoveAll(outputDir); err != nil {
+		if err := ddcfs.RemoveAll(outputDir); err != nil {
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
 		}
 	}()
@@ -143,6 +143,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				SizeLimit:                 limit,
 				ExcludeFiles:              excludefiles,
 				CopyStrategy:              s,
+				DDCfs:                     ddcfs,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -177,6 +178,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				SudoUser:                  sudoUser,
 				ExcludeFiles:              excludefiles,
 				CopyStrategy:              s,
+				DDCfs:                     ddcfs,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -211,7 +213,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		return err
 	}
 	summaryFile := filepath.Join(outputDir, "summary.json")
-	err = cfs.WriteFile(summaryFile, []byte(o), 0600)
+	err = ddcfs.WriteFile(summaryFile, []byte(o), 0600)
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
