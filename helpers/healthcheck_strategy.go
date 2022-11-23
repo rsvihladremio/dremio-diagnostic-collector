@@ -21,9 +21,17 @@ This module creates a strategy to determine, where to put the files we copy from
 package helpers
 
 import (
+	"compress/gzip"
+	"fmt"
+	"io"
+	"log"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 )
 
 func NewHCCopyStrategy(ddcfs Filesystem) *CopyStrategyHC {
@@ -122,4 +130,97 @@ func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType
 	}
 
 	return path, nil
+}
+
+func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (err error) {
+	var foundFiles []string
+	if runtime.GOOS == "windows" {
+		// Currently windows gzipping isnt supported
+		return nil
+	}
+	foundFiles, err = findAllFiles(path)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range foundFiles {
+		if file == "" {
+			break
+		}
+		zf := file + ".gz"
+		fmt.Printf("file: %v\n", zf)
+		err = gZipFile(ddcfs, zf, file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
+func findAllFiles(path string) ([]string, error) {
+	cmd := cli.Cli{}
+	f := []string{}
+	out, err := cmd.Execute("find", path, "-type", "f")
+	if err != nil {
+		return f, err
+	}
+	f = strings.Split(out, "\n")
+	return f, nil
+}
+
+func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
+	// Create a buffer to write our archive to.
+	zipFile, err := ddcfs.Create(filepath.Clean(zipFileName))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := zipFile.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+
+	}()
+	// Create a new gzip archive.
+	w := gzip.NewWriter(zipFile)
+	defer func() {
+		err := w.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+	}()
+	log.Printf("gzipping file %v into %v", file, zipFileName)
+	rf, err := os.Open(filepath.Clean(file))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := rf.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+		err = ddcfs.Remove(rf.Name())
+		if err != nil {
+			log.Printf("unable to remove file %v due to error %v", rf, err)
+		}
+	}()
+	_, err = io.Copy(w, rf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Archive calls out to the main archive function
+func (s *CopyStrategyHC) ArchiveDiag(ddcfs Filesystem, outputLoc, outputDir string, files []CollectedFile) error {
+	err := s.GzipAllFiles(ddcfs, s.TmpDir)
+	if err != nil {
+		log.Printf("ERROR: when gzipping files for archive: %v", err)
+	}
+	err = ArchiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
+	if err != nil {
+		return err
+	}
+	return nil
 }

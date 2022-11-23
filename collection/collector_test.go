@@ -76,6 +76,14 @@ func (s *MockStrategy) CreatePath(ddcfs helpers.Filesystem, fileType, source, no
 	return path, nil
 }
 
+func (s *MockStrategy) GzipAllFiles(ddcfs helpers.Filesystem, path string) error {
+	return nil
+}
+
+func (s *MockStrategy) ArchiveDiag(ddcfs helpers.Filesystem, outputLoc string, TmpDir string, files []helpers.CollectedFile) error {
+	return nil
+}
+
 type MockCapCollector struct {
 	Returns []string
 	Calls   []string
@@ -115,6 +123,14 @@ func (m *MockCapCollector) CopyFromHost(hostString string, isCoordinator bool, s
 }
 
 func (m *MockCapCollector) HostExecute(hostString string, isCoordinator bool, args ...string) (response string, err error) {
+
+	fullCmd := strings.Join(args, " ")
+
+	response = "Mock execute for " + hostString + " command: " + fullCmd
+	return response, err
+}
+
+func (m *MockCapCollector) GzipAllFiles(hostString string, isCoordinator bool, args ...string) (response string, err error) {
 
 	fullCmd := strings.Join(args, " ")
 
@@ -256,7 +272,7 @@ func TestArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := []CollectedFile{
+	files := []helpers.CollectedFile{
 		{
 			Path: testFile,
 			Size: int64(len(str)),
@@ -264,7 +280,7 @@ func TestArchive(t *testing.T) {
 	}
 	//testing zip
 	archiveFile := filepath.Join(tmpDir, "test.zip")
-	err = archiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +288,7 @@ func TestArchive(t *testing.T) {
 
 	//testing tar
 	archiveFile = filepath.Join(tmpDir, "test.tar")
-	err = archiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +296,7 @@ func TestArchive(t *testing.T) {
 
 	//testing tar gunzip
 	archiveFile = filepath.Join(tmpDir, "test.tar.gz")
-	err = archiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +304,7 @@ func TestArchive(t *testing.T) {
 
 	//testing tgz
 	archiveFile = filepath.Join(tmpDir, "test.tgz")
-	err = archiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}

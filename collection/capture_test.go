@@ -285,7 +285,10 @@ func TestCopyFiles(t *testing.T) {
 	var returnValues [][]interface{}
 	tmpDir := t.TempDir()
 	fileToCopy := "abdc.txt"
-	os.MkdirAll(filepath.Join(tmpDir, "log", "dremio-master-0"), DirPerms)
+	err := os.MkdirAll(filepath.Join(tmpDir, "log", "dremio-master-0"), DirPerms)
+	if err != nil {
+		t.Errorf("ERROR: when making directory under %v", tmpDir)
+	}
 	filesToCopy := filepath.Join(tmpDir, "log", "dremio-master-0", fileToCopy)
 	if err := os.WriteFile(filesToCopy, []byte("this is my string"), 0600); err != nil {
 		t.Fatalf("unable to write setup file due to error %v", err)

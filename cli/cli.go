@@ -44,10 +44,6 @@ type ExecuteCliErr struct {
 	Cmd string
 }
 
-func (u ExecuteCliErr) Error() string {
-	return fmt.Sprintf("during execution the command '%v' failed due to error '%v'", u.Cmd, u.Err)
-}
-
 // Cli
 type Cli struct {
 }

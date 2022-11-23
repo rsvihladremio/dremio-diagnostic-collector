@@ -18,6 +18,9 @@
 package cmd
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -70,6 +73,22 @@ func TestValidateParameters(t *testing.T) {
 	}
 }
 
+/*
+func TestExecute(t *testing.T) {
+	tc := makeTestCollection()
+	tc.CoordinatorStr = ""
+	message, err := captureAllOutput(checkstds)
+	//message, err := captureAllOutput(Execute)
+	expectedError := "COMMAND HELP TEXT"
+	if expectedError != message {
+		t.Errorf("expected: %v but was %v", expectedError, message)
+	}
+	if err != nil {
+		t.Errorf("ERROR: calling check for stdout/stderr %v", err)
+	}
+}
+*/
+
 // Set of args for other tests
 func makeTestCollection() collection.Args {
 	testCollection := collection.Args{
@@ -82,4 +101,35 @@ func makeTestCollection() collection.Args {
 		LogAge:                    5,
 	}
 	return testCollection
+}
+
+func captureAllOutput(f func()) (string, error) {
+	var err error
+	old := os.Stdout
+	olderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
+	os.Stdout = w
+	os.Stderr = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+	os.Stderr = olderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func checkstds() {
+	os.Stdout.Write([]byte("This is stdout\n"))
+	os.Stderr.Write([]byte("This is stderr\n"))
 }

@@ -14,19 +14,52 @@
    limitations under the License.
 */
 
-// collection package provides the interface for collection implementation and the actual collection execution
-package collection
+/*
+This module controls archiving files that are collected
+*/
+
+package helpers
 
 import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// archiveDiagDirectory will detect the extension asked for and use the correct archival library
+// to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
+func ArchiveDiagDirectory(outputFile, outputDir string, files []CollectedFile) error {
+	ext := filepath.Ext(outputFile)
+	if ext == ".zip" {
+		if err := ZipDiag(outputFile, outputDir, files); err != nil {
+			return fmt.Errorf("unable to write zip file %v due to error %v", outputFile, err)
+		}
+	} else if strings.HasSuffix(outputFile, "tar.gz") || ext == ".tgz" {
+		tempFile := strings.Join([]string{strings.TrimSuffix(outputFile, ext), "tar"}, ".")
+		if err := TarDiag(tempFile, outputDir, files); err != nil {
+			return fmt.Errorf("unable to write tar file %v due to error %v", outputFile, err)
+		}
+		defer func() {
+			if err := os.Remove(tempFile); err != nil {
+				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
+			}
+		}()
+		if err := GZipDiag(outputFile, outputDir, tempFile); err != nil {
+			return fmt.Errorf("unable to write gz file %v due to error %v", outputFile, err)
+		}
+	} else if ext == ".tar" {
+		if err := TarDiag(outputFile, outputDir, files); err != nil {
+			return fmt.Errorf("unable to write tar file %v due to error %v", outputFile, err)
+		}
+	}
+	return nil
+}
 
 func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	// Create a buffer to write our archive to.

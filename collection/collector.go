@@ -22,9 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +35,8 @@ type CopyStrategy interface {
 	GetBaseDir() string
 	GetTmpDir() string
 	CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error)
+	GzipAllFiles(ddcfs helpers.Filesystem, path string) error
+	ArchiveDiag(ddcfs helpers.Filesystem, outputLoc, outputDir string, files []helpers.CollectedFile) error
 }
 
 type Collector interface {
@@ -114,7 +114,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	if err != nil {
 		return err
 	}
-	var files []CollectedFile
+	var files []helpers.CollectedFile
 	var totalFailedFiles []FailedFiles
 	var totalSkippedFiles []string
 	var nodesConnectedTo int
@@ -217,14 +217,17 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
-	files = append(files, CollectedFile{
+	files = append(files, helpers.CollectedFile{
 		Path: summaryFile,
 		Size: int64(len([]byte(o))),
 	})
 
-	return archiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
+	return s.ArchiveDiag(ddcfs, outputLoc, s.GetTmpDir(), files)
+	//return archiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
+
 }
 
+/*
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
 // to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
 func archiveDiagDirectory(outputLoc, outputDir string, files []CollectedFile) error {
@@ -253,3 +256,4 @@ func archiveDiagDirectory(outputLoc, outputDir string, files []CollectedFile) er
 	}
 	return nil
 }
+*/

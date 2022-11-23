@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/diagnostics"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
 type FindErr struct {
@@ -37,7 +38,7 @@ func (fe FindErr) Error() string {
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func Capture(conf HostCaptureConfiguration) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 	dremioConfDir := conf.DremioConfDir
 	dremioLogDir := conf.DremioLogDir
@@ -133,7 +134,7 @@ func Capture(conf HostCaptureConfiguration) (files []CollectedFile, failedFiles 
 // captureDiagnostics runs iostat on the host, in the future it will run several diagnostics and capture them the same
 // time to provide in depth analysis
 // iostat must be installed on the host to be captured for this to work
-func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files []CollectedFile, failedFiles []FailedFiles) {
+func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files []helpers.CollectedFile, failedFiles []FailedFiles) {
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
@@ -178,7 +179,7 @@ func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files [
 			} else {
 				size = fileInfo.Size()
 			}
-			files = append(files, CollectedFile{
+			files = append(files, helpers.CollectedFile{
 				Path: fileName,
 				Size: size,
 			})
@@ -316,7 +317,7 @@ func checkJfr(conf HostCaptureConfiguration, pid string) error {
 
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
-func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, filesToCopy []string) (collectedFiles []CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, filesToCopy []string) (collectedFiles []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	//outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
@@ -371,7 +372,7 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 				} else {
 					size = fileInfo.Size()
 				}
-				collectedFiles = append(collectedFiles, CollectedFile{
+				collectedFiles = append(collectedFiles, helpers.CollectedFile{
 					Path: fileName,
 					Size: size,
 				})

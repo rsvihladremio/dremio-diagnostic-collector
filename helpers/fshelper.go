@@ -52,8 +52,6 @@ func NewFakeFileSystem() *FakeFileSystem {
 	return &FakeFileSystem{}
 }
 
-//var DDCfs Filesystem
-
 const DirPerms fs.FileMode = 0750
 
 // Real file
@@ -186,7 +184,15 @@ func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
 
 // MkdirTemp
 func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
-	dir := "/tmp/" + name + pattern
+	// Set sensible defaults if a call is made using the usual "". "*" that usually
+	// generates a random dir - see https://pkg.go.dev/os#MkdirTemp
+	if name == "" {
+		name = "dir1"
+	}
+	if pattern == "*" {
+		pattern = "random"
+	}
+	dir := filepath.Join("tmp", name, pattern)
 	return dir, nil
 }
 

@@ -26,7 +26,7 @@ import (
 )
 
 func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
-	dir := time.Now().Format("20060102_150405-DDC")
+	dir := time.Now().Format("20060102-150405-DDC")
 	tmpDir, _ := ddcfs.MkdirTemp("", "*")
 	return &CopyStrategyDefault{
 		StrategyName: "default",
@@ -42,9 +42,11 @@ type CopyStrategyDefault struct {
 	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
 	TmpDir       string // tmp dir used for staging files
 	BaseDir      string // the base dir of where the output is routed
-	ZipPath      string // the base dir of the copied file (may include additional subdirs below BaseDir)
-	Source       string // where the files are from (usually the node or pod)
-	NodeType     string // Usually "coordinator" or "executor" (ssh nodes only identify with a IP)
+}
+
+type CollectedFile struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
 }
 
 // Returns the base dir
@@ -56,12 +58,6 @@ func (s *CopyStrategyDefault) GetBaseDir() string {
 // Returns the tmp dir
 func (s *CopyStrategyDefault) GetTmpDir() string {
 	dir := s.TmpDir
-	return dir
-}
-
-// Returns the zip path for the archive
-func (s *CopyStrategyDefault) GetZipPath() string {
-	dir := s.ZipPath
 	return dir
 }
 
@@ -84,17 +80,13 @@ The default format example
 func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
-	s.Source = source
-	s.NodeType = nodeType
 
 	// With this strategy nodes arealreayd grouped under a parent directory for type
 	// so there is no need for an identifier suffix for SSH nodes
 	if nodeType == "coordinator" {
-		path = filepath.Join(tmpDir, baseDir, "coorindators", source, fileType)
-		s.ZipPath = filepath.Join(baseDir, "coorindators", source, fileType)
+		path = filepath.Join(tmpDir, baseDir, "coordinators", source, fileType)
 	} else {
 		path = filepath.Join(tmpDir, baseDir, "executors", source, fileType)
-		s.ZipPath = filepath.Join(baseDir, "executors", source, fileType)
 	}
 
 	err = ddcfs.MkdirAll(path, DirPerms)
@@ -103,4 +95,18 @@ func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nod
 	}
 
 	return path, nil
+}
+
+// This method is a noop for this strategy
+func (s *CopyStrategyDefault) GzipAllFiles(ddcfs Filesystem, path string) (err error) {
+	return nil
+}
+
+// Archive calls out to the main archive function
+func (s *CopyStrategyDefault) ArchiveDiag(dddcfs Filesystem, outputFile, outputDir string, files []CollectedFile) error {
+	err := ArchiveDiagDirectory(outputFile, s.GetTmpDir(), files)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -22,6 +22,6 @@ func GetSystemTables() (err error) {
 	return err
 }
 
-func SqlApi() (err error) {
+func SQLAPI() (err error) {
 	return err
 }
