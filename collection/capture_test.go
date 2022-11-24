@@ -298,9 +298,9 @@ func TestCopyFiles(t *testing.T) {
 	mockCollector := &MockCollector{
 		Returns: returnValues,
 	}
-	mockStrategy := &MockStrategy{
-		StrategyName: "healthcheck",
-	}
+	fakeFS := helpers.NewRealFileSystem()
+	mockStrategy := NewMockStrategy(fakeFS)
+	mockStrategy.TmpDir = tmpDir
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "TESTER", log.Ldate|log.Ltime|log.Lshortfile)
 	config := HostCaptureConfiguration{
@@ -316,7 +316,7 @@ func TestCopyFiles(t *testing.T) {
 		SizeLimit:                 999,
 		ExcludeFiles:              []string{""},
 		CopyStrategy:              mockStrategy,
-		DDCfs:                     helpers.NewRealFileSystem(),
+		DDCfs:                     mockStrategy.Fs,
 	}
 
 	collectedFiles, failedFiles, skippedFiles := copyFiles(config, "log", "/tmp/log", []string{fileToCopy})

@@ -34,6 +34,7 @@ func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
 		StrategyName: "default",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
+		Fs:           ddcfs,
 	}
 }
 
@@ -41,9 +42,10 @@ func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
 This struct holds the details we need to copy files. The strategy is used to determine where and in what format we copy the files
 */
 type CopyStrategyDefault struct {
-	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
-	TmpDir       string // tmp dir used for staging files
-	BaseDir      string // the base dir of where the output is routed
+	StrategyName string     // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string     // tmp dir used for staging files
+	BaseDir      string     // the base dir of where the output is routed
+	Fs           Filesystem // filesystem interface (so we can pass in realof fake filesystem, assists testing)
 }
 
 type CollectedFile struct {
@@ -81,7 +83,7 @@ The default format example
 
 */
 
-func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nodeType string) (path string, err error) {
+func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
 
@@ -93,7 +95,7 @@ func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nod
 		path = filepath.Join(tmpDir, baseDir, "executors", source, fileType)
 	}
 
-	err = ddcfs.MkdirAll(path, DirPerms)
+	err = s.Fs.MkdirAll(path, DirPerms)
 	if err != nil {
 		return path, err
 	}
@@ -102,15 +104,15 @@ func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nod
 }
 
 // This method is a noop for this strategy
-func (s *CopyStrategyDefault) GzipAllFiles(ddcfs Filesystem, path string) ([]CollectedFile, error) {
+func (s *CopyStrategyDefault) GzipAllFiles(path string) ([]CollectedFile, error) {
 	return nil, nil
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyDefault) ArchiveDiag(o string, ddcfs Filesystem, outputFile string, files []CollectedFile) error {
+func (s *CopyStrategyDefault) ArchiveDiag(o string, outputFile string, files []CollectedFile) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
-	err := ddcfs.WriteFile(summaryFile, []byte(o), 0600)
+	err := s.Fs.WriteFile(summaryFile, []byte(o), 0600)
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
@@ -123,7 +125,7 @@ func (s *CopyStrategyDefault) ArchiveDiag(o string, ddcfs Filesystem, outputFile
 	defer func() {
 		log.Printf("cleaning up temp directory %v", s.TmpDir)
 		//temp folders stay around forever unless we tell them to go away
-		if err := ddcfs.RemoveAll(s.TmpDir); err != nil {
+		if err := s.Fs.RemoveAll(s.TmpDir); err != nil {
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()

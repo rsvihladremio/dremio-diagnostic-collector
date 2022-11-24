@@ -41,6 +41,7 @@ func NewHCCopyStrategy(ddcfs Filesystem) *CopyStrategyHC {
 		StrategyName: "healthcheck",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
+		Fs:           ddcfs,
 	}
 }
 
@@ -48,27 +49,13 @@ func NewHCCopyStrategy(ddcfs Filesystem) *CopyStrategyHC {
 This struct holds the details we need to copy files. The strategy is used to determine where and in what format we copy the files
 */
 type CopyStrategyHC struct {
-	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
-	TmpDir       string // tmp dir used for staging files
-	BaseDir      string // the base dir of where the output is routed
+	StrategyName string     // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string     // tmp dir used for staging files
+	BaseDir      string     // the base dir of where the output is routed
+	Fs           Filesystem // filesystem interface (so we can pass in realof fake filesystem, assists testing)
 }
 
 /*
-// Returns the base dir
-func (s *CopyStrategyHC) GetBaseDir() string {
-	dir := s.BaseDir
-	return dir
-}
-
-// Returns the tmp dir
-func (s *CopyStrategyHC) GetTmpDir() string {
-	dir := s.TmpDir
-	return dir
-}
-*/
-
-/*
-
 The healthcheck format example
 
 20221110-141414-DDC (the suffix DDC to identify a diag uploaded from the collector)
@@ -100,7 +87,7 @@ The healthcheck format example
 └── system-tables
 */
 
-func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType string) (path string, err error) {
+func (s *CopyStrategyHC) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
 
@@ -119,7 +106,7 @@ func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType
 	} else { // K8s node types
 		path = filepath.Join(tmpDir, baseDir, fileType, source)
 	}
-	err = ddcfs.MkdirAll(path, DirPerms)
+	err = s.Fs.MkdirAll(path, DirPerms)
 	if err != nil {
 		return path, err
 	}
@@ -127,13 +114,13 @@ func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType
 	return path, nil
 }
 
-func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (files []CollectedFile, err error) {
+func (s *CopyStrategyHC) GzipAllFiles(path string) (files []CollectedFile, err error) {
 	var foundFiles []string
 	if runtime.GOOS == "windows" {
 		// Currently windows gzipping isnt supported
 		return nil, nil
 	}
-	foundFiles, err = findAllFiles(path)
+	foundFiles, err = s.findAllFiles(path)
 	if err != nil {
 		return nil, err
 	}
@@ -143,13 +130,13 @@ func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (files []Co
 			break
 		}
 		zf := file + ".gz"
-		err = gZipFile(ddcfs, zf, file)
+		err = s.gZipFile(zf, file)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	foundFiles, err = findGzFiles(path)
+	foundFiles, err = s.findGzFiles(path)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +154,7 @@ func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (files []Co
 	return files, err
 }
 
-func findAllFiles(path string) ([]string, error) {
+func (s *CopyStrategyHC) findAllFiles(path string) ([]string, error) {
 	cmd := cli.Cli{}
 	f := []string{}
 	out, err := cmd.Execute("find", path, "-type", "f")
@@ -178,7 +165,7 @@ func findAllFiles(path string) ([]string, error) {
 	return f, nil
 }
 
-func findGzFiles(path string) ([]string, error) {
+func (s *CopyStrategyHC) findGzFiles(path string) ([]string, error) {
 	cmd := cli.Cli{}
 	f := []string{}
 	out, err := cmd.Execute("find", path, "-type", "f", "-name", "*.gz")
@@ -189,9 +176,9 @@ func findGzFiles(path string) ([]string, error) {
 	return f, nil
 }
 
-func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
+func (s *CopyStrategyHC) gZipFile(zipFileName, file string) error {
 	// Create a buffer to write our archive to.
-	zipFile, err := ddcfs.Create(filepath.Clean(zipFileName))
+	zipFile, err := s.Fs.Create(filepath.Clean(zipFileName))
 	if err != nil {
 		return err
 	}
@@ -220,7 +207,7 @@ func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
 		if err != nil {
 			log.Printf("unable to close file %v due to error %v", zipFileName, err)
 		}
-		err = ddcfs.Remove(rf.Name())
+		err = s.Fs.Remove(rf.Name())
 		if err != nil {
 			log.Printf("unable to remove file %v due to error %v", rf, err)
 		}
@@ -233,10 +220,10 @@ func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc string, unzippedfiles []CollectedFile) error {
+func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, unzippedfiles []CollectedFile) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
-	err := ddcfs.WriteFile(summaryFile, []byte(o), 0600)
+	err := s.Fs.WriteFile(summaryFile, []byte(o), 0600)
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
@@ -249,11 +236,11 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc strin
 	defer func() {
 		log.Printf("cleaning up temp directory %v", s.TmpDir)
 		//temp folders stay around forever unless we tell them to go away
-		if err := ddcfs.RemoveAll(s.TmpDir); err != nil {
+		if err := s.Fs.RemoveAll(s.TmpDir); err != nil {
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
-	files, err := s.GzipAllFiles(ddcfs, s.TmpDir)
+	files, err := s.GzipAllFiles(s.TmpDir)
 	if err != nil {
 		log.Printf("ERROR: when gzipping files for archive: %v", err)
 	}

@@ -54,13 +54,13 @@ func TestGetPathDF(t *testing.T) {
 	testStrat := NewDFCopyStrategy(ddcfs)
 	// Test path for coordinators
 	expected := filepath.Join("tmp", "dir1", "random", testStrat.BaseDir, "coordinators", "node1", "log")
-	actual, _ := testStrat.CreatePath(ddcfs, "log", "node1", "coordinator")
+	actual, _ := testStrat.CreatePath("log", "node1", "coordinator")
 	if expected != actual {
 		t.Errorf("\nERROR: returned path: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
 	// Test path for executors
 	expected = filepath.Join("tmp", "dir1", "random", testStrat.BaseDir, "executors", "node1", "log")
-	actual, _ = testStrat.CreatePath(ddcfs, "log", "node1", "executors")
+	actual, _ = testStrat.CreatePath("log", "node1", "executors")
 	if expected != actual {
 		t.Errorf("\nERROR: returned path: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
@@ -71,7 +71,7 @@ func TestGzipFilesDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
 	testStrat := NewDFCopyStrategy(ddcfs)
 	// Test gzip is a noop essentially, but we can still check for a nil response
-	_, actual := testStrat.GzipAllFiles(ddcfs, "/tmp")
+	_, actual := testStrat.GzipAllFiles("/tmp")
 	if actual != nil {
 		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, actual)
 	}
@@ -103,7 +103,7 @@ func TestArchiveDiagDF(t *testing.T) {
 		},
 	}
 	// Test Archive, pushes a teal test file into a zip archive
-	err = testStrat.ArchiveDiag("test", ddcfs, archiveFile, testFiles)
+	err = testStrat.ArchiveDiag("test", archiveFile, testFiles)
 	if err != nil {
 		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
 	}

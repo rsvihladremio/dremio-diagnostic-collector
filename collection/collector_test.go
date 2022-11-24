@@ -35,9 +35,11 @@ type MockCopyStrategy struct {
 }
 
 type MockStrategy struct {
-	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
-	TmpDir       string // tmp dir used for staging files
-	BaseDir      string // the base dir of where the output is routed
+	StrategyName string             // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string             // tmp dir used for staging files
+	BaseDir      string             // the base dir of where the output is routed
+	Fs           helpers.Filesystem // filesystem interface (so we can pass in realof fake filesystem, assists testing)
+
 }
 
 func NewMockStrategy(ddcfs helpers.Filesystem) *MockStrategy {
@@ -47,10 +49,11 @@ func NewMockStrategy(ddcfs helpers.Filesystem) *MockStrategy {
 		StrategyName: "default",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
+		Fs:           ddcfs,
 	}
 }
 
-func (s *MockStrategy) CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error) {
+func (s *MockStrategy) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	var isK8s bool
 	if strings.Contains(source, "dremio-master") || strings.Contains(source, "dremio-executor") || strings.Contains(source, "dremio-coordinator") {
 		isK8s = true
@@ -67,15 +70,15 @@ func (s *MockStrategy) CreatePath(ddcfs helpers.Filesystem, fileType, source, no
 	return path, nil
 }
 
-func (s *MockStrategy) GzipAllFiles(ddcfs helpers.Filesystem, path string) ([]helpers.CollectedFile, error) {
+func (s *MockStrategy) GzipAllFiles(path string) ([]helpers.CollectedFile, error) {
 	return nil, nil
 }
 
-func (s *MockStrategy) ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error {
+func (s *MockStrategy) ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error {
 	return nil
 }
 
-func (s *MockStrategy) Cleanup(ddcfs helpers.Filesystem) error {
+func (s *MockStrategy) Cleanup() error {
 
 	return nil
 }

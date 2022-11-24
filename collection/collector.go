@@ -30,9 +30,9 @@ import (
 var DirPerms fs.FileMode = 0750
 
 type CopyStrategy interface {
-	CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error)
-	GzipAllFiles(ddcfs helpers.Filesystem, path string) ([]helpers.CollectedFile, error)
-	ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error
+	CreatePath(fileType, source, nodeType string) (path string, err error)
+	GzipAllFiles(path string) ([]helpers.CollectedFile, error)
+	ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error
 }
 
 type Collector interface {
@@ -196,10 +196,8 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		return err
 	}
 
-	// creates summary file
-	//s.Summary(o, collectionArgs.DDCfs)
-
 	// archives the collected files
-	return s.ArchiveDiag(o, collectionArgs.DDCfs, outputLoc, files)
+	// creates the summary file too
+	return s.ArchiveDiag(o, outputLoc, files)
 
 }

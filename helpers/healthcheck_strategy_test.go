@@ -56,13 +56,13 @@ func TestGetPathHC(t *testing.T) {
 	testStrat := NewHCCopyStrategy(ddcfs)
 	// Test path for coordinators
 	expected := filepath.Join("tmp", "dir1", "random", testStrat.BaseDir, "log", "node1-C")
-	actual, _ := testStrat.CreatePath(ddcfs, "log", "node1", "coordinator")
+	actual, _ := testStrat.CreatePath("log", "node1", "coordinator")
 	if expected != actual {
 		t.Errorf("\nERROR: returned path: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
 	// Test path for executors
 	expected = filepath.Join("tmp", "dir1", "random", testStrat.BaseDir, "log", "node1-E")
-	actual, _ = testStrat.CreatePath(ddcfs, "log", "node1", "executors")
+	actual, _ = testStrat.CreatePath("log", "node1", "executors")
 	if expected != actual {
 		t.Errorf("\nERROR: returned path: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
@@ -85,7 +85,7 @@ func TestGzipFilesHC(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		_, err = testStrat.GzipAllFiles(ddcfs, tmpDir)
+		_, err = testStrat.GzipAllFiles(tmpDir)
 		if err != nil {
 			t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
 		}
@@ -132,7 +132,7 @@ func TestArchiveDiagHC(t *testing.T) {
 		},
 	}
 	// Test Archive, pushes a teal test file into a zip archive
-	err = testStrat.ArchiveDiag("test", ddcfs, archiveFile, testFiles)
+	err = testStrat.ArchiveDiag("test", archiveFile, testFiles)
 	if err != nil {
 		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
 	}

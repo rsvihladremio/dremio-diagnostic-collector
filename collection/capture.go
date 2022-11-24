@@ -154,7 +154,7 @@ func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files [
 		} else {
 			nodeType = "executor"
 		}
-		cPath, err := s.CreatePath(ddcfs, fileType, host, nodeType)
+		cPath, err := s.CreatePath(fileType, host, nodeType)
 		if err != nil {
 			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
 		}
@@ -328,7 +328,6 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 	var nodeType string
 	s := conf.CopyStrategy
 	var fileName string
-	ddcfs := conf.DDCfs
 
 	for i := range filesToCopy {
 		file := filesToCopy[i]
@@ -338,7 +337,7 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 		} else {
 			nodeType = "executor"
 		}
-		cPath, err := s.CreatePath(ddcfs, fileType, host, nodeType)
+		cPath, err := s.CreatePath(fileType, host, nodeType)
 		if err != nil {
 			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
 		}
@@ -364,7 +363,7 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 				})
 				logger.Printf("ERROR: unable to copy %v from host %v due to error %v and output was %v", file, host, err, out)
 			} else {
-				fileInfo, err := ddcfs.Stat(fileName)
+				fileInfo, err := conf.DDCfs.Stat(fileName)
 				//we assume a file size of zero if we are not able to retrieve the file size for some reason
 				size := int64(0)
 				if err != nil {
