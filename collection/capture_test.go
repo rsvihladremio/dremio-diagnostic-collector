@@ -300,7 +300,6 @@ func TestCopyFiles(t *testing.T) {
 	}
 	mockStrategy := &MockStrategy{
 		StrategyName: "healthcheck",
-		BaseDir:      tmpDir,
 	}
 	var logOutput bytes.Buffer
 	logger := log.New(&logOutput, "TESTER", log.Ldate|log.Ltime|log.Lshortfile)

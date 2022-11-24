@@ -18,11 +18,9 @@
 package collection
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -32,11 +30,9 @@ import (
 var DirPerms fs.FileMode = 0750
 
 type CopyStrategy interface {
-	GetBaseDir() string
-	GetTmpDir() string
 	CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error)
 	GzipAllFiles(ddcfs helpers.Filesystem, path string) error
-	ArchiveDiag(ddcfs helpers.Filesystem, outputLoc, outputDir string, files []helpers.CollectedFile) error
+	ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error
 }
 
 type Collector interface {
@@ -97,19 +93,6 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
-	// Obtain a base dir depending on the copy strategy
-	tmpDir := s.GetTmpDir()
-	outputDir := tmpDir
-
-	// Cleanup temp dir once complete
-	defer func() {
-		log.Printf("cleaning up temp directory %v", outputDir)
-		//temp folders stay around forever unless we tell them to go away
-		if err := ddcfs.RemoveAll(outputDir); err != nil {
-			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
-		}
-	}()
-
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
 		return err
@@ -128,11 +111,11 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             true,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            outputDir,
+				Collector:     c,
+				IsCoordinator: true,
+				Logger:        logger,
+				Host:          host,
+				//OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -164,11 +147,11 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             false,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            outputDir,
+				Collector:     c,
+				IsCoordinator: false,
+				Logger:        logger,
+				Host:          host,
+				//OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -212,48 +195,11 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	if err != nil {
 		return err
 	}
-	summaryFile := filepath.Join(outputDir, "summary.json")
-	err = ddcfs.WriteFile(summaryFile, []byte(o), 0600)
-	if err != nil {
-		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
-	}
-	files = append(files, helpers.CollectedFile{
-		Path: summaryFile,
-		Size: int64(len([]byte(o))),
-	})
 
-	return s.ArchiveDiag(ddcfs, outputLoc, s.GetTmpDir(), files)
-	//return archiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
+	// creates summary file
+	//s.Summary(o, collectionArgs.DDCfs)
+
+	// archives the collected files
+	return s.ArchiveDiag(o, collectionArgs.DDCfs, outputLoc, files)
 
 }
-
-/*
-// archiveDiagDirectory will detect the extension asked for and use the correct archival library
-// to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
-func archiveDiagDirectory(outputLoc, outputDir string, files []CollectedFile) error {
-	ext := filepath.Ext(outputLoc)
-	if ext == ".zip" {
-		if err := ZipDiag(outputLoc, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write zip file %v due to error %v", outputLoc, err)
-		}
-	} else if strings.HasSuffix(outputLoc, "tar.gz") || ext == ".tgz" {
-		tempFile := strings.Join([]string{strings.TrimSuffix(outputLoc, ext), "tar"}, ".")
-		if err := TarDiag(tempFile, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write tar file %v due to error %v", outputLoc, err)
-		}
-		defer func() {
-			if err := os.Remove(tempFile); err != nil {
-				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
-			}
-		}()
-		if err := GZipDiag(outputLoc, outputDir, tempFile); err != nil {
-			return fmt.Errorf("unable to write gz file %v due to error %v", outputLoc, err)
-		}
-	} else if ext == ".tar" {
-		if err := TarDiag(outputLoc, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write tar file %v due to error %v", outputLoc, err)
-		}
-	}
-	return nil
-}
-*/

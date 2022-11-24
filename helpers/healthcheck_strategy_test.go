@@ -35,11 +35,6 @@ func TestBaseDirHC(t *testing.T) {
 	if expected != actual {
 		t.Errorf("ERROR: base directory name on create: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
-	// Check the base dir is returned post creation
-	check := testStrat.GetBaseDir()
-	if check != actual {
-		t.Errorf("ERROR: base directory name check: \nactual:\t%v\ncheck:\t%v\n", actual, check)
-	}
 }
 
 // Tests the constructor is setting a temp dir
@@ -52,12 +47,6 @@ func TestTmpDirHC(t *testing.T) {
 	if expected != actual {
 		t.Errorf("ERROR: tmp directory on create: \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
-	// Check the base dir is returned post creation
-	check := testStrat.GetTmpDir()
-	if check != actual {
-		t.Errorf("ERROR: tmp directory name check: \nactual:\t%v\ncheck:\t%v\n", actual, check)
-	}
-
 }
 
 // Tests the method returns the correct path
@@ -130,7 +119,6 @@ func TestArchiveDiagHC(t *testing.T) {
 		t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
 	}
 	archiveFile := tmpDir + ".zip"
-	testDataDir, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatalf("not able to get absolute path for testdata dir %v", err)
 	}
@@ -141,7 +129,7 @@ func TestArchiveDiagHC(t *testing.T) {
 		},
 	}
 	// Test Archive, pushes a teal test file into a zip archive
-	err = testStrat.ArchiveDiag(ddcfs, archiveFile, testDataDir, testFiles)
+	err = testStrat.ArchiveDiag("test", ddcfs, archiveFile, testFiles)
 	if err != nil {
 		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
 	}

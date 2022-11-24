@@ -71,7 +71,7 @@ func Capture(conf HostCaptureConfiguration) (files []helpers.CollectedFile, fail
 	}
 
 	// Append ongoing list of collected, failed and skipped files
-	collected, failed, skipped := copyFiles(conf, "config", dremioConfDir, confFiles)
+	collected, failed, skipped := copyFiles(conf, "configuration", dremioConfDir, confFiles)
 	files = append(files, collected...)
 	failedFiles = append(failedFiles, failed...)
 	skippedFiles = append(skippedFiles, skipped...)
@@ -92,7 +92,7 @@ func Capture(conf HostCaptureConfiguration) (files []helpers.CollectedFile, fail
 	} else {
 		logger.Printf("INFO: host %v finished finding files to copy out of the log directory", host)
 		logFiles = append(logFiles, foundLogFiles...)
-		collected, failed, skipped := copyFiles(conf, "log", dremioLogDir, logFiles)
+		collected, failed, skipped := copyFiles(conf, "logs", dremioLogDir, logFiles)
 		files = append(files, collected...)
 		failedFiles = append(failedFiles, failed...)
 		skippedFiles = append(skippedFiles, skipped...)

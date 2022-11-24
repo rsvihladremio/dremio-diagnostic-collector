@@ -51,9 +51,9 @@ type CopyStrategyHC struct {
 	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
 	TmpDir       string // tmp dir used for staging files
 	BaseDir      string // the base dir of where the output is routed
-	ZipPath      string // the base dir of the copied file (may include additional subdirs below BaseDir)
 }
 
+/*
 // Returns the base dir
 func (s *CopyStrategyHC) GetBaseDir() string {
 	dir := s.BaseDir
@@ -65,16 +65,11 @@ func (s *CopyStrategyHC) GetTmpDir() string {
 	dir := s.TmpDir
 	return dir
 }
+*/
 
 /*
 
 The healthcheck format example
-
-// TODO use - not _
-// use logs not log
-// gzip all files
-// change config to configuration
-
 
 20221110-141414-DDC (the suffix DDC to identify a diag uploaded from the collector)
 ├── configuration
@@ -213,12 +208,32 @@ func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyHC) ArchiveDiag(ddcfs Filesystem, outputLoc, outputDir string, files []CollectedFile) error {
-	err := s.GzipAllFiles(ddcfs, s.TmpDir)
+func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc string, files []CollectedFile) error {
+	// creates the summary file
+	summaryFile := filepath.Join(s.TmpDir, "summary.json")
+	err := ddcfs.WriteFile(summaryFile, []byte(o), 0600)
+	if err != nil {
+		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
+	}
+	// add the summary file to the list
+	files = append(files, CollectedFile{
+		Path: summaryFile,
+		Size: int64(len([]byte(o))),
+	})
+	// cleanup when done
+	defer func() {
+		log.Printf("cleaning up temp directory %v", s.TmpDir)
+		//temp folders stay around forever unless we tell them to go away
+		if err := ddcfs.RemoveAll(s.TmpDir); err != nil {
+			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
+		}
+	}()
+	err = s.GzipAllFiles(ddcfs, s.TmpDir)
 	if err != nil {
 		log.Printf("ERROR: when gzipping files for archive: %v", err)
 	}
-	err = ArchiveDiagDirectory(outputLoc, s.GetTmpDir(), files)
+	// call general archive routine
+	err = ArchiveDiagDirectory(outputLoc, s.TmpDir, files)
 	if err != nil {
 		return err
 	}

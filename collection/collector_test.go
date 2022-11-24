@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
@@ -34,44 +35,34 @@ type MockCopyStrategy struct {
 }
 
 type MockStrategy struct {
-	StrategyName string
-	BaseDir      string
-	TmpDir       string
-	ZipPath      string
-	Source       string
-	NodeType     string
+	StrategyName string // the name of the output strategy (defasult, healthcheck etc)
+	TmpDir       string // tmp dir used for staging files
+	BaseDir      string // the base dir of where the output is routed
 }
 
-func (s *MockStrategy) GetBaseDir() string {
-	dir := s.BaseDir
-	return dir
-}
-
-// Returns the base dir
-func (s *MockStrategy) GetTmpDir() string {
-	dir := s.TmpDir
-	return dir
-}
-
-func (s *MockStrategy) GetZipPath() string {
-	dir := s.ZipPath
-	return dir
+func NewMockStrategy(ddcfs helpers.Filesystem) *MockStrategy {
+	dir := time.Now().Format("20060102-150405-DDC")
+	tmpDir, _ := ddcfs.MkdirTemp("", "*")
+	return &MockStrategy{
+		StrategyName: "default",
+		BaseDir:      dir,
+		TmpDir:       tmpDir,
+	}
 }
 
 func (s *MockStrategy) CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error) {
-	baseDir := s.BaseDir
 	var isK8s bool
 	if strings.Contains(source, "dremio-master") || strings.Contains(source, "dremio-executor") || strings.Contains(source, "dremio-coordinator") {
 		isK8s = true
 	}
 	if !isK8s {
 		if nodeType == "coordinator" {
-			path = filepath.Join(baseDir, fileType, source+"-C")
+			path = filepath.Join(s.TmpDir, fileType, source+"-C")
 		} else {
-			path = filepath.Join(baseDir, fileType, source+"-E")
+			path = filepath.Join(s.TmpDir, fileType, source+"-E")
 		}
 	} else {
-		path = filepath.Join(baseDir, fileType, source)
+		path = filepath.Join(s.TmpDir, fileType, source)
 	}
 	return path, nil
 }
@@ -80,7 +71,12 @@ func (s *MockStrategy) GzipAllFiles(ddcfs helpers.Filesystem, path string) error
 	return nil
 }
 
-func (s *MockStrategy) ArchiveDiag(ddcfs helpers.Filesystem, outputLoc string, TmpDir string, files []helpers.CollectedFile) error {
+func (s *MockStrategy) ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error {
+	return nil
+}
+
+func (m *MockStrategy) Cleanup(ddcfs helpers.Filesystem) error {
+
 	return nil
 }
 
@@ -138,24 +134,24 @@ func (m *MockCapCollector) GzipAllFiles(hostString string, isCoordinator bool, a
 	return response, err
 }
 
+func (m *MockCapCollector) Cleanup(ddcfs helpers.Filesystem) error {
+
+	return nil
+}
+
 func TestFindHostsCoordinators(t *testing.T) {
 	var returnValues []string
 	var callValues []string
 	callValues = append(callValues, "dremio-coordinator-1", "dremio-eecutor-0", "dremio-executor-1")
-	tmpDir := t.TempDir()
-
-	mockStrategy := &MockStrategy{
-		StrategyName: "healthcheck",
-		BaseDir:      tmpDir,
-	}
-
 	mockCollector := &MockCapCollector{
 		Calls:   callValues,
 		Returns: returnValues,
 	}
+
 	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
-	fakeTmp, _ := fakeFS.MkdirTemp("fake", "fake")
+	mockStrategy := NewMockStrategy(fakeFS)
+	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
 		DDCfs:                     fakeFS,
 		CoordinatorStr:            "10.1.2.3-nok",
@@ -175,7 +171,7 @@ func TestFindHostsCoordinators(t *testing.T) {
 	expected := "ERROR: no hosts found matching dremio-master-99"
 	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
-		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
+		t.Errorf("\nERROR: finding coordinators: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
 
 }
@@ -184,20 +180,15 @@ func TestFindHostsExecutors(t *testing.T) {
 	var returnValues []string
 	var callValues []string
 	callValues = append(callValues, "dremio-coordinator-1", "dremio-eecutor-0", "dremio-executor-1")
-	tmpDir := t.TempDir()
-
-	mockStrategy := &MockStrategy{
-		StrategyName: "healthcheck",
-		BaseDir:      tmpDir,
-	}
-
 	mockCollector := &MockCapCollector{
 		Calls:   callValues,
 		Returns: returnValues,
 	}
+
 	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
-	fakeTmp, _ := fakeFS.MkdirTemp("fake", "fake")
+	mockStrategy := NewMockStrategy(fakeFS)
+	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
 		DDCfs:                     fakeFS,
 		CoordinatorStr:            "10.1.2.3-ok",
@@ -216,9 +207,8 @@ func TestFindHostsExecutors(t *testing.T) {
 	expected := "ERROR: no hosts found matching dremio-executor-99"
 	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
 	if err.Error() != expected {
-		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
+		t.Errorf("\nERROR: finding executors: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
-
 }
 
 /*

@@ -73,21 +73,19 @@ func TestValidateParameters(t *testing.T) {
 	}
 }
 
-/*
 func TestExecute(t *testing.T) {
 	tc := makeTestCollection()
-	tc.CoordinatorStr = ""
-	message, err := captureAllOutput(checkstds)
+	tc.SizeLimit = 1000
+	actual, err := captureAllOutput(checkstds)
 	//message, err := captureAllOutput(Execute)
-	expectedError := "COMMAND HELP TEXT"
-	if expectedError != message {
-		t.Errorf("expected: %v but was %v", expectedError, message)
+	expected := "This is stdout\nThis is stderr\n"
+	if expected != actual {
+		t.Errorf("\nERROR: stdout : \nexpected:\t%v\nactual:\t\t%v\n", expected, actual)
 	}
 	if err != nil {
-		t.Errorf("ERROR: calling check for stdout/stderr %v", err)
+		t.Errorf("\nERROR: stderr : \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
 }
-*/
 
 // Set of args for other tests
 func makeTestCollection() collection.Args {

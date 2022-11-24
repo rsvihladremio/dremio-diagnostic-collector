@@ -21,6 +21,8 @@ This module creates a strategy to determine, where to put the files we copy from
 package helpers
 
 import (
+	"fmt"
+	"log"
 	"path/filepath"
 	"time"
 )
@@ -49,6 +51,7 @@ type CollectedFile struct {
 	Size int64  `json:"size"`
 }
 
+/*
 // Returns the base dir
 func (s *CopyStrategyDefault) GetBaseDir() string {
 	dir := s.BaseDir
@@ -60,6 +63,7 @@ func (s *CopyStrategyDefault) GetTmpDir() string {
 	dir := s.TmpDir
 	return dir
 }
+*/
 
 /*
 
@@ -103,8 +107,28 @@ func (s *CopyStrategyDefault) GzipAllFiles(ddcfs Filesystem, path string) (err e
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyDefault) ArchiveDiag(dddcfs Filesystem, outputFile, outputDir string, files []CollectedFile) error {
-	err := ArchiveDiagDirectory(outputFile, s.GetTmpDir(), files)
+func (s *CopyStrategyDefault) ArchiveDiag(o string, ddcfs Filesystem, outputFile string, files []CollectedFile) error {
+	// creates the summary file
+	summaryFile := filepath.Join(s.TmpDir, "summary.json")
+	err := ddcfs.WriteFile(summaryFile, []byte(o), 0600)
+	if err != nil {
+		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
+	}
+	// add the summary file to the list
+	files = append(files, CollectedFile{
+		Path: summaryFile,
+		Size: int64(len([]byte(o))),
+	})
+	// cleanup when done
+	defer func() {
+		log.Printf("cleaning up temp directory %v", s.TmpDir)
+		//temp folders stay around forever unless we tell them to go away
+		if err := ddcfs.RemoveAll(s.TmpDir); err != nil {
+			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
+		}
+	}()
+	// call general archive routine
+	err = ArchiveDiagDirectory(outputFile, s.TmpDir, files)
 	if err != nil {
 		return err
 	}
