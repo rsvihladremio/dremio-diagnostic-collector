@@ -31,7 +31,7 @@ var DirPerms fs.FileMode = 0750
 
 type CopyStrategy interface {
 	CreatePath(ddcfs helpers.Filesystem, fileType, source, nodeType string) (path string, err error)
-	GzipAllFiles(ddcfs helpers.Filesystem, path string) error
+	GzipAllFiles(ddcfs helpers.Filesystem, path string) ([]helpers.CollectedFile, error)
 	ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error
 }
 

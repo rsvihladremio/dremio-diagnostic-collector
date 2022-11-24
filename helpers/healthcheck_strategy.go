@@ -127,15 +127,15 @@ func (s *CopyStrategyHC) CreatePath(ddcfs Filesystem, fileType, source, nodeType
 	return path, nil
 }
 
-func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (err error) {
+func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (files []CollectedFile, err error) {
 	var foundFiles []string
 	if runtime.GOOS == "windows" {
 		// Currently windows gzipping isnt supported
-		return nil
+		return nil, nil
 	}
 	foundFiles, err = findAllFiles(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, file := range foundFiles {
@@ -143,20 +143,45 @@ func (s *CopyStrategyHC) GzipAllFiles(ddcfs Filesystem, path string) (err error)
 			break
 		}
 		zf := file + ".gz"
-		fmt.Printf("file: %v\n", zf)
 		err = gZipFile(ddcfs, zf, file)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
 
+	foundFiles, err = findGzFiles(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range foundFiles {
+		if file == "" {
+			break
+		}
+		g, _ := os.Stat(file)
+		files = append(files, CollectedFile{
+			Path: file,
+			Size: g.Size(),
+		})
+	}
+	return files, err
 }
 
 func findAllFiles(path string) ([]string, error) {
 	cmd := cli.Cli{}
 	f := []string{}
 	out, err := cmd.Execute("find", path, "-type", "f")
+	if err != nil {
+		return f, err
+	}
+	f = strings.Split(out, "\n")
+	return f, nil
+}
+
+func findGzFiles(path string) ([]string, error) {
+	cmd := cli.Cli{}
+	f := []string{}
+	out, err := cmd.Execute("find", path, "-type", "f", "-name", "*.gz")
 	if err != nil {
 		return f, err
 	}
@@ -208,7 +233,7 @@ func gZipFile(ddcfs Filesystem, zipFileName, file string) error {
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc string, files []CollectedFile) error {
+func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc string, unzippedfiles []CollectedFile) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
 	err := ddcfs.WriteFile(summaryFile, []byte(o), 0600)
@@ -216,10 +241,10 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc strin
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
 	// add the summary file to the list
-	files = append(files, CollectedFile{
-		Path: summaryFile,
-		Size: int64(len([]byte(o))),
-	})
+	//uzfiles := append(files, CollectedFile{
+	//	Path: summaryFile,
+	//	Size: int64(len([]byte(o))),
+	//})
 	// cleanup when done
 	defer func() {
 		log.Printf("cleaning up temp directory %v", s.TmpDir)
@@ -228,7 +253,7 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, ddcfs Filesystem, outputLoc strin
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
-	err = s.GzipAllFiles(ddcfs, s.TmpDir)
+	files, err := s.GzipAllFiles(ddcfs, s.TmpDir)
 	if err != nil {
 		log.Printf("ERROR: when gzipping files for archive: %v", err)
 	}

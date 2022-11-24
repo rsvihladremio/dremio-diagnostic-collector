@@ -67,8 +67,8 @@ func (s *MockStrategy) CreatePath(ddcfs helpers.Filesystem, fileType, source, no
 	return path, nil
 }
 
-func (s *MockStrategy) GzipAllFiles(ddcfs helpers.Filesystem, path string) error {
-	return nil
+func (s *MockStrategy) GzipAllFiles(ddcfs helpers.Filesystem, path string) ([]helpers.CollectedFile, error) {
+	return nil, nil
 }
 
 func (s *MockStrategy) ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc string, files []helpers.CollectedFile) error {

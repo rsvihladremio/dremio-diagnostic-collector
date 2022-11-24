@@ -71,7 +71,7 @@ func TestGzipFilesDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
 	testStrat := NewDFCopyStrategy(ddcfs)
 	// Test gzip is a noop essentially, but we can still check for a nil response
-	actual := testStrat.GzipAllFiles(ddcfs, "/tmp")
+	_, actual := testStrat.GzipAllFiles(ddcfs, "/tmp")
 	if actual != nil {
 		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, actual)
 	}

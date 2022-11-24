@@ -85,7 +85,7 @@ func TestGzipFilesHC(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = testStrat.GzipAllFiles(ddcfs, tmpDir)
+		_, err = testStrat.GzipAllFiles(ddcfs, tmpDir)
 		if err != nil {
 			t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
 		}

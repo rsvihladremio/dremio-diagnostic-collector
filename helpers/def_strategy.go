@@ -102,8 +102,8 @@ func (s *CopyStrategyDefault) CreatePath(ddcfs Filesystem, fileType, source, nod
 }
 
 // This method is a noop for this strategy
-func (s *CopyStrategyDefault) GzipAllFiles(ddcfs Filesystem, path string) (err error) {
-	return nil
+func (s *CopyStrategyDefault) GzipAllFiles(ddcfs Filesystem, path string) ([]CollectedFile, error) {
+	return nil, nil
 }
 
 // Archive calls out to the main archive function
