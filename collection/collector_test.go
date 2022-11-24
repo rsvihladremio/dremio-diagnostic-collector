@@ -75,7 +75,7 @@ func (s *MockStrategy) ArchiveDiag(o string, ddcfs helpers.Filesystem, outputLoc
 	return nil
 }
 
-func (m *MockStrategy) Cleanup(ddcfs helpers.Filesystem) error {
+func (s *MockStrategy) Cleanup(ddcfs helpers.Filesystem) error {
 
 	return nil
 }

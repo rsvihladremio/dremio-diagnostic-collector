@@ -19,7 +19,7 @@
 package helpers
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -74,11 +74,11 @@ func TestGzipFilesHC(t *testing.T) {
 	testStrat := NewHCCopyStrategy(ddcfs)
 	tmpDir := t.TempDir()
 	testDst := filepath.Join(tmpDir, "archive.txt")
-	bytesRead, err := ioutil.ReadFile(testSrc)
+	bytesRead, err := os.ReadFile(testSrc)
 	if err != nil {
 		t.Error(err)
 	}
-	err = ioutil.WriteFile(testDst, bytesRead, 0600)
+	err = os.WriteFile(testDst, bytesRead, 0600)
 	if err != nil {
 		t.Error(err)
 	}
