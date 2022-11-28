@@ -227,11 +227,7 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, unzippedfiles [
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
-	// add the summary file to the list
-	//uzfiles := append(files, CollectedFile{
-	//	Path: summaryFile,
-	//	Size: int64(len([]byte(o))),
-	//})
+
 	// cleanup when done
 	defer func() {
 		log.Printf("cleaning up temp directory %v", s.TmpDir)
@@ -240,14 +236,55 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, unzippedfiles [
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
-	files, err := s.GzipAllFiles(s.TmpDir)
+
+	/*
+		files, err := s.GzipAllFiles(s.TmpDir)
+		if err != nil {
+			log.Printf("ERROR: when gzipping files for archive: %v", err)
+		}
+	*/
+
+	// create completed file (its not gzipped)
+	file, err := s.createHCFiles()
 	if err != nil {
-		log.Printf("ERROR: when gzipping files for archive: %v", err)
+		return err
 	}
+
+	g, _ := os.Stat(file)
+	unzippedfiles = append(unzippedfiles, CollectedFile{
+		Path: file,
+		Size: g.Size(),
+	})
+
+	//unzippedfiles = append(unzippedfiles, file)
+
 	// call general archive routine
-	err = ArchiveDiagDirectory(outputLoc, s.TmpDir, files)
+	err = ArchiveDiagDirectory(outputLoc, s.TmpDir, unzippedfiles)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// This function creates a couple of supplemental files required for the HC data to be uploaded
+func (s *CopyStrategyHC) createHCFiles() (file string, err error) {
+	baseDir := s.BaseDir
+	tmpDir := s.TmpDir
+
+	path := filepath.Join(tmpDir, baseDir, "completed")
+	compFile := filepath.Join(path, baseDir)
+	err = s.Fs.MkdirAll(path, DirPerms)
+	if err != nil {
+		return compFile, fmt.Errorf("ERROR: failed to create HC completed dir %v due to error: %v", path, err)
+	}
+
+	txt := []byte(baseDir)
+	err = s.Fs.WriteFile(compFile, txt, 0600)
+	if err != nil {
+		return compFile, fmt.Errorf("ERROR: failed to create HC completed file %v due to error: %v", compFile, err)
+
+	}
+
+	return compFile, nil
+
 }
