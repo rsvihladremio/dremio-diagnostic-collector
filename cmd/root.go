@@ -88,9 +88,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		}
 		if dremioLogDir == "" {
 			if isK8s {
-				dremioConfDir = "/opt/dremio/data/log/"
+				dremioLogDir = "/opt/dremio/data/log/"
 			} else {
-				dremioConfDir = "/var/log/dremio/"
+				dremioLogDir = "/var/log/dremio/"
 			}
 		}
 		logOutput := os.Stdout
