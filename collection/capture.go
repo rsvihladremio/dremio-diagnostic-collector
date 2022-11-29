@@ -162,7 +162,6 @@ func captureDiagnostics(conf HostCaptureConfiguration, fileType string) (files [
 		//take the captured text and write it out to iostat.txt
 		logger.Printf("INFO: host %v finished iostat", host)
 		fileName = filepath.Join(cPath, filepath.Base("iostat.txt"))
-		//fileName := filepath.Join(outputLoc, host, "iostat.txt")
 		if err := ddcfs.WriteFile(fileName, []byte(o), 0600); err != nil {
 			failedFiles = append(failedFiles, FailedFiles{
 				Path: fileName,

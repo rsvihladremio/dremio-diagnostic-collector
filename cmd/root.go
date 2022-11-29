@@ -138,36 +138,6 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
-		var collectorStrategy collection.Collector
-		if isK8s {
-			log.Print("using Kubernetes kubectl based collection")
-			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
-			//err := kubernetes.GetKubernetesConfig(kubectlPath, coordinatorStr, outputLoc)
-			if err != nil {
-				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
-			}
-		} else {
-			log.Print("using SSH based collection")
-			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
-		}
-
-		/*
-			// CopyStrategy
-			cs := helpers.CopyStrategy{
-				StrategyName: "",
-				FileType:     "",
-				Source:       "",
-				NodeType:     "",
-			}
-			switch format {
-			case "healthcheck":
-				cs.StrategyName = "healthcheck"
-			case "default":
-				cs.StrategyName = "default"
-			}
-			collectionArgs.CopyStrategy = cs
-		*/
-
 		var cs collection.CopyStrategy
 		switch format {
 		case "healthcheck":
@@ -176,16 +146,28 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
 		}
 
+		if err != nil {
+			log.Fatalf("unexpected error running collection '%v'", err)
+		}
+		var collectorStrategy collection.Collector
+		if isK8s {
+			log.Print("using Kubernetes kubectl based collection")
+			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
+			err = collection.ClusterK8sExecute(cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
+			if err != nil {
+				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
+			}
+		} else {
+			log.Print("using SSH based collection")
+			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
+		}
+
 		// Launch the collection
 		err = collection.Execute(collectorStrategy,
 			cs,
 			logOutput,
 			collectionArgs,
 		)
-
-		if err != nil {
-			log.Fatalf("unexpected error running collection '%v'", err)
-		}
 	},
 }
 

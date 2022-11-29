@@ -29,12 +29,26 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 )
 
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
 // to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
-func ArchiveDiagDirectory(outputFile, outputDir string, files []CollectedFile) error {
+func ArchiveDiagDirectory(outputFile, outputDir string, fileList []CollectedFile) error {
+	// Make a complete list of collected files
+	found, err := findAllFiles(outputDir)
+	if err != nil {
+		return err
+	}
+	// Get all file sizes
+	files, err := createFileList(found)
+	if err != nil {
+		return err
+	}
+
 	ext := filepath.Ext(outputFile)
 	if ext == ".zip" {
 		if err := ZipDiag(outputFile, outputDir, files); err != nil {
@@ -229,6 +243,128 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func GzipAllFiles(path string) (files []CollectedFile, err error) {
+	var foundFiles []string
+	if runtime.GOOS == "windows" {
+		// Currently windows gzipping isnt supported
+		return nil, nil
+	}
+	foundFiles, err = findAllFiles(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range foundFiles {
+		if file == "" {
+			break
+		}
+		zf := file + ".gz"
+		err = gZipFile(zf, file)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	foundFiles, err = findGzFiles(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range foundFiles {
+		if file == "" {
+			break
+		}
+		g, _ := os.Stat(file)
+		files = append(files, CollectedFile{
+			Path: file,
+			Size: g.Size(),
+		})
+	}
+	return files, err
+}
+
+func findAllFiles(path string) ([]string, error) {
+	cmd := cli.Cli{}
+	f := []string{}
+	out, err := cmd.Execute("find", path, "-type", "f")
+	if err != nil {
+		return f, err
+	}
+	f = strings.Split(out, "\n")
+	return f, nil
+}
+
+func createFileList(foundFiles []string) (files []CollectedFile, err error) {
+	for _, file := range foundFiles {
+		if file == "" {
+			break
+		}
+		g, err := os.Stat(file)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, CollectedFile{
+			Path: file,
+			Size: g.Size(),
+		})
+	}
+	return files, err
+}
+
+func findGzFiles(path string) ([]string, error) {
+	cmd := cli.Cli{}
+	f := []string{}
+	out, err := cmd.Execute("find", path, "-type", "f", "-name", "*.gz")
+	if err != nil {
+		return f, err
+	}
+	f = strings.Split(out, "\n")
+	return f, nil
+}
+
+func gZipFile(zipFileName, file string) error {
+	// Create a buffer to write our archive to.
+	zipFile, err := os.Create(filepath.Clean(zipFileName))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := zipFile.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+
+	}()
+	// Create a new gzip archive.
+	w := gzip.NewWriter(zipFile)
+	defer func() {
+		err := w.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+	}()
+	log.Printf("gzipping file %v into %v", file, zipFileName)
+	rf, err := os.Open(filepath.Clean(file))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := rf.Close()
+		if err != nil {
+			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+		}
+		err = os.Remove(rf.Name())
+		if err != nil {
+			log.Printf("unable to remove file %v due to error %v", rf, err)
+		}
+	}()
+	_, err = io.Copy(w, rf)
+	if err != nil {
+		return err
 	}
 	return nil
 }

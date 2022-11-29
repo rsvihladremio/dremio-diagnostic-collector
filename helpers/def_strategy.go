@@ -116,11 +116,6 @@ func (s *CopyStrategyDefault) ArchiveDiag(o string, outputFile string, files []C
 	if err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
-	// add the summary file to the list
-	files = append(files, CollectedFile{
-		Path: summaryFile,
-		Size: int64(len([]byte(o))),
-	})
 	// cleanup when done
 	defer func() {
 		log.Printf("cleaning up temp directory %v", s.TmpDir)
@@ -129,6 +124,7 @@ func (s *CopyStrategyDefault) ArchiveDiag(o string, outputFile string, files []C
 			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
+
 	// call general archive routine
 	err = ArchiveDiagDirectory(outputFile, s.TmpDir, files)
 	if err != nil {
