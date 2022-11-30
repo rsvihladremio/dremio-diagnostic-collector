@@ -19,9 +19,7 @@
 package helpers
 
 import (
-	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -69,6 +67,7 @@ func TestGetPathHC(t *testing.T) {
 }
 
 // Tests the method returns the correct path
+/*
 func TestGzipFilesHC(t *testing.T) {
 	if runtime.GOOS != "windows" {
 
@@ -105,6 +104,7 @@ func TestGzipFilesHC(t *testing.T) {
 	}
 
 }
+*/
 
 // Test archiving of a file (which is also tested elsewhere) but in addition
 // it tests the call via the selected strategy

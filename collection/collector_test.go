@@ -257,7 +257,7 @@ func TestFailIOstat(t *testing.T) {
 }
 */
 
-func TestArchive(t *testing.T) {
+func TestZipArchive(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	str := "my row"
@@ -278,25 +278,72 @@ func TestArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests.ZipContainsFile(t, testFile, archiveFile)
+}
+
+func TestTarArchive(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	str := "my row"
+	err := os.WriteFile(testFile, []byte(str), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := []helpers.CollectedFile{
+		{
+			Path: testFile,
+			Size: int64(len(str)),
+		},
+	}
 
 	//testing tar
-	archiveFile = filepath.Join(tmpDir, "test.tar")
+	archiveFile := filepath.Join(tmpDir, "test.tar")
 	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests.TarContainsFile(t, testFile, archiveFile)
+}
 
+func TestTargzArchive(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	str := "my row"
+	err := os.WriteFile(testFile, []byte(str), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := []helpers.CollectedFile{
+		{
+			Path: testFile,
+			Size: int64(len(str)),
+		},
+	}
 	//testing tar gunzip
-	archiveFile = filepath.Join(tmpDir, "test.tar.gz")
+	archiveFile := filepath.Join(tmpDir, "test.tar.gz")
 	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests.TgzContainsFile(t, testFile, archiveFile)
+}
+
+func TestTgzArchive(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	str := "my row"
+	err := os.WriteFile(testFile, []byte(str), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := []helpers.CollectedFile{
+		{
+			Path: testFile,
+			Size: int64(len(str)),
+		},
+	}
 
 	//testing tgz
-	archiveFile = filepath.Join(tmpDir, "test.tgz")
+	archiveFile := filepath.Join(tmpDir, "test.tgz")
 	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
 	if err != nil {
 		t.Fatal(err)

@@ -38,6 +38,7 @@ import (
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
 // to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
 func ArchiveDiagDirectory(outputFile, outputDir string, fileList []CollectedFile) error {
+
 	// Make a complete list of collected files
 	found, err := findAllFiles(outputDir)
 	if err != nil {

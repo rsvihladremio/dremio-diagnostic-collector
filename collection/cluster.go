@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-// collection package provides the interface for collection implementation and the actual collection execution
+// This module deals with specific k8s cluster level data collection
 
 package collection
 
@@ -43,7 +43,9 @@ func ClusterK8sExecute(cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k 
 		path := strings.TrimSuffix(p, "dremio-master")
 		filename := filepath.Join(path, cmd+".json")
 		err = ddfs.WriteFile(filename, out, DirPerms)
-		println(filename)
+		if err != nil {
+			return fmt.Errorf("ERROR: trying to write file %v, error was %v", filename, err)
+		}
 
 	}
 	return nil

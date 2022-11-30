@@ -146,9 +146,6 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
 		}
 
-		if err != nil {
-			log.Fatalf("unexpected error running collection '%v'", err)
-		}
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
@@ -168,6 +165,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			logOutput,
 			collectionArgs,
 		)
+		if err != nil {
+			log.Fatalf("unexpected error running collection '%v'", err)
+		}
 	},
 }
 
