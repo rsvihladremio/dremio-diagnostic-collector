@@ -40,7 +40,8 @@ type ExpectedJSON struct {
 func TestClusterCopyJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Read a file bytes
-	actual, err := os.ReadFile("testdata/test.json")
+	testjson := filepath.Join("testdata", "test.json")
+	actual, err := os.ReadFile(testjson)
 	if err != nil {
 		log.Printf("ERROR: when reading json file\n%v\nerror returned was:\n %v", actual, err)
 	}
@@ -82,7 +83,8 @@ func TestClusterCopyJSON(t *testing.T) {
 func TestClusterZipJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	var afiles []helpers.CollectedFile
-	actual, err := os.ReadFile("testdata/test.json")
+	testjson := filepath.Join("testdata", "test.json")
+	actual, err := os.ReadFile(testjson)
 	if err != nil {
 		log.Printf("ERROR: when reading json file\n%v\nerror returned was:\n %v", actual, err)
 	}
@@ -164,7 +166,6 @@ func TestK8sZipsJSON(t *testing.T) {
 	}
 
 	// Make the test zip file
-	//testZip := filepath.Join(tmpDir, "test.zip")
 	err = helpers.ArchiveDiagFromList(zipFile, tmpDir, afiles)
 	if err != nil {
 		t.Errorf("ERROR: trying to zip files, error was %v", err)
