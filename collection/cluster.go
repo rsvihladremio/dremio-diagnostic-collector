@@ -63,17 +63,3 @@ func clusterExecute(namespace, cmd string, c Collector, k string) ([]byte, error
 	}
 	return res, nil
 }
-
-/*
-func convertToJSON(res []byte) ([]byte, error) {
-	// Clean up returned string
-	//trim1 := strings.ReplaceAll(res, `\"`, `"`)
-	//trim2 := strings.ReplaceAll(trim1, `\n`, "\n")
-	os.WriteFile("/Users/mc/Support/deleteme/test.json", res, 0644)
-	b, err := json.MarshalIndent(res, "", "\t")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-*/

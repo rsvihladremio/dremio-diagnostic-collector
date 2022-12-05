@@ -248,7 +248,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 				return err
 			}
 			header.Modified = fi.ModTime().UTC()
-			header.Name = fileWithoutDir
+			header.Name = filepath.Clean(fileWithoutDir)
 			f, err := w.CreateHeader(header)
 			if err != nil {
 				return err
