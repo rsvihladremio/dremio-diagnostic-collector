@@ -76,6 +76,34 @@ func ArchiveDiagDirectory(outputFile, outputDir string, fileList []CollectedFile
 	return nil
 }
 
+func ArchiveDiagFromList(outputFile, outputDir string, fileList []CollectedFile) error {
+
+	ext := filepath.Ext(outputFile)
+	if ext == ".zip" {
+		if err := ZipDiag(outputFile, outputDir, fileList); err != nil {
+			return fmt.Errorf("unable to write zip file %v due to error %v", outputFile, err)
+		}
+	} else if strings.HasSuffix(outputFile, "tar.gz") || ext == ".tgz" {
+		tempFile := strings.Join([]string{strings.TrimSuffix(outputFile, ext), "tar"}, ".")
+		if err := TarDiag(tempFile, outputDir, fileList); err != nil {
+			return fmt.Errorf("unable to write tar file %v due to error %v", outputFile, err)
+		}
+		defer func() {
+			if err := os.Remove(tempFile); err != nil {
+				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
+			}
+		}()
+		if err := GZipDiag(outputFile, outputDir, tempFile); err != nil {
+			return fmt.Errorf("unable to write gz file %v due to error %v", outputFile, err)
+		}
+	} else if ext == ".tar" {
+		if err := TarDiag(outputFile, outputDir, fileList); err != nil {
+			return fmt.Errorf("unable to write tar file %v due to error %v", outputFile, err)
+		}
+	}
+	return nil
+}
+
 func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	// Create a buffer to write our archive to.
 	tarFile, err := os.Create(filepath.Clean(tarFileName))

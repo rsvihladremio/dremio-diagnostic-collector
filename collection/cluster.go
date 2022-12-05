@@ -19,7 +19,6 @@
 package collection
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -52,17 +51,29 @@ func ClusterK8sExecute(cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k 
 }
 
 // Execute commands at the cluster level
+// Callsa raw execute function and simply writes out the byte array read from the response
+// that comes in directly from kubectl
 func clusterExecute(namespace, cmd string, c Collector, k string) ([]byte, error) {
 	cli := &cli.Cli{}
 	kubectlArgs := []string{k, "-n", namespace, "get"}
 	kubectlArgs = append(kubectlArgs, cmd, "-o", "json")
-	res, err := cli.Execute(kubectlArgs...)
+	res, err := cli.Execute2(kubectlArgs...)
 	if err != nil {
 		log.Printf("ERROR: when getting config %v error returned was %v", cmd, err)
 	}
+	return res, nil
+}
+
+/*
+func convertToJSON(res []byte) ([]byte, error) {
+	// Clean up returned string
+	//trim1 := strings.ReplaceAll(res, `\"`, `"`)
+	//trim2 := strings.ReplaceAll(trim1, `\n`, "\n")
+	os.WriteFile("/Users/mc/Support/deleteme/test.json", res, 0644)
 	b, err := json.MarshalIndent(res, "", "\t")
 	if err != nil {
 		return nil, err
 	}
 	return b, nil
 }
+*/

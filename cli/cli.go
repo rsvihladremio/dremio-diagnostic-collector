@@ -59,3 +59,15 @@ func (c *Cli) Execute(args ...string) (string, error) {
 	}
 	return string(output), nil
 }
+
+func (c *Cli) Execute2(args ...string) ([]byte, error) {
+	//log.Printf("args: %v", args) // useful for debugging
+	log.Printf("args: %v", strings.Join(args, " "))
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stderr = os.Stderr
+	output, err := cmd.Output()
+	if err != nil {
+		return output, UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
+	return output, nil
+}

@@ -1,0 +1,636 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "annotations": {
+                    "node.alpha.kubernetes.io/ttl": "0",
+                    "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+                },
+                "creationTimestamp": "2022-10-24T15:55:16Z",
+                "labels": {
+                    "alpha.eksctl.io/cluster-name": "mcs",
+                    "alpha.eksctl.io/nodegroup-name": "mc-workers",
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "t2.xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/capacityType": "ON_DEMAND",
+                    "eks.amazonaws.com/nodegroup": "mc-workers",
+                    "eks.amazonaws.com/nodegroup-image": "ami-054c8a75da6a8c985",
+                    "eks.amazonaws.com/sourceLaunchTemplateId": "lt-051e828e75fd14677",
+                    "eks.amazonaws.com/sourceLaunchTemplateVersion": "1",
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2b",
+                    "k8s.io/cloud-provider-aws": "45a38d3ff67ea086a62a89fe5bdfd502",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-192-168-1-130.eu-west-2.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "t2.xlarge",
+                    "topology.kubernetes.io/region": "eu-west-2",
+                    "topology.kubernetes.io/zone": "eu-west-2b"
+                },
+                "name": "ip-192-168-1-130.eu-west-2.compute.internal",
+                "resourceVersion": "8033807",
+                "uid": "0f23bcaa-52dc-4478-8121-42c8db428119"
+            },
+            "spec": {
+                "providerID": "aws:///eu-west-2b/i-06ce5a24d47863cd8"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "address": "192.168.1.130",
+                        "type": "InternalIP"
+                    },
+                    {
+                        "address": "35.178.30.182",
+                        "type": "ExternalIP"
+                    },
+                    {
+                        "address": "ip-192-168-1-130.eu-west-2.compute.internal",
+                        "type": "Hostname"
+                    },
+                    {
+                        "address": "ip-192-168-1-130.eu-west-2.compute.internal",
+                        "type": "InternalDNS"
+                    },
+                    {
+                        "address": "ec2-35-178-30-182.eu-west-2.compute.amazonaws.com",
+                        "type": "ExternalDNS"
+                    }
+                ],
+                "allocatable": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "3920m",
+                    "ephemeral-storage": "76224326324",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "15532688Ki",
+                    "pods": "44"
+                },
+                "capacity": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "4",
+                    "ephemeral-storage": "83873772Ki",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "16391824Ki",
+                    "pods": "44"
+                },
+                "conditions": [
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:24:50Z",
+                        "lastTransitionTime": "2022-10-24T15:55:14Z",
+                        "message": "kubelet has sufficient memory available",
+                        "reason": "KubeletHasSufficientMemory",
+                        "status": "False",
+                        "type": "MemoryPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:24:50Z",
+                        "lastTransitionTime": "2022-10-24T15:55:14Z",
+                        "message": "kubelet has no disk pressure",
+                        "reason": "KubeletHasNoDiskPressure",
+                        "status": "False",
+                        "type": "DiskPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:24:50Z",
+                        "lastTransitionTime": "2022-10-24T15:55:14Z",
+                        "message": "kubelet has sufficient PID available",
+                        "reason": "KubeletHasSufficientPID",
+                        "status": "False",
+                        "type": "PIDPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:24:50Z",
+                        "lastTransitionTime": "2022-10-24T15:55:36Z",
+                        "message": "kubelet is posting ready status",
+                        "reason": "KubeletReady",
+                        "status": "True",
+                        "type": "Ready"
+                    }
+                ],
+                "daemonEndpoints": {
+                    "kubeletEndpoint": {
+                        "Port": 10250
+                    }
+                },
+                "images": [
+                    {
+                        "names": [
+                            "dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                            "dremio/dremio-oss:21.2"
+                        ],
+                        "sizeBytes": 1274436673
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni@sha256:f310c918ee2b4ebced76d2d64a2ec128dde3b364d1b495f0ae73011f489d474d",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 312076970
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init@sha256:d96d712513464de6ce94e422634a25546565418f20d1b28d3bce399d578f3296",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 287782202
+                    },
+                    {
+                        "names": [
+                            "zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                            "zookeeper:3.8.0"
+                        ],
+                        "sizeBytes": 274547865
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy@sha256:4181a2abfad8ce4311fa88b7cd12cd03fb483a6aa7a1a4e508865fa84d171c0c",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy:v1.20.7-eksbuild.1"
+                        ],
+                        "sizeBytes": 127081652
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/coredns@sha256:f7a695d2ca5d864c23c8ac0140178ca2119f857c96f67ef87718b9b4286fa398",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/coredns:v1.8.3-eksbuild.1"
+                        ],
+                        "sizeBytes": 48207815
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:9810966b5f712084ea05bf28fc8ba2c8fb110baa2531a10e2da52c1efc504698"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                            "busybox:latest"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause@sha256:529cf6b1b6e5b76e901abc43aee825badbd93f9c5ee5f1e316d46a83abbce5a2",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause:3.5"
+                        ],
+                        "sizeBytes": 682696
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "bootID": "f1b5e934-6a6a-4e29-8891-b533fdb259d4",
+                    "containerRuntimeVersion": "docker://20.10.17",
+                    "kernelVersion": "5.4.209-116.367.amzn2.x86_64",
+                    "kubeProxyVersion": "v1.20.15-eks-ba74326",
+                    "kubeletVersion": "v1.20.15-eks-ba74326",
+                    "machineID": "79098082f213472698c6bd6fa78521bb",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2",
+                    "systemUUID": "ec2e63cd-8f3a-e6f7-f70d-155cc452ed2e"
+                },
+                "volumesAttached": [
+                    {
+                        "devicePath": "/dev/xvdcu",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-091b7c73d129b8c70"
+                    },
+                    {
+                        "devicePath": "/dev/xvdbn",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-0d7dbf79176e6428f"
+                    },
+                    {
+                        "devicePath": "/dev/xvdbv",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-0ea5d4ae277ef2eb5"
+                    }
+                ],
+                "volumesInUse": [
+                    "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-091b7c73d129b8c70",
+                    "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-0d7dbf79176e6428f",
+                    "kubernetes.io/aws-ebs/aws://eu-west-2b/vol-0ea5d4ae277ef2eb5"
+                ]
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "annotations": {
+                    "node.alpha.kubernetes.io/ttl": "0",
+                    "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+                },
+                "creationTimestamp": "2022-10-24T15:55:20Z",
+                "labels": {
+                    "alpha.eksctl.io/cluster-name": "mcs",
+                    "alpha.eksctl.io/nodegroup-name": "mc-workers",
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "t2.xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/capacityType": "ON_DEMAND",
+                    "eks.amazonaws.com/nodegroup": "mc-workers",
+                    "eks.amazonaws.com/nodegroup-image": "ami-054c8a75da6a8c985",
+                    "eks.amazonaws.com/sourceLaunchTemplateId": "lt-051e828e75fd14677",
+                    "eks.amazonaws.com/sourceLaunchTemplateVersion": "1",
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2c",
+                    "k8s.io/cloud-provider-aws": "45a38d3ff67ea086a62a89fe5bdfd502",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-192-168-48-240.eu-west-2.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "t2.xlarge",
+                    "topology.kubernetes.io/region": "eu-west-2",
+                    "topology.kubernetes.io/zone": "eu-west-2c"
+                },
+                "name": "ip-192-168-48-240.eu-west-2.compute.internal",
+                "resourceVersion": "8033423",
+                "uid": "c5cacc7f-e58f-4f7f-adea-2d894d6d2f45"
+            },
+            "spec": {
+                "providerID": "aws:///eu-west-2c/i-0b3a4fad4d1a48d54"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "address": "192.168.48.240",
+                        "type": "InternalIP"
+                    },
+                    {
+                        "address": "13.40.16.237",
+                        "type": "ExternalIP"
+                    },
+                    {
+                        "address": "ip-192-168-48-240.eu-west-2.compute.internal",
+                        "type": "Hostname"
+                    },
+                    {
+                        "address": "ip-192-168-48-240.eu-west-2.compute.internal",
+                        "type": "InternalDNS"
+                    },
+                    {
+                        "address": "ec2-13-40-16-237.eu-west-2.compute.amazonaws.com",
+                        "type": "ExternalDNS"
+                    }
+                ],
+                "allocatable": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "3920m",
+                    "ephemeral-storage": "76224326324",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "15532688Ki",
+                    "pods": "44"
+                },
+                "capacity": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "4",
+                    "ephemeral-storage": "83873772Ki",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "16391824Ki",
+                    "pods": "44"
+                },
+                "conditions": [
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:22:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:18Z",
+                        "message": "kubelet has sufficient memory available",
+                        "reason": "KubeletHasSufficientMemory",
+                        "status": "False",
+                        "type": "MemoryPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:22:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:18Z",
+                        "message": "kubelet has no disk pressure",
+                        "reason": "KubeletHasNoDiskPressure",
+                        "status": "False",
+                        "type": "DiskPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:22:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:18Z",
+                        "message": "kubelet has sufficient PID available",
+                        "reason": "KubeletHasSufficientPID",
+                        "status": "False",
+                        "type": "PIDPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:22:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:40Z",
+                        "message": "kubelet is posting ready status",
+                        "reason": "KubeletReady",
+                        "status": "True",
+                        "type": "Ready"
+                    }
+                ],
+                "daemonEndpoints": {
+                    "kubeletEndpoint": {
+                        "Port": 10250
+                    }
+                },
+                "images": [
+                    {
+                        "names": [
+                            "dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                            "dremio/dremio-oss:21.2"
+                        ],
+                        "sizeBytes": 1274436673
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni@sha256:f310c918ee2b4ebced76d2d64a2ec128dde3b364d1b495f0ae73011f489d474d",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 312076970
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init@sha256:d96d712513464de6ce94e422634a25546565418f20d1b28d3bce399d578f3296",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 287782202
+                    },
+                    {
+                        "names": [
+                            "zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                            "zookeeper:3.8.0"
+                        ],
+                        "sizeBytes": 274547865
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy@sha256:4181a2abfad8ce4311fa88b7cd12cd03fb483a6aa7a1a4e508865fa84d171c0c",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy:v1.20.7-eksbuild.1"
+                        ],
+                        "sizeBytes": 127081652
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:9810966b5f712084ea05bf28fc8ba2c8fb110baa2531a10e2da52c1efc504698"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                            "busybox:latest"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause@sha256:529cf6b1b6e5b76e901abc43aee825badbd93f9c5ee5f1e316d46a83abbce5a2",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause:3.5"
+                        ],
+                        "sizeBytes": 682696
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "bootID": "ddd0bbf4-4c63-4962-8010-e2adb88c57a9",
+                    "containerRuntimeVersion": "docker://20.10.17",
+                    "kernelVersion": "5.4.209-116.367.amzn2.x86_64",
+                    "kubeProxyVersion": "v1.20.15-eks-ba74326",
+                    "kubeletVersion": "v1.20.15-eks-ba74326",
+                    "machineID": "f227243456b641458c4b2560df3c5f13",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2",
+                    "systemUUID": "ec2bc64c-21f7-9aa2-dcd4-113e76b84bd3"
+                },
+                "volumesAttached": [
+                    {
+                        "devicePath": "/dev/xvdby",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2c/vol-0f2f53fb3635f6bc7"
+                    }
+                ],
+                "volumesInUse": [
+                    "kubernetes.io/aws-ebs/aws://eu-west-2c/vol-0f2f53fb3635f6bc7"
+                ]
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "annotations": {
+                    "node.alpha.kubernetes.io/ttl": "0",
+                    "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+                },
+                "creationTimestamp": "2022-10-24T15:55:17Z",
+                "labels": {
+                    "alpha.eksctl.io/cluster-name": "mcs",
+                    "alpha.eksctl.io/nodegroup-name": "mc-workers",
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "t2.xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/capacityType": "ON_DEMAND",
+                    "eks.amazonaws.com/nodegroup": "mc-workers",
+                    "eks.amazonaws.com/nodegroup-image": "ami-054c8a75da6a8c985",
+                    "eks.amazonaws.com/sourceLaunchTemplateId": "lt-051e828e75fd14677",
+                    "eks.amazonaws.com/sourceLaunchTemplateVersion": "1",
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2a",
+                    "k8s.io/cloud-provider-aws": "45a38d3ff67ea086a62a89fe5bdfd502",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-192-168-68-4.eu-west-2.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "t2.xlarge",
+                    "topology.kubernetes.io/region": "eu-west-2",
+                    "topology.kubernetes.io/zone": "eu-west-2a"
+                },
+                "name": "ip-192-168-68-4.eu-west-2.compute.internal",
+                "resourceVersion": "8033566",
+                "uid": "a7730df5-ffbb-4d8f-8bc5-d3146d17e7bf"
+            },
+            "spec": {
+                "providerID": "aws:///eu-west-2a/i-09fc28a39a88c63e0"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "address": "192.168.68.4",
+                        "type": "InternalIP"
+                    },
+                    {
+                        "address": "18.132.38.58",
+                        "type": "ExternalIP"
+                    },
+                    {
+                        "address": "ip-192-168-68-4.eu-west-2.compute.internal",
+                        "type": "Hostname"
+                    },
+                    {
+                        "address": "ip-192-168-68-4.eu-west-2.compute.internal",
+                        "type": "InternalDNS"
+                    },
+                    {
+                        "address": "ec2-18-132-38-58.eu-west-2.compute.amazonaws.com",
+                        "type": "ExternalDNS"
+                    }
+                ],
+                "allocatable": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "3920m",
+                    "ephemeral-storage": "76224326324",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "15532688Ki",
+                    "pods": "44"
+                },
+                "capacity": {
+                    "attachable-volumes-aws-ebs": "39",
+                    "cpu": "4",
+                    "ephemeral-storage": "83873772Ki",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "memory": "16391824Ki",
+                    "pods": "44"
+                },
+                "conditions": [
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:23:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:15Z",
+                        "message": "kubelet has sufficient memory available",
+                        "reason": "KubeletHasSufficientMemory",
+                        "status": "False",
+                        "type": "MemoryPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:23:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:15Z",
+                        "message": "kubelet has no disk pressure",
+                        "reason": "KubeletHasNoDiskPressure",
+                        "status": "False",
+                        "type": "DiskPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:23:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:15Z",
+                        "message": "kubelet has sufficient PID available",
+                        "reason": "KubeletHasSufficientPID",
+                        "status": "False",
+                        "type": "PIDPressure"
+                    },
+                    {
+                        "lastHeartbeatTime": "2022-12-02T14:23:09Z",
+                        "lastTransitionTime": "2022-10-24T15:55:37Z",
+                        "message": "kubelet is posting ready status",
+                        "reason": "KubeletReady",
+                        "status": "True",
+                        "type": "Ready"
+                    }
+                ],
+                "daemonEndpoints": {
+                    "kubeletEndpoint": {
+                        "Port": 10250
+                    }
+                },
+                "images": [
+                    {
+                        "names": [
+                            "dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                            "dremio/dremio-oss:21.2"
+                        ],
+                        "sizeBytes": 1274436673
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni@sha256:f310c918ee2b4ebced76d2d64a2ec128dde3b364d1b495f0ae73011f489d474d",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 312076970
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init@sha256:d96d712513464de6ce94e422634a25546565418f20d1b28d3bce399d578f3296",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/amazon-k8s-cni-init:v1.7.5-eksbuild.1"
+                        ],
+                        "sizeBytes": 287782202
+                    },
+                    {
+                        "names": [
+                            "zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                            "zookeeper:3.8.0"
+                        ],
+                        "sizeBytes": 274547865
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy@sha256:4181a2abfad8ce4311fa88b7cd12cd03fb483a6aa7a1a4e508865fa84d171c0c",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/kube-proxy:v1.20.7-eksbuild.1"
+                        ],
+                        "sizeBytes": 127081652
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/coredns@sha256:f7a695d2ca5d864c23c8ac0140178ca2119f857c96f67ef87718b9b4286fa398",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/coredns:v1.8.3-eksbuild.1"
+                        ],
+                        "sizeBytes": 48207815
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:9810966b5f712084ea05bf28fc8ba2c8fb110baa2531a10e2da52c1efc504698"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:6bdd92bf5240be1b5f3bf71324f5e371fe59f0e153b27fa1f1620f78ba16963c"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                            "busybox:latest"
+                        ],
+                        "sizeBytes": 1239772
+                    },
+                    {
+                        "names": [
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause@sha256:529cf6b1b6e5b76e901abc43aee825badbd93f9c5ee5f1e316d46a83abbce5a2",
+                            "602401143452.dkr.ecr.eu-west-2.amazonaws.com/eks/pause:3.5"
+                        ],
+                        "sizeBytes": 682696
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "bootID": "958e1914-7d4f-4f01-89a7-28d59641c95f",
+                    "containerRuntimeVersion": "docker://20.10.17",
+                    "kernelVersion": "5.4.209-116.367.amzn2.x86_64",
+                    "kubeProxyVersion": "v1.20.15-eks-ba74326",
+                    "kubeletVersion": "v1.20.15-eks-ba74326",
+                    "machineID": "d82520bc27494ddeb0740a2836135f0d",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2",
+                    "systemUUID": "ec2f39fa-feed-ee2a-3eeb-a7f77c4c6b5a"
+                },
+                "volumesAttached": [
+                    {
+                        "devicePath": "/dev/xvdbo",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2a/vol-07bc71ba01e343a81"
+                    },
+                    {
+                        "devicePath": "/dev/xvdcg",
+                        "name": "kubernetes.io/aws-ebs/aws://eu-west-2a/vol-09bcd7406abbdc9f6"
+                    }
+                ],
+                "volumesInUse": [
+                    "kubernetes.io/aws-ebs/aws://eu-west-2a/vol-07bc71ba01e343a81",
+                    "kubernetes.io/aws-ebs/aws://eu-west-2a/vol-09bcd7406abbdc9f6"
+                ]
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}
