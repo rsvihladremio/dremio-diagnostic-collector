@@ -144,10 +144,9 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 				log.Printf("unable to close file %v due to error %v", tarFileName, err)
 			}
 		}()
-		fileWithoutDir := filepath.Base(file)
+		fileWithoutDir := strings.Trim(file[len(baseDir):], string(filepath.Separator))
 		hdr := &tar.Header{
-			//Name: file[len(baseDir):],
-			Name:    filepath.Clean(fileWithoutDir),
+			Name:    fileWithoutDir,
 			Mode:    0600,
 			Size:    fi.Size(),
 			ModTime: fi.ModTime().UTC(),
@@ -244,7 +243,9 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 			}
 			log.Printf("zipping file %v", file)
 			// Trim off the tmp dir to leave file and path you need in the archive
-			fileWithoutDir := strings.TrimPrefix(file, baseDir)
+			//fileWithoutDir := strings.TrimPrefix(file, fmt.Sprintf("%v%v", baseDir, filepath.Separator))
+			fileWithoutDir := file[len(baseDir):]
+			fileWithoutDir = strings.Trim(fileWithoutDir, string(filepath.Separator))
 			header, err := zip.FileInfoHeader(fi)
 			if err != nil {
 				return err

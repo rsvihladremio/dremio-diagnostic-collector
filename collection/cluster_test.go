@@ -75,8 +75,19 @@ func TestClusterCopyJSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("ERROR: trying to read file %v, error was %v", efile, err)
 	}
-	if !reflect.DeepEqual(string(acheck), string(echeck)) {
+
+	//efilei, _ := os.Stat(efile)
+	//afilei, _ := os.Stat(afile)
+
+	/*if string(acheck) != string(echeck) {
 		t.Errorf("\nERROR: \nexpected:\t%v\nactual:\t\t%v\n", string(acheck), string(echeck))
+	}
+	/*if !os.SameFile(afilei, efilei) {
+		t.Errorf("\nERROR: \nexpected:\t%v\nactual:\t\t%v\n", afile, efile)
+	}
+	*/
+	if !reflect.DeepEqual(acheck, echeck) {
+		t.Errorf("\nERROR: \nexpected:\t%q\nactual:\t\t%q\n", string(acheck), string(echeck))
 	}
 }
 
@@ -166,7 +177,7 @@ func TestK8sZipsJSON(t *testing.T) {
 	}
 
 	// Make the test zip file
-	err = helpers.ArchiveDiagFromList(zipFile, tmpDir, afiles)
+	err = helpers.ArchiveDiagFromList(zipFile, "", afiles)
 	if err != nil {
 		t.Errorf("ERROR: trying to zip files, error was %v", err)
 	}
