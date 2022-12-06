@@ -144,7 +144,8 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 				log.Printf("unable to close file %v due to error %v", tarFileName, err)
 			}
 		}()
-		fileWithoutDir := strings.Trim(file[len(baseDir):], string(filepath.Separator))
+		fileWithoutDir := file[len(baseDir):]
+		fileWithoutDir = strings.Trim(fileWithoutDir, string(filepath.Separator))
 		hdr := &tar.Header{
 			Name:    fileWithoutDir,
 			Mode:    0600,
