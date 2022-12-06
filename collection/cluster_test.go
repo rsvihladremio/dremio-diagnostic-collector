@@ -75,8 +75,8 @@ func TestClusterCopyJSON(t *testing.T) {
 		t.Errorf("ERROR: trying to read file %v, error was %v", efile, err)
 	}
 
-	expStr := strings.ReplaceAll((string(echeck)), `\r\n`, `\n`)
-	actStr := strings.ReplaceAll((string(acheck)), `\r\n`, `\n`)
+	expStr := strings.ReplaceAll((string(echeck)), `\r\n`, "")
+	actStr := strings.ReplaceAll((string(acheck)), `\r\n`, "")
 
 	if expStr != actStr {
 		t.Errorf("\nERROR: \nexpected:\t%q\nactual:\t\t%q\n", expStr, actStr)
