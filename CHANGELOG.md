@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0] - 2022-12-08
+### Added
+- Support for healthcheck format
+- Support for basic format and other future formats
+- Kubernetes cluster level config collection
+
+### Fixed
+- Issues with windows path formatting
+
 ## [0.1.5] - 2022-11-10
 ### Added
 - Support for JFR collection
