@@ -18,13 +18,9 @@
 package collection
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +29,11 @@ import (
 
 var DirPerms fs.FileMode = 0750
 
+type CopyStrategy interface {
+	CreatePath(fileType, source, nodeType string) (path string, err error)
+	ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error
+}
+
 type Collector interface {
 	CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error)
 	FindHosts(searchTerm string) (podName []string, err error)
@@ -40,7 +41,7 @@ type Collector interface {
 }
 
 type Args struct {
-	Cfs                       helpers.FileSystem
+	DDCfs                     helpers.Filesystem
 	CoordinatorStr            string
 	ExecutorsStr              string
 	OutputLoc                 string
@@ -54,9 +55,29 @@ type Args struct {
 	SudoUser                  string
 	SizeLimit                 int64
 	ExcludeFiles              []string
+	CopyStrategy              CopyStrategy
 }
 
-func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
+type HostCaptureConfiguration struct {
+	Logger                    *log.Logger
+	IsCoordinator             bool
+	Collector                 Collector
+	Host                      string
+	OutputLocation            string
+	DremioConfDir             string
+	DremioLogDir              string
+	DurationDiagnosticTooling int
+	GCLogOverride             string
+	LogAge                    int
+	jfrduration               int
+	SudoUser                  string
+	SizeLimit                 int64
+	ExcludeFiles              []string
+	CopyStrategy              CopyStrategy
+	DDCfs                     helpers.Filesystem
+}
+
+func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -67,37 +88,15 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	logAge := collectionArgs.LogAge
 	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
-	cfs := collectionArgs.Cfs
+	ddcfs := collectionArgs.DDCfs
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
 
-	outputDir, err := cfs.MkdirTemp("", "*")
-	if err != nil {
-		return err
-	}
-	executorDir := filepath.Join(outputDir, "executors")
-	err = cfs.Mkdir(executorDir, DirPerms)
-	if err != nil {
-		return err
-	}
-	coordinatorDir := filepath.Join(outputDir, "coordinators")
-	err = cfs.Mkdir(coordinatorDir, DirPerms)
-	if err != nil {
-		return err
-	}
-	// Cleanup - we may want to move this into archiveDiagDirectory
-	defer func() {
-		log.Printf("cleaning up temp directory %v", outputDir)
-		//temp folders stay around forever unless we tell them to go away
-		if err := cfs.RemoveAll(outputDir); err != nil {
-			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", outputDir, err)
-		}
-	}()
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
 		return err
 	}
-	var files []CollectedFile
+	var files []helpers.CollectedFile
 	var totalFailedFiles []FailedFiles
 	var totalSkippedFiles []string
 	var nodesConnectedTo int
@@ -111,11 +110,11 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             true,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            coordinatorDir,
+				Collector:     c,
+				IsCoordinator: true,
+				Logger:        logger,
+				Host:          host,
+				//OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -125,6 +124,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				SudoUser:                  sudoUser,
 				SizeLimit:                 limit,
 				ExcludeFiles:              excludefiles,
+				CopyStrategy:              s,
+				DDCfs:                     ddcfs,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
 			m.Lock()
@@ -145,11 +146,11 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             false,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            executorDir,
+				Collector:     c,
+				IsCoordinator: false,
+				Logger:        logger,
+				Host:          host,
+				//OutputLocation:            outputDir,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -158,6 +159,8 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 				jfrduration:               jfrduration,
 				SudoUser:                  sudoUser,
 				ExcludeFiles:              excludefiles,
+				CopyStrategy:              s,
+				DDCfs:                     ddcfs,
 			}
 			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
 			m.Lock()
@@ -191,44 +194,9 @@ func Execute(c Collector, logOutput io.Writer, collectionArgs Args) error {
 	if err != nil {
 		return err
 	}
-	summaryFile := filepath.Join(outputDir, "summary.json")
-	err = cfs.WriteFile(summaryFile, []byte(o), 0600)
-	if err != nil {
-		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
-	}
-	files = append(files, CollectedFile{
-		Path: summaryFile,
-		Size: int64(len([]byte(o))),
-	})
 
-	return archiveDiagDirectory(outputLoc, outputDir, files)
-}
+	// archives the collected files
+	// creates the summary file too
+	return s.ArchiveDiag(o, outputLoc, files)
 
-// archiveDiagDirectory will detect the extension asked for and use the correct archival library
-// to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
-func archiveDiagDirectory(outputLoc, outputDir string, files []CollectedFile) error {
-	ext := filepath.Ext(outputLoc)
-	if ext == ".zip" {
-		if err := ZipDiag(outputLoc, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write zip file %v due to error %v", outputLoc, err)
-		}
-	} else if strings.HasSuffix(outputLoc, "tar.gz") || ext == ".tgz" {
-		tempFile := strings.Join([]string{strings.TrimSuffix(outputLoc, ext), "tar"}, ".")
-		if err := TarDiag(tempFile, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write tar file %v due to error %v", outputLoc, err)
-		}
-		defer func() {
-			if err := os.Remove(tempFile); err != nil {
-				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
-			}
-		}()
-		if err := GZipDiag(outputLoc, outputDir, tempFile); err != nil {
-			return fmt.Errorf("unable to write gz file %v due to error %v", outputLoc, err)
-		}
-	} else if ext == ".tar" {
-		if err := TarDiag(outputLoc, outputDir, files); err != nil {
-			return fmt.Errorf("unable to write tar file %v due to error %v", outputLoc, err)
-		}
-	}
-	return nil
 }

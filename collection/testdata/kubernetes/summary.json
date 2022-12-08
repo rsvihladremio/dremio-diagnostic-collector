@@ -1,0 +1,170 @@
+{
+	"clusterInfo": {
+		"numberNodesContacted": 2,
+		"totalNodesAttempted": 2
+	},
+	"collectedFiles": [
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/logback-access.xml",
+			"size": 1818
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/logback-admin.xml",
+			"size": 2052
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/logback.xml",
+			"size": 8885
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/core-site.xml",
+			"size": 167
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/dremio-env",
+			"size": 2470
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-executor-0/dremio.conf",
+			"size": 1508
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.json",
+			"size": 51332
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-03.0.json.gz",
+			"size": 1337
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-04.0.json.gz",
+			"size": 1358
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-02.0.json.gz",
+			"size": 1340
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.log",
+			"size": 26732
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-04.0.log.gz",
+			"size": 1102
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-03.0.log.gz",
+			"size": 1096
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-executor-0/server.2022-12-02.0.log.gz",
+			"size": 1094
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/logback-access.xml",
+			"size": 1818
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/logback-admin.xml",
+			"size": 2052
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/logback.xml",
+			"size": 8885
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/core-site.xml",
+			"size": 167
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/dremio-env",
+			"size": 2470
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/configuration/default.dremio-master-0/dremio.conf",
+			"size": 1508
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/metadata_refresh.log",
+			"size": 14484
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-04.0.json.gz",
+			"size": 1329731
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-03.0.json.gz",
+			"size": 1328809
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-02.0.json.gz",
+			"size": 1329165
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/access.log",
+			"size": 938311
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-03.0.log.gz",
+			"size": 1187505
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/metadata_refresh.2022-12-04.log.gz",
+			"size": 1129
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/metadata_refresh.2022-12-03.log.gz",
+			"size": 1154
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/access.2022-12-02.0.log.gz",
+			"size": 47939
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-02.0.log.gz",
+			"size": 1187771
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/access.2022-12-03.0.log.gz",
+			"size": 48114
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/access.2022-12-04.0.log.gz",
+			"size": 47597
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.2022-12-04.0.log.gz",
+			"size": 1188014
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/metadata_refresh.2022-12-02.log.gz",
+			"size": 1153
+		},
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.log",
+			"size": 6808615
+		}
+	],
+	"failedFiles": [
+		{
+			"path": "/var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.json",
+			"err": {
+				"Err": {
+					"Stderr": null
+				},
+				"Cmd": "kubectl cp -n default -c dremio-master-coordinator dremio-master-0:/opt/dremio/data/log/json/server.json /var/folders/mn/qjh1d6d52hv5k5x8274lz46m0000gn/T/4267611010/20221205-134047-DDC/logs/default.dremio-master-0/server.json"
+			}
+		}
+	],
+	"skippedFiles": null,
+	"startTimeUTC": "2022-12-05T13:41:05.882429Z",
+	"endTimeUTC": "2022-12-05T13:41:53.160624Z",
+	"totalRuntimeSeconds": 48,
+	"totalBytesCollected": 15578682,
+	"executors": [
+		"default.dremio-executor-0"
+	],
+	"coordinators": [
+		"default.dremio-master-0"
+	]
+}

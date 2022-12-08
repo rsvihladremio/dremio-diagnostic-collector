@@ -1,0 +1,1673 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "dremio-configmap/checksum": "1494696a451bc61ee2e2199bd11e270bd0a9c31e922e3ad489d23422ca466ba4",
+                    "kubernetes.io/psp": "eks.privileged"
+                },
+                "creationTimestamp": "2022-11-29T14:22:17Z",
+                "generateName": "dremio-executor-",
+                "labels": {
+                    "app": "dremio-executor",
+                    "controller-revision-hash": "dremio-executor-548dbb9fd8",
+                    "role": "dremio-cluster-pod",
+                    "statefulset.kubernetes.io/pod-name": "dremio-executor-0"
+                },
+                "name": "dremio-executor-0",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "dremio-executor",
+                        "uid": "d2aba4f8-e567-4707-a58b-f1fd821aeaa4"
+                    }
+                ],
+                "resourceVersion": "7414317",
+                "uid": "70de498c-8ccd-4595-87fe-4e231869a2e7"
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "args": [
+                            "start-fg"
+                        ],
+                        "command": [
+                            "/opt/dremio/bin/dremio"
+                        ],
+                        "env": [
+                            {
+                                "name": "DREMIO_MAX_HEAP_MEMORY_SIZE_MB",
+                                "value": "2048"
+                            },
+                            {
+                                "name": "DREMIO_MAX_DIRECT_MEMORY_SIZE_MB",
+                                "value": "2048"
+                            },
+                            {
+                                "name": "DREMIO_JAVA_SERVER_EXTRA_OPTS",
+                                "value": "-Ddremio.log.path=/opt/dremio/data/log -Dzookeeper=zk-hs:2181 -Dservices.coordinator.enabled=false -Dservices.coordinator.master.enabled=false -Dservices.coordinator.master.embedded-zookeeper.enabled=false -Dservices.executor.enabled=true -Dservices.conduit.port=45679 -Dservices.node-tag=default"
+                            },
+                            {
+                                "name": "AWS_CREDENTIAL_PROFILES_FILE",
+                                "value": "/opt/dremio/aws/credentials"
+                            },
+                            {
+                                "name": "AWS_SHARED_CREDENTIALS_FILE",
+                                "value": "/opt/dremio/aws/credentials"
+                            }
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "dremio-executor",
+                        "ports": [
+                            {
+                                "containerPort": 45678,
+                                "name": "server-fabric",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 45679,
+                                "name": "server-conduit",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {
+                            "requests": {
+                                "cpu": "2",
+                                "memory": "4096M"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-default-executor-volume"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/conf",
+                                "name": "dremio-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive2.d",
+                                "name": "dremio-hive2-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive2-ee.d",
+                                "name": "dremio-hive2-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive3.d",
+                                "name": "dremio-hive3-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive3-ee.d",
+                                "name": "dremio-hive3-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/cloudcache/c0",
+                                "name": "dremio-default-executor-c3-0"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "dremio-executor-0",
+                "imagePullSecrets": [
+                    {
+                        "name": "dremio-docker-secret"
+                    }
+                ],
+                "initContainers": [
+                    {
+                        "args": [
+                            "dremio:dremio",
+                            "/opt/dremio/data"
+                        ],
+                        "command": [
+                            "chown"
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "chown-data-directory",
+                        "resources": {},
+                        "securityContext": {
+                            "runAsUser": 0
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-default-executor-volume"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "args": [
+                            "-c",
+                            "chown dremio:dremio /opt/dremio/cloudcache/c*"
+                        ],
+                        "command": [
+                            "bash"
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "chown-cloudcache-directory",
+                        "resources": {},
+                        "securityContext": {
+                            "runAsUser": 0
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/cloudcache/c0",
+                                "name": "dremio-default-executor-c3-0"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "command": [
+                            "sh",
+                            "-c",
+                            "until ping -c 1 -W 1 zk-hs \u003e /dev/null; do echo Waiting for Zookeeper to be ready.; sleep 2; done;"
+                        ],
+                        "image": "busybox",
+                        "imagePullPolicy": "Always",
+                        "name": "wait-for-zookeeper",
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "nodeName": "ip-192-168-1-130.eu-west-2.compute.internal",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "dremio-cluster-pod",
+                "terminationGracePeriodSeconds": 120,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "dremio-default-executor-volume",
+                        "persistentVolumeClaim": {
+                            "claimName": "dremio-default-executor-volume-dremio-executor-0"
+                        }
+                    },
+                    {
+                        "name": "dremio-default-executor-c3-0",
+                        "persistentVolumeClaim": {
+                            "claimName": "dremio-default-executor-c3-0-dremio-executor-0"
+                        }
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-config"
+                        },
+                        "name": "dremio-config"
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-hive2-config"
+                        },
+                        "name": "dremio-hive2-config"
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-hive3-config"
+                        },
+                        "name": "dremio-hive3-config"
+                    },
+                    {
+                        "name": "default-token-w79bt",
+                        "secret": {
+                            "defaultMode": 420,
+                            "secretName": "default-token-w79bt"
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T14:22:38Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T14:22:39Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T14:22:39Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T14:22:17Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "docker://a04f2a7827bcd9c7f03de044118c7dafa40bd4d3d641057a5b2804bbede82f9a",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "dremio-executor",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-11-29T14:22:38Z"
+                            }
+                        }
+                    }
+                ],
+                "hostIP": "192.168.1.130",
+                "initContainerStatuses": [
+                    {
+                        "containerID": "docker://868ecf6c6fbb0eec230bb9161fbec31f651b59f8d6584e19e7865a76b0823844",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "chown-data-directory",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://868ecf6c6fbb0eec230bb9161fbec31f651b59f8d6584e19e7865a76b0823844",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T14:22:34Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T14:22:34Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://cf5304cd0fb6ebc8a079b423c6ea449be1ae4cd4b615f42d74b953f6b3fa4acd",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "chown-cloudcache-directory",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://cf5304cd0fb6ebc8a079b423c6ea449be1ae4cd4b615f42d74b953f6b3fa4acd",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T14:22:35Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T14:22:35Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://27edbef9d8eb51a6a641de58372585b13332c247b34d4412096555adfe9fae19",
+                        "image": "busybox:latest",
+                        "imageID": "docker-pullable://busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                        "lastState": {},
+                        "name": "wait-for-zookeeper",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://27edbef9d8eb51a6a641de58372585b13332c247b34d4412096555adfe9fae19",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T14:22:38Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T14:22:38Z"
+                            }
+                        }
+                    }
+                ],
+                "phase": "Running",
+                "podIP": "192.168.25.33",
+                "podIPs": [
+                    {
+                        "ip": "192.168.25.33"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2022-11-29T14:22:17Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "dremio-configmap/checksum": "1494696a451bc61ee2e2199bd11e270bd0a9c31e922e3ad489d23422ca466ba4",
+                    "kubernetes.io/psp": "eks.privileged"
+                },
+                "creationTimestamp": "2022-11-29T13:56:45Z",
+                "generateName": "dremio-master-",
+                "labels": {
+                    "app": "dremio-coordinator",
+                    "controller-revision-hash": "dremio-master-975b755b5",
+                    "role": "dremio-cluster-pod",
+                    "statefulset.kubernetes.io/pod-name": "dremio-master-0"
+                },
+                "name": "dremio-master-0",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "dremio-master",
+                        "uid": "c0b8d97d-2592-4a23-8f3f-524ce959bfe7"
+                    }
+                ],
+                "resourceVersion": "7410636",
+                "uid": "1ea16563-5021-416b-b194-e994a9324860"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "labelSelector": {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "app",
+                                            "operator": "In",
+                                            "values": [
+                                                "dremio-coordinator"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "topologyKey": "kubernetes.io/hostname"
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "args": [
+                            "start-fg"
+                        ],
+                        "command": [
+                            "/opt/dremio/bin/dremio"
+                        ],
+                        "env": [
+                            {
+                                "name": "DREMIO_MAX_HEAP_MEMORY_SIZE_MB",
+                                "value": "2952"
+                            },
+                            {
+                                "name": "DREMIO_MAX_DIRECT_MEMORY_SIZE_MB",
+                                "value": "2048"
+                            },
+                            {
+                                "name": "DREMIO_JAVA_SERVER_EXTRA_OPTS",
+                                "value": "-Ddremio.log.path=/opt/dremio/data/log -XX:+AlwaysPreTouch -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g -Dservices.coordinator.enabled=false -Ddebug.allowTestApis=true -Xloggc:/opt/dremio/data/gc.log -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=4000k -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintClassHistogramBeforeFullGC -XX:+PrintClassHistogramAfterFullGC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/dremio/data -XX:G1HeapRegionSize=32M -XX:MaxGCPauseMillis=500 -XX:InitiatingHeapOccupancyPercent=25 -XX:+PrintAdaptiveSizePolicy -Dservices.coordinator.enabled=true -XX:+PrintReferenceGC -XX:ErrorFile=/opt/dremio/data/hs_err_pid%p.log -XX:+UseCompressedClassPointers -XX:+UseGCLogFileRotation -XX:+UseG1GC -Dzookeeper=zk-hs:2181 -Dservices.coordinator.enabled=true -Dservices.coordinator.master.enabled=true -Dservices.coordinator.master.embedded-zookeeper.enabled=false -Dservices.executor.enabled=false -Dservices.conduit.port=45679"
+                            },
+                            {
+                                "name": "AWS_CREDENTIAL_PROFILES_FILE",
+                                "value": "/opt/dremio/aws/credentials"
+                            },
+                            {
+                                "name": "AWS_SHARED_CREDENTIALS_FILE",
+                                "value": "/opt/dremio/aws/credentials"
+                            }
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "dremio-master-coordinator",
+                        "ports": [
+                            {
+                                "containerPort": 9047,
+                                "name": "web",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 31010,
+                                "name": "client",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 32010,
+                                "name": "flight",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 45678,
+                                "name": "server-fabric",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 45679,
+                                "name": "server-conduit",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "readinessProbe": {
+                            "failureThreshold": 3,
+                            "httpGet": {
+                                "path": "/",
+                                "port": 9047,
+                                "scheme": "HTTP"
+                            },
+                            "initialDelaySeconds": 5,
+                            "periodSeconds": 5,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 1
+                        },
+                        "resources": {
+                            "requests": {
+                                "cpu": "2",
+                                "memory": "5G"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-master-volume"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/conf",
+                                "name": "dremio-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive2.d",
+                                "name": "dremio-hive2-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive2-ee.d",
+                                "name": "dremio-hive2-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive3.d",
+                                "name": "dremio-hive3-config"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/plugins/connectors/hive3-ee.d",
+                                "name": "dremio-hive3-config"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "command": [
+                            "sh",
+                            "-c",
+                            "while true; do sleep 10; done"
+                        ],
+                        "image": "busybox",
+                        "imagePullPolicy": "Always",
+                        "name": "mc-sidecar",
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-master-volume"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/conf",
+                                "name": "dremio-config"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "dremio-master-0",
+                "imagePullSecrets": [
+                    {
+                        "name": "dremio-docker-secret"
+                    }
+                ],
+                "initContainers": [
+                    {
+                        "command": [
+                            "sh",
+                            "-c",
+                            "INDEX=${HOSTNAME##*-}; if [ $INDEX -ne 0 ]; then echo Only one master should be running.; exit 1; fi; "
+                        ],
+                        "image": "busybox",
+                        "imagePullPolicy": "Always",
+                        "name": "start-only-one-dremio-master",
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "command": [
+                            "sh",
+                            "-c",
+                            "until ping -c 1 -W 1 zk-hs \u003e /dev/null; do echo Waiting for Zookeeper to be ready.; sleep 2; done;"
+                        ],
+                        "image": "busybox",
+                        "imagePullPolicy": "Always",
+                        "name": "wait-for-zookeeper",
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "args": [
+                            "-R",
+                            "dremio:dremio",
+                            "/opt/dremio/data"
+                        ],
+                        "command": [
+                            "chown"
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "chown-data-directory",
+                        "resources": {},
+                        "securityContext": {
+                            "runAsUser": 0
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-master-volume"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    },
+                    {
+                        "args": [
+                            "upgrade"
+                        ],
+                        "command": [
+                            "/opt/dremio/bin/dremio-admin"
+                        ],
+                        "image": "dremio/dremio-oss:21.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "upgrade-task",
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/dremio/data",
+                                "name": "dremio-master-volume"
+                            },
+                            {
+                                "mountPath": "/opt/dremio/conf",
+                                "name": "dremio-config"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "shareProcessNamespace": true,
+                "subdomain": "dremio-cluster-pod",
+                "terminationGracePeriodSeconds": 120,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "dremio-master-volume",
+                        "persistentVolumeClaim": {
+                            "claimName": "dremio-master-volume-dremio-master-0"
+                        }
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-config"
+                        },
+                        "name": "dremio-config"
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-hive2-config"
+                        },
+                        "name": "dremio-hive2-config"
+                    },
+                    {
+                        "configMap": {
+                            "defaultMode": 420,
+                            "name": "dremio-hive3-config"
+                        },
+                        "name": "dremio-hive3-config"
+                    },
+                    {
+                        "name": "default-token-w79bt",
+                        "secret": {
+                            "defaultMode": 420,
+                            "secretName": "default-token-w79bt"
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T13:57:01Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T13:57:20Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T13:57:20Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-11-29T13:56:45Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "docker://92a9563b1d399fc099bd2b436966086ca8b2b9bbab5b9c03f11a93c8267b2c98",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "dremio-master-coordinator",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-11-29T13:57:01Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://71651bccb98d5e8d53480518e165845ef5afbdebc91828ac0dbfe915bc32ff1b",
+                        "image": "busybox:latest",
+                        "imageID": "docker-pullable://busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                        "lastState": {},
+                        "name": "mc-sidecar",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-11-29T13:57:02Z"
+                            }
+                        }
+                    }
+                ],
+                "hostIP": "192.168.68.4",
+                "initContainerStatuses": [
+                    {
+                        "containerID": "docker://b57354dee4f51d531f1d46ac30fb5265a7443d020a02a641894b07ce6f19d727",
+                        "image": "busybox:latest",
+                        "imageID": "docker-pullable://busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                        "lastState": {},
+                        "name": "start-only-one-dremio-master",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://b57354dee4f51d531f1d46ac30fb5265a7443d020a02a641894b07ce6f19d727",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T13:56:51Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T13:56:51Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://0559032bb4e33e52024ecd866c7bc0a1799dad69515811fdaf6327ddc1549687",
+                        "image": "busybox:latest",
+                        "imageID": "docker-pullable://busybox@sha256:fcd85228d7a25feb59f101ac3a955d27c80df4ad824d65f5757a954831450185",
+                        "lastState": {},
+                        "name": "wait-for-zookeeper",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://0559032bb4e33e52024ecd866c7bc0a1799dad69515811fdaf6327ddc1549687",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T13:56:52Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T13:56:52Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://17f0fb614d31a711f3da2e15b70aa246979772c0a6ed6280ea9e7fb7a444204c",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "chown-data-directory",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://17f0fb614d31a711f3da2e15b70aa246979772c0a6ed6280ea9e7fb7a444204c",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T13:56:52Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T13:56:52Z"
+                            }
+                        }
+                    },
+                    {
+                        "containerID": "docker://ee7cc057fd3074d5646417f30669cf0b8326a8a56c400c38eb44a9493033bfe4",
+                        "image": "dremio/dremio-oss:21.2",
+                        "imageID": "docker-pullable://dremio/dremio-oss@sha256:3f86007bec65b0eee5f946a5fb80e6c643f3535b7bdbd1c57f99fe69717f755b",
+                        "lastState": {},
+                        "name": "upgrade-task",
+                        "ready": true,
+                        "restartCount": 0,
+                        "state": {
+                            "terminated": {
+                                "containerID": "docker://ee7cc057fd3074d5646417f30669cf0b8326a8a56c400c38eb44a9493033bfe4",
+                                "exitCode": 0,
+                                "finishedAt": "2022-11-29T13:57:01Z",
+                                "reason": "Completed",
+                                "startedAt": "2022-11-29T13:56:53Z"
+                            }
+                        }
+                    }
+                ],
+                "phase": "Running",
+                "podIP": "192.168.66.205",
+                "podIPs": [
+                    {
+                        "ip": "192.168.66.205"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2022-11-29T13:56:45Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/psp": "eks.privileged"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "generateName": "zk-",
+                "labels": {
+                    "app": "zk",
+                    "controller-revision-hash": "zk-66557b548b",
+                    "statefulset.kubernetes.io/pod-name": "zk-0"
+                },
+                "name": "zk-0",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "zk",
+                        "uid": "c57cd74b-714f-4546-b658-bd1350f07e7b"
+                    }
+                ],
+                "resourceVersion": "3669",
+                "uid": "15cfc1b1-d920-4a77-855b-3298ad82b7cb"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "labelSelector": {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "app",
+                                            "operator": "In",
+                                            "values": [
+                                                "zk"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "topologyKey": "kubernetes.io/hostname"
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "command": [
+                            "bash",
+                            "-ec",
+                            "# obtain ZOO_MY_ID based on POD hostname\nexport HOST_NUMBER=\"${HOSTNAME##*-}\"\nexport ZOO_MY_ID=\"$((HOST_NUMBER + 1))\"\n[ -z \"${ZOO_MY_ID}\" ] \u0026\u0026 echo \"Failed to get index from hostname $HOSTNAME\" \u0026\u0026 exit 1\necho \"ZOO_MY_ID=${ZOO_MY_ID}\"\n\n# construct ZOO_SERVERS based on ensemble count\nDOMAIN=\"$(hostname -d)\"\nSERVERS=3\nfor (( i=${SERVERS},j=i-1; i\u003e=1; i--,j-- )); do ZOO_SERVERS=\"server.${i}=zk-${j}.${DOMAIN}:2888:3888;2181 ${ZOO_SERVERS}\"; done\necho \"ZOO_SERVERS=${ZOO_SERVERS}\"\nexport ZOO_SERVERS\n\n/docker-entrypoint.sh\nzkServer.sh start-foreground\n"
+                        ],
+                        "env": [
+                            {
+                                "name": "JVMFLAGS",
+                                "value": "-Xmx924m"
+                            },
+                            {
+                                "name": "ZOO_STANDALONE_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_4LW_COMMANDS_WHITELIST",
+                                "value": "ruok"
+                            },
+                            {
+                                "name": "ZOO_ADMINSERVER_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_AUTOPURGE_PURGEINTERVAL",
+                                "value": "12"
+                            }
+                        ],
+                        "image": "zookeeper:3.8.0",
+                        "imagePullPolicy": "Always",
+                        "livenessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "name": "kubernetes-zookeeper",
+                        "ports": [
+                            {
+                                "containerPort": 2181,
+                                "name": "client",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 2888,
+                                "name": "server",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 3888,
+                                "name": "leader-election",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "readinessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "resources": {
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "1024M"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/data",
+                                "name": "datadir"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "zk-0",
+                "imagePullSecrets": [
+                    {
+                        "name": "dremio-docker-secret"
+                    }
+                ],
+                "nodeName": "ip-192-168-48-240.eu-west-2.compute.internal",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {
+                    "fsGroup": 1000,
+                    "runAsUser": 1000
+                },
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "zk-hs",
+                "terminationGracePeriodSeconds": 30,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "datadir",
+                        "persistentVolumeClaim": {
+                            "claimName": "datadir-zk-0"
+                        }
+                    },
+                    {
+                        "name": "default-token-w79bt",
+                        "secret": {
+                            "defaultMode": 420,
+                            "secretName": "default-token-w79bt"
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:27Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:03Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:03Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:27Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "docker://c9ce57fbcb10bd4388a2d4f3b5df46409128a46943cf871ce17b89e74e1bcc40",
+                        "image": "zookeeper:3.8.0",
+                        "imageID": "docker-pullable://zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                        "lastState": {},
+                        "name": "kubernetes-zookeeper",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-10-24T16:06:47Z"
+                            }
+                        }
+                    }
+                ],
+                "hostIP": "192.168.48.240",
+                "phase": "Running",
+                "podIP": "192.168.44.38",
+                "podIPs": [
+                    {
+                        "ip": "192.168.44.38"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2022-10-24T16:06:27Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/psp": "eks.privileged"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "generateName": "zk-",
+                "labels": {
+                    "app": "zk",
+                    "controller-revision-hash": "zk-66557b548b",
+                    "statefulset.kubernetes.io/pod-name": "zk-1"
+                },
+                "name": "zk-1",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "zk",
+                        "uid": "c57cd74b-714f-4546-b658-bd1350f07e7b"
+                    }
+                ],
+                "resourceVersion": "3681",
+                "uid": "338b2b77-6264-47ad-b277-f501602791d9"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "labelSelector": {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "app",
+                                            "operator": "In",
+                                            "values": [
+                                                "zk"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "topologyKey": "kubernetes.io/hostname"
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "command": [
+                            "bash",
+                            "-ec",
+                            "# obtain ZOO_MY_ID based on POD hostname\nexport HOST_NUMBER=\"${HOSTNAME##*-}\"\nexport ZOO_MY_ID=\"$((HOST_NUMBER + 1))\"\n[ -z \"${ZOO_MY_ID}\" ] \u0026\u0026 echo \"Failed to get index from hostname $HOSTNAME\" \u0026\u0026 exit 1\necho \"ZOO_MY_ID=${ZOO_MY_ID}\"\n\n# construct ZOO_SERVERS based on ensemble count\nDOMAIN=\"$(hostname -d)\"\nSERVERS=3\nfor (( i=${SERVERS},j=i-1; i\u003e=1; i--,j-- )); do ZOO_SERVERS=\"server.${i}=zk-${j}.${DOMAIN}:2888:3888;2181 ${ZOO_SERVERS}\"; done\necho \"ZOO_SERVERS=${ZOO_SERVERS}\"\nexport ZOO_SERVERS\n\n/docker-entrypoint.sh\nzkServer.sh start-foreground\n"
+                        ],
+                        "env": [
+                            {
+                                "name": "JVMFLAGS",
+                                "value": "-Xmx924m"
+                            },
+                            {
+                                "name": "ZOO_STANDALONE_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_4LW_COMMANDS_WHITELIST",
+                                "value": "ruok"
+                            },
+                            {
+                                "name": "ZOO_ADMINSERVER_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_AUTOPURGE_PURGEINTERVAL",
+                                "value": "12"
+                            }
+                        ],
+                        "image": "zookeeper:3.8.0",
+                        "imagePullPolicy": "Always",
+                        "livenessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "name": "kubernetes-zookeeper",
+                        "ports": [
+                            {
+                                "containerPort": 2181,
+                                "name": "client",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 2888,
+                                "name": "server",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 3888,
+                                "name": "leader-election",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "readinessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "resources": {
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "1024M"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/data",
+                                "name": "datadir"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "zk-1",
+                "imagePullSecrets": [
+                    {
+                        "name": "dremio-docker-secret"
+                    }
+                ],
+                "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {
+                    "fsGroup": 1000,
+                    "runAsUser": 1000
+                },
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "zk-hs",
+                "terminationGracePeriodSeconds": 30,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "datadir",
+                        "persistentVolumeClaim": {
+                            "claimName": "datadir-zk-1"
+                        }
+                    },
+                    {
+                        "name": "default-token-w79bt",
+                        "secret": {
+                            "defaultMode": 420,
+                            "secretName": "default-token-w79bt"
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:28Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:04Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:04Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:28Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "docker://2d7d8ca6d42e3f05c418f3b1a7cdea6e5306206637013e7964f9ae01f190f803",
+                        "image": "zookeeper:3.8.0",
+                        "imageID": "docker-pullable://zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                        "lastState": {},
+                        "name": "kubernetes-zookeeper",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-10-24T16:06:52Z"
+                            }
+                        }
+                    }
+                ],
+                "hostIP": "192.168.68.4",
+                "phase": "Running",
+                "podIP": "192.168.84.137",
+                "podIPs": [
+                    {
+                        "ip": "192.168.84.137"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2022-10-24T16:06:28Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/psp": "eks.privileged"
+                },
+                "creationTimestamp": "2022-10-24T16:06:22Z",
+                "generateName": "zk-",
+                "labels": {
+                    "app": "zk",
+                    "controller-revision-hash": "zk-66557b548b",
+                    "statefulset.kubernetes.io/pod-name": "zk-2"
+                },
+                "name": "zk-2",
+                "namespace": "default",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "zk",
+                        "uid": "c57cd74b-714f-4546-b658-bd1350f07e7b"
+                    }
+                ],
+                "resourceVersion": "3690",
+                "uid": "f7544665-f025-45cf-aaa5-a386941c5cca"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "labelSelector": {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "app",
+                                            "operator": "In",
+                                            "values": [
+                                                "zk"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "topologyKey": "kubernetes.io/hostname"
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "command": [
+                            "bash",
+                            "-ec",
+                            "# obtain ZOO_MY_ID based on POD hostname\nexport HOST_NUMBER=\"${HOSTNAME##*-}\"\nexport ZOO_MY_ID=\"$((HOST_NUMBER + 1))\"\n[ -z \"${ZOO_MY_ID}\" ] \u0026\u0026 echo \"Failed to get index from hostname $HOSTNAME\" \u0026\u0026 exit 1\necho \"ZOO_MY_ID=${ZOO_MY_ID}\"\n\n# construct ZOO_SERVERS based on ensemble count\nDOMAIN=\"$(hostname -d)\"\nSERVERS=3\nfor (( i=${SERVERS},j=i-1; i\u003e=1; i--,j-- )); do ZOO_SERVERS=\"server.${i}=zk-${j}.${DOMAIN}:2888:3888;2181 ${ZOO_SERVERS}\"; done\necho \"ZOO_SERVERS=${ZOO_SERVERS}\"\nexport ZOO_SERVERS\n\n/docker-entrypoint.sh\nzkServer.sh start-foreground\n"
+                        ],
+                        "env": [
+                            {
+                                "name": "JVMFLAGS",
+                                "value": "-Xmx924m"
+                            },
+                            {
+                                "name": "ZOO_STANDALONE_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_4LW_COMMANDS_WHITELIST",
+                                "value": "ruok"
+                            },
+                            {
+                                "name": "ZOO_ADMINSERVER_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "ZOO_AUTOPURGE_PURGEINTERVAL",
+                                "value": "12"
+                            }
+                        ],
+                        "image": "zookeeper:3.8.0",
+                        "imagePullPolicy": "Always",
+                        "livenessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "name": "kubernetes-zookeeper",
+                        "ports": [
+                            {
+                                "containerPort": 2181,
+                                "name": "client",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 2888,
+                                "name": "server",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 3888,
+                                "name": "leader-election",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "readinessProbe": {
+                            "exec": {
+                                "command": [
+                                    "/bin/bash",
+                                    "-c",
+                                    "[ \"$(echo ruok | nc 127.0.0.1 2181)\" == \"imok\" ]"
+                                ]
+                            },
+                            "failureThreshold": 3,
+                            "initialDelaySeconds": 10,
+                            "periodSeconds": 10,
+                            "successThreshold": 1,
+                            "timeoutSeconds": 5
+                        },
+                        "resources": {
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "1024M"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/data",
+                                "name": "datadir"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "default-token-w79bt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "zk-2",
+                "imagePullSecrets": [
+                    {
+                        "name": "dremio-docker-secret"
+                    }
+                ],
+                "nodeName": "ip-192-168-1-130.eu-west-2.compute.internal",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {
+                    "fsGroup": 1000,
+                    "runAsUser": 1000
+                },
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "zk-hs",
+                "terminationGracePeriodSeconds": 30,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "datadir",
+                        "persistentVolumeClaim": {
+                            "claimName": "datadir-zk-2"
+                        }
+                    },
+                    {
+                        "name": "default-token-w79bt",
+                        "secret": {
+                            "defaultMode": 420,
+                            "secretName": "default-token-w79bt"
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:28Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:05Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:07:05Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2022-10-24T16:06:28Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "docker://6b06be989bf20b817a91eb26675a1f5f72ed633bd2937d62034ed09bb901e15b",
+                        "image": "zookeeper:3.8.0",
+                        "imageID": "docker-pullable://zookeeper@sha256:aebc3f50c2beae24a2a143d7a4e28ca5a69dc5ff70afbd6f2db65a6a345115b1",
+                        "lastState": {},
+                        "name": "kubernetes-zookeeper",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2022-10-24T16:06:53Z"
+                            }
+                        }
+                    }
+                ],
+                "hostIP": "192.168.1.130",
+                "phase": "Running",
+                "podIP": "192.168.26.215",
+                "podIPs": [
+                    {
+                        "ip": "192.168.26.215"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2022-10-24T16:06:28Z"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

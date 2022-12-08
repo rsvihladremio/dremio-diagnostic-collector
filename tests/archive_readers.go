@@ -50,34 +50,38 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	var buf bytes.Buffer
 	var names []string
 	var matchingFileModTime time.Time
+	//var zero bytes.Buffer
+
 	for _, f := range tr.File {
+		//buf.Reset()
 		names = append(names, f.Name)
-		fmt.Printf("Contents of %s:\n", f.Name)
-		if f.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
+		if string(filepath.Separator)+filepath.Base(f.Name) == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 			//using utc for comparison later
 			matchingFileModTime = f.ModTime().UTC()
-		}
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer func() {
-			err := rc.Close()
+
+			rc, err := f.Open()
 			if err != nil {
-				log.Printf("WARN: unable to close zip file %v", err)
-			}
-		}()
-		for {
-			_, err := io.CopyN(&buf, rc, 1024)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
 				t.Fatal(err)
 			}
-		}
+			defer func() {
+				err := rc.Close()
+				if err != nil {
+					log.Printf("WARN: unable to close zip file %v", err)
+				}
+			}()
+			for {
+				_, err := io.CopyN(&buf, rc, 1024)
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Fatal(err)
+				}
 
+			}
+			break
+		}
 	}
 
 	if !found {
@@ -96,6 +100,7 @@ func ZipContainsFile(t *testing.T, expectedFile, zipArchive string) {
 	if row != string(expectedText) {
 		t.Errorf("expected content to have '%v' but was %v", string(expectedText), row)
 	}
+
 }
 
 func GzipContainsFile(t *testing.T, expectedFile, gzipArchive string) {
@@ -224,7 +229,7 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 		matchingFileModTime = hdr.ModTime.UTC()
 		fmt.Printf("Contents of %s:\n", hdr.Name)
 		names = append(names, hdr.Name)
-		if hdr.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
+		if string(filepath.Separator)+filepath.Base(hdr.Name) == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 		}
 		for {

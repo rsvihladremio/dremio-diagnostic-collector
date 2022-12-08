@@ -21,29 +21,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
 type SummaryInfo struct {
-	ClusterInfo         ClusterInfo     `json:"clusterInfo"`
-	CollectedFiles      []CollectedFile `json:"collectedFiles"`
-	FailedFiles         []FailedFiles   `json:"failedFiles"`
-	SkippedFiles        []string        `json:"skippedFiles"`
-	StartTimeUTC        time.Time       `json:"startTimeUTC"`
-	EndTimeUTC          time.Time       `json:"endTimeUTC"`
-	TotalRuntimeSeconds int64           `json:"totalRuntimeSeconds"`
-	TotalBytesCollected int64           `json:"totalBytesCollected"`
-	Executors           []string        `json:"executors"`
-	Coordinators        []string        `json:"coordinators"`
+	ClusterInfo         ClusterInfo             `json:"clusterInfo"`
+	CollectedFiles      []helpers.CollectedFile `json:"collectedFiles"`
+	FailedFiles         []FailedFiles           `json:"failedFiles"`
+	SkippedFiles        []string                `json:"skippedFiles"`
+	StartTimeUTC        time.Time               `json:"startTimeUTC"`
+	EndTimeUTC          time.Time               `json:"endTimeUTC"`
+	TotalRuntimeSeconds int64                   `json:"totalRuntimeSeconds"`
+	TotalBytesCollected int64                   `json:"totalBytesCollected"`
+	Executors           []string                `json:"executors"`
+	Coordinators        []string                `json:"coordinators"`
 }
 
 type ClusterInfo struct {
 	NumberNodesContacted int `json:"numberNodesContacted"`
 	TotalNodesAttempted  int `json:"totalNodesAttempted"`
-}
-
-type CollectedFile struct {
-	Path string `json:"path"`
-	Size int64  `json:"size"`
 }
 
 type FailedFiles struct {

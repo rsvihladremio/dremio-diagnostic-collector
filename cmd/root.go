@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
@@ -50,6 +51,7 @@ var sudoUser string
 var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
+var format string
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -66,7 +68,7 @@ examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator-dremio --executors default:app=dremio-executor --output diag.tar.gz
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator --executors default:app=dremio-executor --output diag.zip
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sshKeyLoc == "" {
@@ -86,9 +88,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		}
 		if dremioLogDir == "" {
 			if isK8s {
-				dremioConfDir = "/opt/dremio/data/log/"
+				dremioLogDir = "/opt/dremio/data/log/"
 			} else {
-				dremioConfDir = "/var/log/dremio/"
+				dremioLogDir = "/var/log/dremio/"
 			}
 		}
 		logOutput := os.Stdout
@@ -105,6 +107,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
 			ExcludeFiles:              excludeFiles,
+			DDCfs:                     helpers.NewRealFileSystem(),
 		}
 
 		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
@@ -129,20 +132,41 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			os.Exit(1)
 		}
 		fmt.Println(getVersion())
+
+		// Setup base dir for Heath check output data
+		//err := helpers.SetupDirs()
+
+		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
+		// which then determines whether the commands are routed to the SSH or K8s commands
+		var cs collection.CopyStrategy
+		switch format {
+		case "basic":
+			cs = helpers.NewBACopyStrategy(collectionArgs.DDCfs)
+		case "healthcheck":
+			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
+		default:
+			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
+		}
+
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
+			err = collection.ClusterK8sExecute(cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
+			if err != nil {
+				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
+			}
 		} else {
 			log.Print("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
-		// Create ref to real file system (since with testing we redirect the argument to a mock object)
+
+		// Launch the collection
 		err = collection.Execute(collectorStrategy,
+			cs,
 			logOutput,
 			collectionArgs,
 		)
-
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)
 		}
@@ -196,6 +220,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (choices are \"healthcheck\" (default) and \"basic\"")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")

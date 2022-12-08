@@ -44,10 +44,6 @@ type ExecuteCliErr struct {
 	Cmd string
 }
 
-func (u ExecuteCliErr) Error() string {
-	return fmt.Sprintf("during execution the command '%v' failed due to error '%v'", u.Cmd, u.Err)
-}
-
 // Cli
 type Cli struct {
 }
@@ -62,4 +58,16 @@ func (c *Cli) Execute(args ...string) (string, error) {
 		return string(output), UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
 	return string(output), nil
+}
+
+func (c *Cli) ExecuteBytes(args ...string) ([]byte, error) {
+	//log.Printf("args: %v", args) // useful for debugging
+	log.Printf("args: %v", strings.Join(args, " "))
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stderr = os.Stderr
+	output, err := cmd.Output()
+	if err != nil {
+		return output, UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
+	return output, nil
 }

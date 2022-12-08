@@ -1,0 +1,243 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "meta.helm.sh/release-name": "mc-cluster",
+                    "meta.helm.sh/release-namespace": "default"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "finalizers": [
+                    "service.kubernetes.io/load-balancer-cleanup"
+                ],
+                "labels": {
+                    "app": "dremio-client",
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "dremio-client",
+                "namespace": "default",
+                "resourceVersion": "3417",
+                "uid": "d8fd07cb-75c8-4433-8c63-6711345ef867"
+            },
+            "spec": {
+                "clusterIP": "10.100.26.3",
+                "clusterIPs": [
+                    "10.100.26.3"
+                ],
+                "externalTrafficPolicy": "Cluster",
+                "ports": [
+                    {
+                        "name": "client",
+                        "nodePort": 31095,
+                        "port": 31010,
+                        "protocol": "TCP",
+                        "targetPort": "client"
+                    },
+                    {
+                        "name": "web",
+                        "nodePort": 30767,
+                        "port": 9047,
+                        "protocol": "TCP",
+                        "targetPort": "web"
+                    },
+                    {
+                        "name": "flight",
+                        "nodePort": 32737,
+                        "port": 32010,
+                        "protocol": "TCP",
+                        "targetPort": "flight"
+                    }
+                ],
+                "selector": {
+                    "app": "dremio-coordinator"
+                },
+                "sessionAffinity": "None",
+                "type": "LoadBalancer"
+            },
+            "status": {
+                "loadBalancer": {
+                    "ingress": [
+                        {
+                            "hostname": "ad8fd07cb75c844338c636711345ef86-2107581228.eu-west-2.elb.amazonaws.com"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "meta.helm.sh/release-name": "mc-cluster",
+                    "meta.helm.sh/release-namespace": "default"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "dremio-cluster-pod",
+                "namespace": "default",
+                "resourceVersion": "3314",
+                "uid": "43332eb0-f76f-4c85-9f16-7caa1f6cfad1"
+            },
+            "spec": {
+                "clusterIP": "None",
+                "clusterIPs": [
+                    "None"
+                ],
+                "ports": [
+                    {
+                        "port": 9999,
+                        "protocol": "TCP",
+                        "targetPort": 9999
+                    }
+                ],
+                "selector": {
+                    "role": "dremio-cluster-pod"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "creationTimestamp": "2022-10-24T15:46:33Z",
+                "labels": {
+                    "component": "apiserver",
+                    "provider": "kubernetes"
+                },
+                "name": "kubernetes",
+                "namespace": "default",
+                "resourceVersion": "202",
+                "uid": "9065a12e-015a-41a9-9954-d1fdf985d4a0"
+            },
+            "spec": {
+                "clusterIP": "10.100.0.1",
+                "clusterIPs": [
+                    "10.100.0.1"
+                ],
+                "ports": [
+                    {
+                        "name": "https",
+                        "port": 443,
+                        "protocol": "TCP",
+                        "targetPort": 443
+                    }
+                ],
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "meta.helm.sh/release-name": "mc-cluster",
+                    "meta.helm.sh/release-namespace": "default"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app": "zk",
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "zk-cs",
+                "namespace": "default",
+                "resourceVersion": "3317",
+                "uid": "8bc279fe-b57a-4ae0-a33f-63d07a7717f6"
+            },
+            "spec": {
+                "clusterIP": "10.100.26.142",
+                "clusterIPs": [
+                    "10.100.26.142"
+                ],
+                "ports": [
+                    {
+                        "name": "client",
+                        "port": 2181,
+                        "protocol": "TCP",
+                        "targetPort": 2181
+                    }
+                ],
+                "selector": {
+                    "app": "zk"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "meta.helm.sh/release-name": "mc-cluster",
+                    "meta.helm.sh/release-namespace": "default"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app": "zk",
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "zk-hs",
+                "namespace": "default",
+                "resourceVersion": "3315",
+                "uid": "55b315ef-cf09-4c6b-a40d-a8a33c495429"
+            },
+            "spec": {
+                "clusterIP": "None",
+                "clusterIPs": [
+                    "None"
+                ],
+                "ports": [
+                    {
+                        "name": "client",
+                        "port": 2181,
+                        "protocol": "TCP",
+                        "targetPort": 2181
+                    },
+                    {
+                        "name": "server",
+                        "port": 2888,
+                        "protocol": "TCP",
+                        "targetPort": 2888
+                    },
+                    {
+                        "name": "leader-election",
+                        "port": 3888,
+                        "protocol": "TCP",
+                        "targetPort": 3888
+                    }
+                ],
+                "selector": {
+                    "app": "zk"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}
