@@ -229,8 +229,6 @@ func TarContainsFile(t *testing.T, expectedFile, archiveFile string) {
 		matchingFileModTime = hdr.ModTime.UTC()
 		fmt.Printf("Contents of %s:\n", hdr.Name)
 		names = append(names, hdr.Name)
-		//if hdr.Name == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
-		//if hdr.Name == filepath.Base(cleanedExpectedFile) {
 		if string(filepath.Separator)+filepath.Base(hdr.Name) == string(filepath.Separator)+filepath.Base(cleanedExpectedFile) {
 			found = true
 		}

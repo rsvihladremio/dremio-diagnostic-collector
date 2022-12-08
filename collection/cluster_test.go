@@ -82,9 +82,6 @@ func TestClusterCopyJSON(t *testing.T) {
 		t.Errorf("\nERROR: \nexpected:\t%q\nactual:\t\t%q\n", expStr, actStr)
 	}
 
-	/*if !reflect.DeepEqual(acheck, echeck) {
-		t.Errorf("\nERROR: \nexpected:\t%q\nactual:\t\t%q\n", string(acheck), string(echeck))
-	}*/
 }
 
 func TestClusterZipJSON(t *testing.T) {

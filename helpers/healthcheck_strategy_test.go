@@ -66,46 +66,6 @@ func TestGetPathHC(t *testing.T) {
 	}
 }
 
-// Tests the method returns the correct path
-/*
-func TestGzipFilesHC(t *testing.T) {
-	if runtime.GOOS != "windows" {
-
-		testSrc := filepath.Join("testdata", "archive.txt")
-		ddcfs := NewRealFileSystem()
-		testStrat := NewHCCopyStrategy(ddcfs)
-		tmpDir := t.TempDir()
-		testDst := filepath.Join(tmpDir, "archive.txt")
-		bytesRead, err := os.ReadFile(testSrc)
-		if err != nil {
-			t.Error(err)
-		}
-		err = os.WriteFile(testDst, bytesRead, 0600)
-		if err != nil {
-			t.Error(err)
-		}
-		_, err = testStrat.GzipAllFiles(tmpDir)
-		if err != nil {
-			t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
-		}
-		expectedPath := filepath.Join(tmpDir, "archive.txt.gz")
-		expected := "archive.txt.gz"
-		stat, err := ddcfs.Stat(expectedPath)
-		if err != nil {
-			t.Errorf("\nERROR: gzip files: \nERROR:\n%v\n", err)
-		}
-		if stat.Name() != expected {
-			t.Errorf("\nERROR: gzip name incorrect: \nexpected:\t%v\nactual:\t\t%v\n", expected, stat.Name())
-		}
-		expSize := int64(62)
-		if stat.Size() != expSize {
-			t.Errorf("\nERROR: gzip size incorrect: \nexpected:\t%v\nactual:\t\t%d\n", expSize, stat.Size())
-		}
-	}
-
-}
-*/
-
 // Test archiving of a file (which is also tested elsewhere) but in addition
 // it tests the call via the selected strategy
 func TestArchiveDiagHC(t *testing.T) {

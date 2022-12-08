@@ -60,7 +60,7 @@ func (c *Cli) Execute(args ...string) (string, error) {
 	return string(output), nil
 }
 
-func (c *Cli) Execute2(args ...string) ([]byte, error) {
+func (c *Cli) ExecuteBytes(args ...string) ([]byte, error) {
 	//log.Printf("args: %v", args) // useful for debugging
 	log.Printf("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)

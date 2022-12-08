@@ -140,10 +140,12 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		// which then determines whether the commands are routed to the SSH or K8s commands
 		var cs collection.CopyStrategy
 		switch format {
+		case "basic":
+			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
 		case "healthcheck":
 			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
-		case "default":
-			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
+		default:
+			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		}
 
 		var collectorStrategy collection.Collector
@@ -218,7 +220,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (default is healthcheck)")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (choices are \"healthcheck\" (default) and \"basic\"")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")

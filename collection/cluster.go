@@ -57,7 +57,7 @@ func clusterExecute(namespace, cmd string, c Collector, k string) ([]byte, error
 	cli := &cli.Cli{}
 	kubectlArgs := []string{k, "-n", namespace, "get"}
 	kubectlArgs = append(kubectlArgs, cmd, "-o", "json")
-	res, err := cli.Execute2(kubectlArgs...)
+	res, err := cli.ExecuteBytes(kubectlArgs...)
 	if err != nil {
 		log.Printf("ERROR: when getting config %v error returned was %v", cmd, err)
 	}

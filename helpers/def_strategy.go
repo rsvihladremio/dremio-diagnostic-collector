@@ -31,7 +31,7 @@ func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
 	dir := time.Now().Format("20060102-150405-DDC")
 	tmpDir, _ := ddcfs.MkdirTemp("", "*")
 	return &CopyStrategyDefault{
-		StrategyName: "default",
+		StrategyName: "basic",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
 		Fs:           ddcfs,
