@@ -14,13 +14,14 @@
    limitations under the License.
 */
 
-// oshelper package provides functions to wrapper os file system calls
+// fshelper provides functions to wrapper os file system calls
 // to better facilitate testing
 
 package helpers
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -43,13 +44,32 @@ type File interface {
 	Close() error
 }
 
+func NewRealFileSystem() *RealFileSystem {
+	return &RealFileSystem{}
+}
+
+func NewFakeFileSystem() *FakeFileSystem {
+	return &FakeFileSystem{}
+}
+
+const DirPerms fs.FileMode = 0750
+
 // Real file
 type RealFile struct {
 	file *os.File
 }
 
-// RealFileSystem wrapper
-type FileSystem struct{}
+// Rea fileSystem wrapper
+type RealFileSystem struct {
+}
+
+// Fake File
+type FakeFile struct {
+}
+
+// Fake filesystem wrapper
+type FakeFileSystem struct {
+}
 
 // Name
 func (f *RealFile) Name() string {
@@ -72,12 +92,12 @@ func (f *RealFile) Close() error {
 }
 
 // Stat
-func (f FileSystem) Stat(name string) (os.FileInfo, error) {
+func (f RealFileSystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(name)
 }
 
 // Create
-func (f FileSystem) Create(name string) (File, error) {
+func (f RealFileSystem) Create(name string) (File, error) {
 	fd, err := os.Create(filepath.Clean(name))
 	if err != nil {
 		return nil, err
@@ -89,47 +109,42 @@ func (f FileSystem) Create(name string) (File, error) {
 }
 
 // Mkdir
-func (f FileSystem) Mkdir(name string, perms os.FileMode) error {
+func (f RealFileSystem) Mkdir(name string, perms os.FileMode) error {
 	err := os.Mkdir(name, perms)
 	return err
 }
 
 // MkdirTemp
-func (f FileSystem) MkdirTemp(name string, pattern string) (string, error) {
+func (f RealFileSystem) MkdirTemp(name string, pattern string) (string, error) {
 	dir, err := os.MkdirTemp(name, pattern)
 	return dir, err
 }
 
 // MkdirAll
-func (f FileSystem) MkdirAll(name string, perms os.FileMode) error {
+func (f RealFileSystem) MkdirAll(name string, perms os.FileMode) error {
 	err := os.MkdirAll(name, perms)
 	return err
 }
 
 // Remove
-func (f FileSystem) Remove(path string) error {
+func (f RealFileSystem) Remove(path string) error {
 	err := os.Remove(path)
 	return err
 }
 
 // RemoveAll
-func (f FileSystem) RemoveAll(path string) error {
+func (f RealFileSystem) RemoveAll(path string) error {
 	err := os.RemoveAll(path)
 	return err
 }
 
 // WriteFile
-func (f FileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+func (f RealFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
 	err := os.WriteFile(name, data, perms)
 	return err
 }
 
 // Fake file handlers (for testing)
-type FakeFile struct {
-}
-
-type FakeFileSystem struct {
-}
 
 // Name
 func (f *FakeFile) Name() string {
@@ -159,42 +174,44 @@ func (f FakeFileSystem) Stat(name string) (os.FileInfo, error) {
 
 // Create
 func (f FakeFileSystem) Create(name string) (File, error) {
-	fmt.Println("Testing create")
 	return &FakeFile{}, nil
 }
 
 // Mkdir
 func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
-	err := os.Mkdir(name, perms)
-	return err
+	return nil
 }
 
 // MkdirTemp
 func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
-	dir, err := os.MkdirTemp(name, pattern)
-	return dir, err
+	// Set sensible defaults if a call is made using the usual "". "*" that usually
+	// generates a random dir - see https://pkg.go.dev/os#MkdirTemp
+	if name == "" {
+		name = "dir1"
+	}
+	if pattern == "*" {
+		pattern = "random"
+	}
+	dir := filepath.Join("tmp", name, pattern)
+	return dir, nil
 }
 
 // MkdirAll
 func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
-	err := os.MkdirAll(name, perms)
-	return err
+	return nil
 }
 
 // Remove
 func (f FakeFileSystem) Remove(path string) error {
-	err := os.Remove(path)
-	return err
+	return nil
 }
 
 // RemoveAll
 func (f FakeFileSystem) RemoveAll(path string) error {
-	err := os.RemoveAll(path)
-	return err
+	return nil
 }
 
 // Writefile
 func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
-	err := os.WriteFile(name, data, perms)
-	return err
+	return nil
 }

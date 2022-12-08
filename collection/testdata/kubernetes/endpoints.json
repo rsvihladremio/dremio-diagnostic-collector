@@ -1,0 +1,285 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Endpoints",
+            "metadata": {
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app": "dremio-client",
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "dremio-client",
+                "namespace": "default",
+                "resourceVersion": "7415004",
+                "uid": "68a90d84-01b3-48bf-a4e9-48464c0d21d7"
+            },
+            "subsets": [
+                {
+                    "addresses": [
+                        {
+                            "ip": "192.168.66.205",
+                            "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "dremio-master-0",
+                                "namespace": "default",
+                                "resourceVersion": "7410636",
+                                "uid": "1ea16563-5021-416b-b194-e994a9324860"
+                            }
+                        }
+                    ],
+                    "ports": [
+                        {
+                            "name": "client",
+                            "port": 31010,
+                            "protocol": "TCP"
+                        },
+                        {
+                            "name": "web",
+                            "port": 9047,
+                            "protocol": "TCP"
+                        },
+                        {
+                            "name": "flight",
+                            "port": 32010,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Endpoints",
+            "metadata": {
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app.kubernetes.io/managed-by": "Helm",
+                    "service.kubernetes.io/headless": ""
+                },
+                "name": "dremio-cluster-pod",
+                "namespace": "default",
+                "resourceVersion": "7415003",
+                "uid": "2a6686aa-b311-4faa-a1a2-f089c5618cd7"
+            },
+            "subsets": [
+                {
+                    "addresses": [
+                        {
+                            "hostname": "dremio-executor-0",
+                            "ip": "192.168.25.33",
+                            "nodeName": "ip-192-168-1-130.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "dremio-executor-0",
+                                "namespace": "default",
+                                "resourceVersion": "7414317",
+                                "uid": "70de498c-8ccd-4595-87fe-4e231869a2e7"
+                            }
+                        },
+                        {
+                            "hostname": "dremio-master-0",
+                            "ip": "192.168.66.205",
+                            "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "dremio-master-0",
+                                "namespace": "default",
+                                "resourceVersion": "7410636",
+                                "uid": "1ea16563-5021-416b-b194-e994a9324860"
+                            }
+                        }
+                    ],
+                    "ports": [
+                        {
+                            "port": 9999,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Endpoints",
+            "metadata": {
+                "creationTimestamp": "2022-10-24T15:46:33Z",
+                "labels": {
+                    "endpointslice.kubernetes.io/skip-mirror": "true"
+                },
+                "name": "kubernetes",
+                "namespace": "default",
+                "resourceVersion": "3102503",
+                "uid": "95f422f8-01ad-45f9-93c0-efa7eedecff2"
+            },
+            "subsets": [
+                {
+                    "addresses": [
+                        {
+                            "ip": "192.168.106.205"
+                        },
+                        {
+                            "ip": "192.168.130.109"
+                        }
+                    ],
+                    "ports": [
+                        {
+                            "name": "https",
+                            "port": 443,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Endpoints",
+            "metadata": {
+                "annotations": {
+                    "endpoints.kubernetes.io/last-change-trigger-time": "2022-10-24T16:07:05Z"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app": "zk",
+                    "app.kubernetes.io/managed-by": "Helm"
+                },
+                "name": "zk-cs",
+                "namespace": "default",
+                "resourceVersion": "3693",
+                "uid": "c2f734fc-333a-4d35-9cb1-7481c1008e00"
+            },
+            "subsets": [
+                {
+                    "addresses": [
+                        {
+                            "ip": "192.168.26.215",
+                            "nodeName": "ip-192-168-1-130.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-2",
+                                "namespace": "default",
+                                "resourceVersion": "3690",
+                                "uid": "f7544665-f025-45cf-aaa5-a386941c5cca"
+                            }
+                        },
+                        {
+                            "ip": "192.168.44.38",
+                            "nodeName": "ip-192-168-48-240.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-0",
+                                "namespace": "default",
+                                "resourceVersion": "3669",
+                                "uid": "15cfc1b1-d920-4a77-855b-3298ad82b7cb"
+                            }
+                        },
+                        {
+                            "ip": "192.168.84.137",
+                            "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-1",
+                                "namespace": "default",
+                                "resourceVersion": "3681",
+                                "uid": "338b2b77-6264-47ad-b277-f501602791d9"
+                            }
+                        }
+                    ],
+                    "ports": [
+                        {
+                            "name": "client",
+                            "port": 2181,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Endpoints",
+            "metadata": {
+                "annotations": {
+                    "endpoints.kubernetes.io/last-change-trigger-time": "2022-10-24T16:07:05Z"
+                },
+                "creationTimestamp": "2022-10-24T16:06:21Z",
+                "labels": {
+                    "app": "zk",
+                    "app.kubernetes.io/managed-by": "Helm",
+                    "service.kubernetes.io/headless": ""
+                },
+                "name": "zk-hs",
+                "namespace": "default",
+                "resourceVersion": "3696",
+                "uid": "5e95e730-7414-4eea-b727-3bcafde8ad83"
+            },
+            "subsets": [
+                {
+                    "addresses": [
+                        {
+                            "hostname": "zk-2",
+                            "ip": "192.168.26.215",
+                            "nodeName": "ip-192-168-1-130.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-2",
+                                "namespace": "default",
+                                "resourceVersion": "3690",
+                                "uid": "f7544665-f025-45cf-aaa5-a386941c5cca"
+                            }
+                        },
+                        {
+                            "hostname": "zk-0",
+                            "ip": "192.168.44.38",
+                            "nodeName": "ip-192-168-48-240.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-0",
+                                "namespace": "default",
+                                "resourceVersion": "3669",
+                                "uid": "15cfc1b1-d920-4a77-855b-3298ad82b7cb"
+                            }
+                        },
+                        {
+                            "hostname": "zk-1",
+                            "ip": "192.168.84.137",
+                            "nodeName": "ip-192-168-68-4.eu-west-2.compute.internal",
+                            "targetRef": {
+                                "kind": "Pod",
+                                "name": "zk-1",
+                                "namespace": "default",
+                                "resourceVersion": "3681",
+                                "uid": "338b2b77-6264-47ad-b277-f501602791d9"
+                            }
+                        }
+                    ],
+                    "ports": [
+                        {
+                            "name": "server",
+                            "port": 2888,
+                            "protocol": "TCP"
+                        },
+                        {
+                            "name": "client",
+                            "port": 2181,
+                            "protocol": "TCP"
+                        },
+                        {
+                            "name": "leader-election",
+                            "port": 3888,
+                            "protocol": "TCP"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}

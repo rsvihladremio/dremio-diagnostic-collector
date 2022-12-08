@@ -15,7 +15,7 @@
 */
 
 // collection package provides the interface for collection implementation and the actual collection execution
-package collection
+package helpers
 
 import (
 	"os"

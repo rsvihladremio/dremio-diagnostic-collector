@@ -1,0 +1,586 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2c"
+                },
+                "name": "pvc-3b06aca7-8859-4aee-9212-09ea7a41fb12",
+                "resourceVersion": "3440",
+                "uid": "e7cce75d-44ab-4f9f-870f-ada38e13654d"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2c/vol-0f2f53fb3635f6bc7"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "datadir-zk-0",
+                    "namespace": "default",
+                    "resourceVersion": "3380",
+                    "uid": "3b06aca7-8859-4aee-9212-09ea7a41fb12"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2c"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2b"
+                },
+                "name": "pvc-53a23404-d8cf-4fe6-a935-099b87ad0630",
+                "resourceVersion": "3447",
+                "uid": "8c18d2ae-a39a-4025-b6ff-60236b3c8e72"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2b/vol-0d7dbf79176e6428f"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "dremio-default-executor-c3-0-dremio-executor-0",
+                    "namespace": "default",
+                    "resourceVersion": "3385",
+                    "uid": "53a23404-d8cf-4fe6-a935-099b87ad0630"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2b"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2c"
+                },
+                "name": "pvc-73388631-5ce2-4576-adf6-36cf99c9ce1b",
+                "resourceVersion": "3460",
+                "uid": "052eaba5-e6f3-4421-b647-00678a27dc8f"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2c/vol-0a35afccc6e43bc12"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "dremio-default-executor-volume-dremio-executor-1",
+                    "namespace": "default",
+                    "resourceVersion": "3393",
+                    "uid": "73388631-5ce2-4576-adf6-36cf99c9ce1b"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2c"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2b"
+                },
+                "name": "pvc-876d6c80-a9e1-4759-a8bc-6f6147505603",
+                "resourceVersion": "3454",
+                "uid": "860bc677-5e54-45c5-9507-5edb2304a918"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2b/vol-091b7c73d129b8c70"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "dremio-default-executor-volume-dremio-executor-0",
+                    "namespace": "default",
+                    "resourceVersion": "3383",
+                    "uid": "876d6c80-a9e1-4759-a8bc-6f6147505603"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2b"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2c"
+                },
+                "name": "pvc-99f0975a-8c86-46d9-95bb-08ba07019624",
+                "resourceVersion": "3457",
+                "uid": "c2cdd47d-e6fe-4cd3-a1a1-b4ec14fe4e19"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2c/vol-07623e70892faa639"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "dremio-default-executor-c3-0-dremio-executor-1",
+                    "namespace": "default",
+                    "resourceVersion": "3396",
+                    "uid": "99f0975a-8c86-46d9-95bb-08ba07019624"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2c"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2b"
+                },
+                "name": "pvc-bccf4939-e078-4039-94c8-3b760248a8b6",
+                "resourceVersion": "3463",
+                "uid": "7aa2d902-5c90-471b-82fd-a202496ee3cc"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2b/vol-0ea5d4ae277ef2eb5"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "datadir-zk-2",
+                    "namespace": "default",
+                    "resourceVersion": "3403",
+                    "uid": "bccf4939-e078-4039-94c8-3b760248a8b6"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2b"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2a"
+                },
+                "name": "pvc-c4de4921-e79d-4d31-b714-36fdc01ebfb9",
+                "resourceVersion": "3451",
+                "uid": "8d333ad0-e645-4b13-bd4d-7b8552773161"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2a/vol-09bcd7406abbdc9f6"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "datadir-zk-1",
+                    "namespace": "default",
+                    "resourceVersion": "3395",
+                    "uid": "c4de4921-e79d-4d31-b714-36fdc01ebfb9"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2a"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "annotations": {
+                    "kubernetes.io/createdby": "aws-ebs-dynamic-provisioner",
+                    "pv.kubernetes.io/bound-by-controller": "yes",
+                    "pv.kubernetes.io/provisioned-by": "kubernetes.io/aws-ebs"
+                },
+                "creationTimestamp": "2022-10-24T16:06:27Z",
+                "finalizers": [
+                    "kubernetes.io/pv-protection"
+                ],
+                "labels": {
+                    "failure-domain.beta.kubernetes.io/region": "eu-west-2",
+                    "failure-domain.beta.kubernetes.io/zone": "eu-west-2a"
+                },
+                "name": "pvc-d7ae9510-b781-46c2-86ce-7086fd3ecb71",
+                "resourceVersion": "3429",
+                "uid": "e39048ef-4d85-44da-8528-1129506ea832"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "awsElasticBlockStore": {
+                    "fsType": "ext4",
+                    "volumeID": "aws://eu-west-2a/vol-07bc71ba01e343a81"
+                },
+                "capacity": {
+                    "storage": "10Gi"
+                },
+                "claimRef": {
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "name": "dremio-master-volume-dremio-master-0",
+                    "namespace": "default",
+                    "resourceVersion": "3378",
+                    "uid": "d7ae9510-b781-46c2-86ce-7086fd3ecb71"
+                },
+                "nodeAffinity": {
+                    "required": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/zone",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2a"
+                                        ]
+                                    },
+                                    {
+                                        "key": "failure-domain.beta.kubernetes.io/region",
+                                        "operator": "In",
+                                        "values": [
+                                            "eu-west-2"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp2",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": "",
+        "selfLink": ""
+    }
+}
