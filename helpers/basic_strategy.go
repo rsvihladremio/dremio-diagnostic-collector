@@ -27,10 +27,10 @@ import (
 	"time"
 )
 
-func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
+func NewBACopyStrategy(ddcfs Filesystem) *CopyStrategyBasic {
 	dir := time.Now().Format("20060102-150405-DDC")
 	tmpDir, _ := ddcfs.MkdirTemp("", "*")
-	return &CopyStrategyDefault{
+	return &CopyStrategyBasic{
 		StrategyName: "basic",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
@@ -41,7 +41,7 @@ func NewDFCopyStrategy(ddcfs Filesystem) *CopyStrategyDefault {
 /*
 This struct holds the details we need to copy files. The strategy is used to determine where and in what format we copy the files
 */
-type CopyStrategyDefault struct {
+type CopyStrategyBasic struct {
 	StrategyName string     // the name of the output strategy (defasult, healthcheck etc)
 	TmpDir       string     // tmp dir used for staging files
 	BaseDir      string     // the base dir of where the output is routed
@@ -52,20 +52,6 @@ type CollectedFile struct {
 	Path string `json:"path"`
 	Size int64  `json:"size"`
 }
-
-/*
-// Returns the base dir
-func (s *CopyStrategyDefault) GetBaseDir() string {
-	dir := s.BaseDir
-	return dir
-}
-
-// Returns the tmp dir
-func (s *CopyStrategyDefault) GetTmpDir() string {
-	dir := s.TmpDir
-	return dir
-}
-*/
 
 /*
 
@@ -83,7 +69,7 @@ The default format example
 
 */
 
-func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (path string, err error) {
+func (s *CopyStrategyBasic) CreatePath(fileType, source, nodeType string) (path string, err error) {
 	baseDir := s.BaseDir
 	tmpDir := s.TmpDir
 
@@ -104,12 +90,12 @@ func (s *CopyStrategyDefault) CreatePath(fileType, source, nodeType string) (pat
 }
 
 // This method is a noop for this strategy
-func (s *CopyStrategyDefault) GzipAllFiles(path string) ([]CollectedFile, error) {
+func (s *CopyStrategyBasic) GzipAllFiles(path string) ([]CollectedFile, error) {
 	return nil, nil
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyDefault) ArchiveDiag(o string, outputFile string, files []CollectedFile) error {
+func (s *CopyStrategyBasic) ArchiveDiag(o string, outputFile string, files []CollectedFile) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
 	err := s.Fs.WriteFile(summaryFile, []byte(o), 0600)

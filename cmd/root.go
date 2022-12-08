@@ -68,7 +68,7 @@ examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator-dremio --executors default:app=dremio-executor --output diag.tar.gz
+ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator --executors default:app=dremio-executor --output diag.zip
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sshKeyLoc == "" {
@@ -141,7 +141,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		var cs collection.CopyStrategy
 		switch format {
 		case "basic":
-			cs = helpers.NewDFCopyStrategy(collectionArgs.DDCfs)
+			cs = helpers.NewBACopyStrategy(collectionArgs.DDCfs)
 		case "healthcheck":
 			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		default:

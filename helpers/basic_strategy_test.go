@@ -27,7 +27,7 @@ import (
 // Tests the constructor is setting a basedir dir
 func TestBaseDirDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
-	testStrat := NewDFCopyStrategy(ddcfs)
+	testStrat := NewBACopyStrategy(ddcfs)
 	expected := time.Now().Format("20060102-150405-DDC")
 	actual := testStrat.BaseDir
 	// Check the base dir is set on creation
@@ -39,7 +39,7 @@ func TestBaseDirDF(t *testing.T) {
 // Tests the constructor is setting a temp dir
 func TestTmpDirDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
-	testStrat := NewDFCopyStrategy(ddcfs)
+	testStrat := NewBACopyStrategy(ddcfs)
 	expected := filepath.Join("tmp", "dir1", "random")
 	actual := testStrat.TmpDir
 	// Check the base dir is set on creation
@@ -51,7 +51,7 @@ func TestTmpDirDF(t *testing.T) {
 // Tests the method returns the correct path
 func TestGetPathDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
-	testStrat := NewDFCopyStrategy(ddcfs)
+	testStrat := NewBACopyStrategy(ddcfs)
 	// Test path for coordinators
 	expected := filepath.Join("tmp", "dir1", "random", testStrat.BaseDir, "coordinators", "node1", "log")
 	actual, _ := testStrat.CreatePath("log", "node1", "coordinator")
@@ -69,7 +69,7 @@ func TestGetPathDF(t *testing.T) {
 // Tests the method returns the correct path
 func TestGzipFilesDF(t *testing.T) {
 	ddcfs := NewFakeFileSystem()
-	testStrat := NewDFCopyStrategy(ddcfs)
+	testStrat := NewBACopyStrategy(ddcfs)
 	// Test gzip is a noop essentially, but we can still check for a nil response
 	_, actual := testStrat.GzipAllFiles("/tmp")
 	if actual != nil {
@@ -81,7 +81,7 @@ func TestGzipFilesDF(t *testing.T) {
 // it tests the call via the selected strategy
 func TestArchiveDiagDF(t *testing.T) {
 	ddcfs := NewRealFileSystem()
-	testStrat := NewDFCopyStrategy(ddcfs)
+	testStrat := NewBACopyStrategy(ddcfs)
 	tmpDir := t.TempDir()
 	testFileRaw := filepath.Join("testdata", "test.txt")
 	testFile, err := filepath.Abs(testFileRaw)
