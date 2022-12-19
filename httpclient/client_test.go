@@ -54,6 +54,22 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, headers["abc"], headersPassed["Abc"])
 }
 
+func TestGetReponseHeaders(t *testing.T) {
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("test", "1")
+		w.Header().Add("test", "2")
+		fmt.Fprint(w, "")
+	}))
+	defer svr.Close()
+	response, err := Get(svr.URL, nil)
+	require.Nil(t, err)
+	headers := response.GetHeaders()
+	expected := make(map[string][]string)
+	expected["Test"] = []string{"1", "2"}
+	assert.Equal(t, expected["Test"], headers["Test"])
+
+}
+
 func TestGetText(t *testing.T) {
 	expected := "this comes back"
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
