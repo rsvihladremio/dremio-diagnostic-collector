@@ -346,7 +346,12 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 		// if it is then add it to the skipped list
 		// and set a flag to skip collection
 		for _, exf := range excludeFiles {
-			if exf == filepath.Base(fileName) {
+			f := filepath.Base(fileName)
+			matched, err := filepath.Match(exf, f)
+			if err != nil {
+				logger.Printf("ERROR: trying to find a match for %v with file %v", exf, f)
+			}
+			if matched {
 				skippedFiles = append(skippedFiles, fileName)
 				skip = true
 			}

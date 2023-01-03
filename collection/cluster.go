@@ -51,7 +51,7 @@ func ClusterK8sExecute(cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k 
 }
 
 // Execute commands at the cluster level
-// Callsa raw execute function and simply writes out the byte array read from the response
+// Calls a raw execute function and simply writes out the byte array read from the response
 // that comes in directly from kubectl
 func clusterExecute(namespace, cmd string, c Collector, k string) ([]byte, error) {
 	cli := &cli.Cli{}
