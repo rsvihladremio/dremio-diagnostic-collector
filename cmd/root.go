@@ -133,9 +133,6 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		}
 		fmt.Println(getVersion())
 
-		// Setup base dir for Heath check output data
-		//err := helpers.SetupDirs()
-
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
 		var cs collection.CopyStrategy
@@ -148,11 +145,14 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		}
 
+		// Determine namespace
+		tokens := strings.Split(coordinatorStr, ":")
+		namespace := tokens[0]
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
-			err = collection.ClusterK8sExecute(cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
+			err = collection.ClusterK8sExecute(namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
 			if err != nil {
 				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
 			}
