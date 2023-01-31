@@ -160,3 +160,50 @@ func TestKubectCopyFromWindowsHost(t *testing.T) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
 	}
 }
+
+func TestNewKubectlK8sActions(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	if actions.namespace != namespace {
+		t.Errorf("expected %v but got %v", namespace, actions.namespace)
+	}
+
+	if actions.kubectlPath != kubectlPath {
+		t.Errorf("expected %v but got %v", kubectlPath, actions.kubectlPath)
+	}
+
+	if actions.coordinatorContainer != coordinatorContainer {
+		t.Errorf("expected %v but got %v", coordinatorContainer, actions.coordinatorContainer)
+	}
+
+	if actions.executorContainer != executorContainer {
+		t.Errorf("expected %v but got %v", executorContainer, actions.executorContainer)
+	}
+}
+
+func TestGetContainerNameWhenIsCoordinator(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	containerName := actions.getContainerName(true)
+	if containerName != coordinatorContainer {
+		t.Errorf("expected %v but got %v", coordinatorContainer, containerName)
+	}
+}
+
+func TestGetContainerNameWhenIsExecutor(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	containerName := actions.getContainerName(false)
+	if containerName != executorContainer {
+		t.Errorf("expected %v but got %v", executorContainer, containerName)
+	}
+}
