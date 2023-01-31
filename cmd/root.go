@@ -52,6 +52,7 @@ var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
 var format string
+var namespace string
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -68,7 +69,7 @@ examples:
 
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coordinator --executors default:app=dremio-executor --output diag.zip
+ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor --output diag.zip
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if sshKeyLoc == "" {
@@ -146,12 +147,10 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --coordinator default:app=dremio-coord
 		}
 
 		// Determine namespace
-		tokens := strings.Split(coordinatorStr, ":")
-		namespace := tokens[0]
 		var collectorStrategy collection.Collector
 		if isK8s {
 			log.Print("using Kubernetes kubectl based collection")
-			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer)
+			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer, namespace)
 			err = collection.ClusterK8sExecute(namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
 			if err != nil {
 				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
@@ -205,11 +204,12 @@ func init() {
 
 	rootCmd.Flags().StringVar(&coordinatorContainer, "coordinator-container", "dremio-master-coordinator", "for use with -k8s flag: sets the container name to use to retrieve logs in the coordinators")
 	rootCmd.Flags().StringVar(&executorsContainer, "executors-container", "dremio-executor", "for use with -k8s flag: sets the container name to use to retrieve logs in the executors")
-	rootCmd.Flags().StringVarP(&coordinatorStr, "coordinator", "c", "", "coordinator node to connect to for collection")
-	rootCmd.Flags().StringVarP(&executorsStr, "executors", "e", "", "either a common separated list or a ip range of executors nodes to connect to")
+	rootCmd.Flags().StringVarP(&coordinatorStr, "coordinator", "c", "", "coordinator to connect to for collection. With ssh set a list of ip addresses separated by commas. In K8s use a label that matches to the pod(s).")
+	rootCmd.Flags().StringVarP(&executorsStr, "executors", "e", "", "either a common separated list or a ip range of executors nodes to connect to. With ssh set a list of ip addresses separated by commas. In K8s use a label that matches to the pod(s).")
 	rootCmd.Flags().StringVarP(&sshKeyLoc, "ssh-key", "s", "", "location of ssh key to use to login")
 	rootCmd.Flags().StringVarP(&sshUser, "ssh-user", "u", "", "user to use during ssh operations to login")
 	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.tgz", "filename of the resulting archived (tar) and compressed (gzip) file")
+	rootCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "namespace to use for kubernetes pods")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
@@ -231,13 +231,13 @@ func init() {
 func validateParameters(args collection.Args, sshKeyLoc, sshUser string, isK8s bool) error {
 	if args.CoordinatorStr == "" {
 		if isK8s {
-			return errors.New("the coordinator string was empty you must pass a namespace, a colon and a label that will match your coordinators --coordinator or -c arguments. Example: -c \"default:mylabel=coordinator\"")
+			return errors.New("the coordinator string was empty you must pass a label that will match your coordinators --coordinator or -c arguments. Example: -c \"mylabel=coordinator\"")
 		}
 		return errors.New("the coordinator string was empty you must pass a single host or a comma separated lists of hosts to --coordinator or -c arguments. Example: -e 192.168.64.12,192.168.65.10")
 	}
 	if args.ExecutorsStr == "" {
 		if isK8s {
-			return errors.New("the executor string was empty you must pass a namespace, a colon and a label that will match your executors --executor or -e arguments. Example: -e \"default:mylabel=executor\"")
+			return errors.New("the executor string was empty you must pass a label that will match your executors --executor or -e arguments. Example: -e \"mylabel=executor\"")
 		}
 		return errors.New("the executor string was empty you must pass a single host or a comma separated lists of hosts to --executor or -e arguments. Example: -e 192.168.64.12,192.168.65.10")
 	}
