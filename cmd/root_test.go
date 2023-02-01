@@ -44,7 +44,7 @@ func TestValidateParameters(t *testing.T) {
 	tc := makeTestCollection()
 	tc.CoordinatorStr = ""
 	err := validateParameters(tc, "/home/dremio/.ssh", "dremio", true)
-	expectedError := "the coordinator string was empty you must pass a namespace, a colon and a label that will match your coordinators --coordinator or -c arguments. Example: -c \"default:mylabel=coordinator\""
+	expectedError := "the coordinator string was empty you must pass a label that will match your coordinators --coordinator or -c arguments. Example: -c \"mylabel=coordinator\""
 	if expectedError != err.Error() {
 		t.Errorf("expected: %v but was %v", expectedError, err.Error())
 	}
@@ -52,7 +52,7 @@ func TestValidateParameters(t *testing.T) {
 	tc = makeTestCollection()
 	tc.ExecutorsStr = ""
 	err = validateParameters(tc, "/home/dremio/.ssh", "dremio", true)
-	expectedError = "the executor string was empty you must pass a namespace, a colon and a label that will match your executors --executor or -e arguments. Example: -e \"default:mylabel=executor\""
+	expectedError = "the executor string was empty you must pass a label that will match your executors --executor or -e arguments. Example: -e \"mylabel=executor\""
 	if expectedError != err.Error() {
 		t.Errorf("expected: %v but was %v", expectedError, err.Error())
 	}
