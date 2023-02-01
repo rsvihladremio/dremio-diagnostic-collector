@@ -28,10 +28,10 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
-func ClusterK8sExecute(cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
+func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
 	cmds := []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	for _, cmd := range cmds {
-		out, err := clusterExecute("default", cmd, c, k)
+		out, err := clusterExecute(namespace, cmd, c, k)
 		if err != nil {
 			return fmt.Errorf("ERROR: when getting cluster config, error was %v", err)
 		}

@@ -26,12 +26,13 @@ import (
 
 // NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct
 // one must pass the path to kubectl
-func NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer string) *KubectlK8sActions {
+func NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace string) *KubectlK8sActions {
 	return &KubectlK8sActions{
 		cli:                  &cli.Cli{},
 		kubectlPath:          kubectlPath,
 		coordinatorContainer: coordinatorContainer,
 		executorContainer:    executorContainer,
+		namespace:            namespace,
 	}
 }
 
@@ -41,6 +42,7 @@ type KubectlK8sActions struct {
 	kubectlPath          string
 	coordinatorContainer string
 	executorContainer    string
+	namespace            string
 }
 
 func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
@@ -51,10 +53,7 @@ func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
 }
 
 func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, args ...string) (out string, err error) {
-	tokens := strings.Split(hostString, ".")
-	namespace := tokens[0]
-	podName := tokens[1]
-	kubectlArgs := []string{c.kubectlPath, "exec", "-n", namespace, "-c", c.getContainerName(isCoordinator), podName, "--"}
+	kubectlArgs := []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), hostString, "--"}
 	kubectlArgs = append(kubectlArgs, args...)
 	return c.cli.Execute(kubectlArgs...)
 }
@@ -65,17 +64,11 @@ func (c *KubectlK8sActions) CopyFromHost(hostString string, isCoordinator bool, 
 		//only replace once because more doesn't make sense
 		destination = strings.Replace(destination, `C:`, ``, 1)
 	}
-	tokens := strings.Split(hostString, ".")
-	namespace := tokens[0]
-	podName := tokens[1]
-	return c.cli.Execute(c.kubectlPath, "cp", "-n", namespace, "-c", c.getContainerName(isCoordinator), fmt.Sprintf("%v:%v", podName, source), destination)
+	return c.cli.Execute(c.kubectlPath, "cp", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), fmt.Sprintf("%v:%v", hostString, source), destination)
 }
 
 func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err error) {
-	tokens := strings.Split(searchTerm, ":")
-	namespace := tokens[0]
-	labelName := tokens[1]
-	out, err := c.cli.Execute(c.kubectlPath, "get", "pods", "-n", namespace, "-l", labelName, "-o", "name")
+	out, err := c.cli.Execute(c.kubectlPath, "get", "pods", "-n", c.namespace, "-l", searchTerm, "-o", "name")
 	if err != nil {
 		return []string{}, err
 	}
@@ -89,8 +82,7 @@ func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err 
 		//log.Print(rawPod)
 		pod := rawPod[4:]
 		//log.Print(pod)
-		podWithNamespace := fmt.Sprintf("%v.%v", namespace, pod)
-		pods = append(pods, podWithNamespace)
+		pods = append(pods, pod)
 	}
 	return pods, nil
 }

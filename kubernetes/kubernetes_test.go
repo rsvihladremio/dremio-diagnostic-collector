@@ -37,8 +37,9 @@ func TestKubectlExec(t *testing.T) {
 		kubectlPath:          "kubectl",
 		coordinatorContainer: "dremio-master-coordinator",
 		executorContainer:    "dremio-executor",
+		namespace:            namespace,
 	}
-	out, err := k.HostExecute(fmt.Sprintf("%v.%v", namespace, podName), true, "ls", "-l")
+	out, err := k.HostExecute(podName, true, "ls", "-l")
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -67,15 +68,16 @@ func TestKubectlSearch(t *testing.T) {
 	k := KubectlK8sActions{
 		cli:         cli,
 		kubectlPath: "kubectl",
+		namespace:   namespace,
 	}
-	podNames, err := k.FindHosts(fmt.Sprintf("%v:%v", namespace, labelName))
+	podNames, err := k.FindHosts(labelName)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 	//we need to pass the namespace for later commands that may consume this
 	// period is handy because it is an illegal character in a kubernetes name and so
 	// can act as a separator
-	expectedPods := []string{"testns.pod1", "testns.pod2", "testns.pod3"}
+	expectedPods := []string{"pod1", "pod2", "pod3"}
 	if !reflect.DeepEqual(podNames, expectedPods) {
 		t.Errorf("expected %v call but got %v", expectedPods, podNames)
 	}
@@ -103,8 +105,9 @@ func TestKubectCopyFrom(t *testing.T) {
 		kubectlPath:          "kubectl",
 		coordinatorContainer: "dremio-master-coordinator",
 		executorContainer:    "dremio-executor",
+		namespace:            namespace,
 	}
-	out, err := k.CopyFromHost(fmt.Sprintf("%v.%v", namespace, podName), true, source, destination)
+	out, err := k.CopyFromHost(podName, true, source, destination)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -136,8 +139,9 @@ func TestKubectCopyFromWindowsHost(t *testing.T) {
 		kubectlPath:          "kubectl",
 		coordinatorContainer: "dremio-master-coordinator",
 		executorContainer:    "dremio-executor",
+		namespace:            namespace,
 	}
-	out, err := k.CopyFromHost(fmt.Sprintf("%v.%v", namespace, podName), true, source, destination)
+	out, err := k.CopyFromHost(podName, true, source, destination)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -154,5 +158,52 @@ func TestKubectCopyFromWindowsHost(t *testing.T) {
 	expectedCall := []string{"kubectl", "cp", "-n", namespace, "-c", "dremio-master-coordinator", fmt.Sprintf("%v:%v", podName, source), expectedDestination}
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("expected %v call but got %v", expectedCall, calls[0])
+	}
+}
+
+func TestNewKubectlK8sActions(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	if actions.namespace != namespace {
+		t.Errorf("expected %v but got %v", namespace, actions.namespace)
+	}
+
+	if actions.kubectlPath != kubectlPath {
+		t.Errorf("expected %v but got %v", kubectlPath, actions.kubectlPath)
+	}
+
+	if actions.coordinatorContainer != coordinatorContainer {
+		t.Errorf("expected %v but got %v", coordinatorContainer, actions.coordinatorContainer)
+	}
+
+	if actions.executorContainer != executorContainer {
+		t.Errorf("expected %v but got %v", executorContainer, actions.executorContainer)
+	}
+}
+
+func TestGetContainerNameWhenIsCoordinator(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	containerName := actions.getContainerName(true)
+	if containerName != coordinatorContainer {
+		t.Errorf("expected %v but got %v", coordinatorContainer, containerName)
+	}
+}
+
+func TestGetContainerNameWhenIsExecutor(t *testing.T) {
+	kubectlPath := "kubectlPath"
+	coordinatorContainer := "main"
+	executorContainer := "exec"
+	namespace := "mynamespace"
+	actions := NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorContainer, namespace)
+	containerName := actions.getContainerName(false)
+	if containerName != executorContainer {
+		t.Errorf("expected %v but got %v", executorContainer, containerName)
 	}
 }
