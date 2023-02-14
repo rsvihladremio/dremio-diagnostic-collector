@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1] - 2023-02-14
+### Added
+  Easier to use http client
+
+  ### Fixed
+  Excluding files did not accept wildcards
+  Fix k8s namespace syntax. Use `-n` option instead of `namespace:label`
+  AWSE deployments can have bundle multiple dupe named files under one IP
+
 ## [0.2.0] - 2022-12-08
 ### Added
 - Support for healthcheck format
