@@ -314,10 +314,54 @@ func checkJfr(conf HostCaptureConfiguration, pid string) error {
 	return nil
 }
 
+// AWSE deployments archive the logs under and EFS drive mounted on
+func adjustForAWSE(file, baseDir string) (nodeType, nodeName string) {
+	var pathParts []string
+	// If the deployment type is AWSE then we might need to rename the file to avoid clobbering files, the file tree typically looks like this
+	/*
+			$ tree -d /var/dremio_efs/
+		/var/dremio_efs/
+		├── log
+		│   ├── coordinator
+		│   │   ├── archive
+		│   │   ├── json
+		│   │   │   └── archive
+		│   │   └── preview
+		│   │       ├── archive
+		│   │       └── json
+		│   │           └── archive
+		│   └── executor
+		│       └── ip-10-10-10-176.eu-west-1.compute.internal
+		│           ├── archive
+		│           └── json
+		│               └── archive
+		└── thirdparty
+	*/
+	// So if the file path has "executor" or "coordinator" in it we assume this is AWSE
+	// we pass back the node type since an executor's logs can be found on a coordinator
+	// so this becomes like an override
+	if strings.Contains(file, "executor") {
+		nodeType = "executor"
+		pathParts = strings.Split(file, string(filepath.Separator))
+	} else if strings.Contains(file, "coordinator") {
+		nodeType = "coordinator"
+	} else {
+		nodeType = ""
+	}
+
+	// find the node name
+	for _, part := range pathParts {
+		if strings.Contains(part, "ip-") {
+			nodeName = part
+		}
+	}
+	// return the nodetype & nodename (blank if it didnt find anything AWSE)
+	return nodeType, nodeName
+}
+
 // copyFiles copys all files it is asked to copy to a local destination directory
 // the directory must be available or it will error out
 func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, filesToCopy []string) (collectedFiles []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
-	//outputLoc := conf.OutputLocation
 	host := conf.Host
 	logger := conf.Logger
 	c := conf.Collector
@@ -327,7 +371,10 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 	var nodeType string
 	s := conf.CopyStrategy
 	var fileName string
+	var cPath string
+	var err error
 
+	// iterate over all files and copy
 	for i := range filesToCopy {
 		file := filesToCopy[i]
 		skip = false
@@ -336,10 +383,25 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 		} else {
 			nodeType = "executor"
 		}
-		cPath, err := s.CreatePath(fileType, host, nodeType)
+		// Check file to see if it's an AWSE type deployment
+		// if it is we adjust the type and name as needed
+		awseNodeType, awseNodeName := adjustForAWSE(file, baseDir)
+		if awseNodeType == "coordinator" {
+			nodeType = awseNodeType
+			// AWSE coordinator, we still use the IP
+			cPath, err = s.CreatePath(fileType, host, nodeType)
+		} else if awseNodeType == "executor" {
+			nodeType = awseNodeType
+			// AWSE coordinator, but executor logs, we use the AWS node name from the path
+			cPath, err = s.CreatePath(fileType, awseNodeName, nodeType)
+		} else {
+			// Default, we use the node type from the command line and the IP
+			cPath, err = s.CreatePath(fileType, host, nodeType)
+		}
 		if err != nil {
 			logger.Printf("ERROR: unable to create path for %v: %v", host, err)
 		}
+		// Create the file name and path finally
 		fileName = filepath.Join(cPath, filepath.Base(file))
 
 		// Check each file to see if its excluded
@@ -405,9 +467,9 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 
 	// Only use mtime for logs
 	if filter {
-		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
+		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "4", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
 	} else {
-		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "3", "-type", "f")
+		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "4", "-type", "f")
 	}
 
 	// For find commands we simply ignore exit status 1 and continue
