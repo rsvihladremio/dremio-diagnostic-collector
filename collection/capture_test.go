@@ -94,6 +94,21 @@ func (m *MockCollector) CopyFromHost(hostString string, isCoordinator bool, sour
 	}
 	return response[0].(string), response[1].(error)
 }
+func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error) {
+	args := make(map[string]interface{})
+	args["hostString"] = hostString
+	args["isCoordinator"] = isCoordinator
+	args["source"] = source
+	args["destination"] = destination
+	m.Calls = append(m.Calls, args)
+	response := m.Returns[m.CallCounter]
+	m.CallCounter++
+	if response[1] == nil {
+		return response[0].(string), nil
+
+	}
+	return response[0].(string), response[1].(error)
+}
 func (m *MockCollector) FindHosts(searchTerm string) (podName []string, err error) {
 	args := make(map[string]interface{})
 	args["searchTerm"] = searchTerm
@@ -158,7 +173,7 @@ func TestFindFiles(t *testing.T) {
 		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
 	}
 
-	expectedArgs := []string{"find", "/opt/file*", "-maxdepth", "4", "-type", "f", "-mtime", "-5"}
+	expectedArgs := []string{"find", "/opt/file*", "-maxdepth", "4", "-type", "f", "-mtime", "-5", "2>/dev/null"}
 	if !reflect.DeepEqual(calls["args"], expectedArgs) {
 		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
 	}
@@ -206,9 +221,9 @@ func TestFindAWSEFiles(t *testing.T) {
 		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
 	}
 
-	expectedArgs := []string{"find", "/var/dremio_efs/logs", "-maxdepth", "4", "-type", "f", "-mtime", "-5"}
+	expectedArgs := []string{"find", "/var/dremio_efs/logs", "-maxdepth", "4", "-type", "f", "-mtime", "-5", "2>/dev/null"}
 	if !reflect.DeepEqual(calls["args"], expectedArgs) {
-		t.Errorf("expected %p but was %p", expectedArgs, calls["args"])
+		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
 	}
 }
 func TestGetStartupFlags(t *testing.T) {
