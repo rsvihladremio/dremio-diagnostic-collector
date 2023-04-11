@@ -364,7 +364,6 @@ func adjustForAWSE(file, baseDir string) (nodeType, nodeName string) {
 func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, filesToCopy []string) (collectedFiles []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 	logger := conf.Logger
-	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
 	excludeFiles := conf.ExcludeFiles
 	var skip bool
@@ -422,7 +421,7 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 		// The skip flag is only reset on each new file in the file of files to copy
 		// TODO - at some future point we may want to support regex and / or exclude lists from a config file
 		if !skip {
-			if out, err := c.CopyFromHost(host, isCoordinator, file, fileName); err != nil {
+			if out, err := ComposeCopy(conf, file, fileName); err != nil {
 				failedFiles = append(failedFiles, FailedFiles{
 					Path: fileName,
 					Err:  err,
@@ -453,9 +452,6 @@ func copyFiles(conf HostCaptureConfiguration, fileType string, baseDir string, f
 // this does mean you will have some errors.
 // it will also attempt to find the gclogs based on startup flags if there is no gclog override specified
 func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]string, error) {
-	host := conf.Host
-	c := conf.Collector
-	isCoordinator := conf.IsCoordinator
 	logAge := conf.LogAge
 	var out string
 	var err error
@@ -467,9 +463,9 @@ func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]
 
 	// Only use mtime for logs
 	if filter {
-		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "4", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge))
+		out, err = ComposeExecute(conf, []string{"find", searchDir, "-maxdepth", "4", "-type", "f", "-mtime", fmt.Sprintf("-%v", logAge), "2>/dev/null"})
 	} else {
-		out, err = c.HostExecute(host, isCoordinator, "find", searchDir, "-maxdepth", "4", "-type", "f")
+		out, err = ComposeExecute(conf, []string{"find", searchDir, "-maxdepth", "4", "-type", "f", "2>/dev/null"})
 	}
 
 	// For find commands we simply ignore exit status 1 and continue

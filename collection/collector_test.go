@@ -121,6 +121,24 @@ func (m *MockCapCollector) CopyFromHost(hostString string, isCoordinator bool, s
 	return response, err
 }
 
+func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (response string, err error) {
+	copyCall := MockCapCopy{
+		HostString:    hostString,
+		IsCoordinator: isCoordinator,
+		Source:        source,
+		Destination:   destination,
+	}
+	if copyCall.Source == "/var/log/dremio" {
+		response = "INFO: logs copied from /var/log/dremio1"
+	} else if copyCall.Source == "/var/log/missing" {
+		response = "WARN: No logs found at /var/log/missing"
+	} else {
+		response = "no files found"
+		err = fmt.Errorf("ERROR: no files found for %v", copyCall.Source)
+	}
+	return response, err
+}
+
 func (m *MockCapCollector) HostExecute(hostString string, isCoordinator bool, args ...string) (response string, err error) {
 
 	fullCmd := strings.Join(args, " ")

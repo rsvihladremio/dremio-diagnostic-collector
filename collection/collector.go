@@ -36,6 +36,7 @@ type CopyStrategy interface {
 
 type Collector interface {
 	CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error)
+	CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error)
 	FindHosts(searchTerm string) (podName []string, err error)
 	HostExecute(hostString string, isCoordinator bool, args ...string) (stdOut string, err error)
 }
