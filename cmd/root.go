@@ -200,6 +200,8 @@ func sshDefault() (string, error) {
 }
 
 func init() {
+	// subcommand
+	rootCmd.sub
 	// command line flags
 
 	rootCmd.Flags().StringVar(&coordinatorContainer, "coordinator-container", "dremio-master-coordinator", "for use with -k8s flag: sets the container name to use to retrieve logs in the coordinators")
