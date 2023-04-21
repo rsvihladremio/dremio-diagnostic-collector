@@ -56,7 +56,6 @@ var (
 	dremioQueryAnalyzerNumDays     int
 	dremioMasterLogsNumDays        int
 	dremioExecutorLogsNumDays      int
-	dremioLogDir                   string
 	dremioGCFilePattern            string
 	dremioRocksDBDir               string
 	isKubernetes                   bool
