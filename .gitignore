@@ -23,3 +23,6 @@ bin/
 .DS_Store
 .json
 .vscode
+
+lsp-quickpick
+lsp-quickpick-filter
