@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -203,7 +204,7 @@ func collect(numberThreads int) {
 	t.FireJob(collectK8sConfig)
 	t.FireJob(collectHeapDump)
 	t.FireJob(collectDremioSystemTables)
-	t.FireJob(collectQueriesJson)
+	t.FireJob(collectQueriesJSON)
 	t.FireJob(collectJobProfiles)
 	t.FireJob(collectDremioServerLog)
 	t.FireJob(collectGcLogs)
@@ -217,6 +218,137 @@ func collect(numberThreads int) {
 }
 
 func collectDremioConfig() error {
+	glog.Info("The following alias was defined for running shell commands - $(type shell)")
+
+	glog.Info("Collecting OS Information from $BASENAME ...")
+	osInfoFile := path.Join(outputDir, "node-info", nodeName, "os_info.txt")
+	w, err := os.Create(osInfoFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %v due to error %v", osInfoFile, err)
+	}
+	defer w.Close()
+
+	glog.V(2).Info("/etc/*-release")
+
+	_, err = w.Write([]byte("___\n>>> cat /etc/*-release\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write release file header for os_info.txt due to error %v", err)
+	}
+
+	err = Shell(w, "cat /etc/*-release")
+	if err != nil {
+		return fmt.Errorf("unable to write release files for os_info.txt due to error %v", err)
+	}
+
+	_, err = w.Write([]byte("___\n>>> uname -r\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write uname header for os_info.txt due to error %v", err)
+	}
+
+	err = Shell(w, "uname -r")
+	if err != nil {
+		return fmt.Errorf("unable to write uname -r for os_info.txt due to error %v", err)
+	}
+	_, err = w.Write([]byte("___\n>>> lsb_release -a\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write lsb_release -r header for os_info.txt due to error %v", err)
+	}
+	err = Shell(w, "lsb_release -a")
+	if err != nil {
+		return fmt.Errorf("unable to write lsb_release -a for os_info.txt due to error %v", err)
+	}
+	_, err = w.Write([]byte("___\n>>> hostnamectl\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write hostnamectl for os_info.txt due to error %v", err)
+	}
+	err = Shell(w, "hostnamectl")
+	if err != nil {
+		return fmt.Errorf("unable to write hostnamectl for os_info.txt due to error %v", err)
+	}
+	_, err = w.Write([]byte("___\n>>> cat /proc/meminfo\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write /proc/meminfo header for os_info.txt due to error %v", err)
+	}
+	err = Shell(w, "cat /proc/meminfo")
+	if err != nil {
+		return fmt.Errorf("unable to write /proc/meminfo for os_info.txt due to error %v", err)
+	}
+	_, err = w.Write([]byte("___\n>>> lscpu\n"))
+	if err != nil {
+		return fmt.Errorf("unable to write lscpu header for os_info.txt due to error %v", err)
+	}
+	err = Shell(w, "lscpu")
+	if err != nil {
+		return fmt.Errorf("unable to write lscpu for os_info.txt due to error %v", err)
+	}
+	glog.Infof("... Collecting OS Information from %v COMPLETED", nodeName)
+
+	glog.Infof("Collecting Configuration Information from %v ...", nodeName)
+
+	//mkdir -p $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME
+
+	glog.Warning("You may have to run the following command 'jcmd 1 VM.flags' as 'sudo' and specify '-u dremio' when running on Dremio AWSE or VM deployments")
+	jvmSettingsFile := path.Join(outputDir, "node-info", nodeName, "jvm_settings.txt")
+	jvmSettingsFileWriter, err := os.Create(jvmSettingsFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %v due to error %v", jvmSettingsFile, err)
+	}
+	defer jvmSettingsFileWriter.Close()
+	err = Shell(jvmSettingsFileWriter, "jcmd 1 VM.flags")
+	if err != nil {
+		return fmt.Errorf("unable to write jvm_settings.txt file due to error %v", err)
+	}
+	err = copyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
+	if err != nil {
+		return fmt.Errorf("unable to copy dremio.conf due to error %v", err)
+	}
+	err = copyFile("/opt/dremio/conf/dremio-env", filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
+	if err != nil {
+		return fmt.Errorf("unable to copy dremio.env due to error %v", err)
+	}
+	err = copyFile("/opt/dremio/conf/logback.xml", filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
+	if err != nil {
+		return fmt.Errorf("unable to copy logback.xml due to error %v", err)
+	}
+	err = copyFile("/opt/dremio/conf/logback-access.xml", filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
+	if err != nil {
+		return fmt.Errorf("unable to copy logback-access.xml due to error %v", err)
+	}
+	//# shell "cat /opt/dremio/conf/core-site.xml" > $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/core-site.xml
+
+	//python3 $DREMIO_HEALTHCHECK_SCRIPT_DIR/helper/secrets_cleanser_config.py $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/dremio.conf
+
+	glog.Infof("... Collecting Configuration Information from %v COMPLETED", nodeName)
+
+	if skipCollectDiskUsage {
+		glog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
+	} else {
+		glog.Infof("Collecting Disk Usage from %v ...", nodeName)
+		diskWriter, err := os.Create(filepath.Join(outputDir, "node-info", nodeName, "diskusage.txt"))
+		if err != nil {
+			return fmt.Errorf("unable to create diskusage.txt due to error %v", err)
+		}
+		defer diskWriter.Close()
+		err = Shell(diskWriter, "df -h")
+		if err != nil {
+			return fmt.Errorf("unable to read df -h due to error %v", err)
+		}
+
+		if strings.Contains(nodeName, "dremio-master") {
+			rocksDbDiskUsageWriter, err := os.Create(filepath.Join(outputDir, "node-info", nodeName, "rocksdb_disk_allocation.txt"))
+			if err != nil {
+				return fmt.Errorf("unable to create rocksdb_disk_allocation.txt due to error %v", err)
+			}
+			defer rocksDbDiskUsageWriter.Close()
+			err = Shell(rocksDbDiskUsageWriter, "du -sh /opt/dremio/data/db/*")
+			if err != nil {
+				return fmt.Errorf("unable to write du -sh to rocksdb_disk_allocation.txt due to error %v", err)
+			}
+
+		}
+		glog.Infof("... Collecting Disk Usage from %v COMPLETED", nodeName)
+	}
+
 	return nil
 }
 
@@ -386,7 +518,7 @@ func collectHeapDump() error {
 	return nil
 }
 
-func collectQueriesJson() error {
+func collectQueriesJSON() error {
 	return nil
 }
 
@@ -461,6 +593,24 @@ func getThreads(cpus int) int {
 func getOutputDir(now time.Time) string {
 	nowStr := now.Format("20060102-150405")
 	return filepath.Join(os.TempDir(), "ddc", nowStr)
+}
+
+// Shell executes a shell command with shell expansion and appends its output to the provided io.Writer.
+func Shell(writer *os.File, commandLine string) error {
+	cmd := exec.Command("bash", "-c", commandLine)
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("command execution failed: %w", err)
+	}
+
+	if err := writer.Sync(); err != nil {
+		return fmt.Errorf("unable to sync the writer due to error: %v", err)
+	}
+
+	return nil
 }
 
 func init() {
