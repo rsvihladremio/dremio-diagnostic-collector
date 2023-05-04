@@ -16,9 +16,11 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"os"
 	"os/exec"
@@ -79,8 +81,7 @@ var (
 	skipCollectWLM                 bool
 	skipHeapDumpCoordinator        bool
 	skipHeapDumpExecutor           bool
-	skipJFRCoordinator             bool
-	skipJFRExecutor                bool
+	skipJFR                        bool
 	dremioJFRTimeSeconds           int
 	jobProfilesNumDays             int
 	jobProfilesNumSlowExec         int
@@ -226,7 +227,14 @@ func collectDremioConfig() error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error %v", osInfoFile, err)
 	}
-	defer w.Close()
+	defer func() {
+		if err := w.Sync(); err != nil {
+			glog.Warningf("unable to sync the os_info.txt file due to error: %v", err)
+		}
+		if err := w.Close(); err != nil {
+			glog.Warningf("unable to close the os_info.txt file due to error: %v", err)
+		}
+	}()
 
 	glog.V(2).Info("/etc/*-release")
 
@@ -281,10 +289,10 @@ func collectDremioConfig() error {
 	if err != nil {
 		return fmt.Errorf("unable to write lscpu for os_info.txt due to error %v", err)
 	}
+
 	glog.Infof("... Collecting OS Information from %v COMPLETED", nodeName)
 
 	glog.Infof("Collecting Configuration Information from %v ...", nodeName)
-
 	//mkdir -p $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME
 
 	glog.Warning("You may have to run the following command 'jcmd 1 VM.flags' as 'sudo' and specify '-u dremio' when running on Dremio AWSE or VM deployments")
@@ -293,8 +301,23 @@ func collectDremioConfig() error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error %v", jvmSettingsFile, err)
 	}
-	defer jvmSettingsFileWriter.Close()
-	err = Shell(jvmSettingsFileWriter, "jcmd 1 VM.flags")
+	defer func() {
+		if err := jvmSettingsFileWriter.Sync(); err != nil {
+			glog.Warningf("unable to sync the os_info.txt file due to error: %v", err)
+		}
+		if err := jvmSettingsFileWriter.Close(); err != nil {
+			glog.Warningf("unable to close the os_info.txt file due to error: %v", err)
+		}
+	}()
+	var dremioPIDOutput bytes.Buffer
+	if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
+		glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+	}
+	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+	if err != nil {
+		return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+	}
+	err = Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
 	if err != nil {
 		return fmt.Errorf("unable to write jvm_settings.txt file due to error %v", err)
 	}
@@ -328,7 +351,14 @@ func collectDremioConfig() error {
 		if err != nil {
 			return fmt.Errorf("unable to create diskusage.txt due to error %v", err)
 		}
-		defer diskWriter.Close()
+		defer func() {
+			if err := diskWriter.Sync(); err != nil {
+				glog.Warningf("unable to sync the os_info.txt file due to error: %v", err)
+			}
+			if err := diskWriter.Close(); err != nil {
+				glog.Warningf("unable to close the os_info.txt file due to error: %v", err)
+			}
+		}()
 		err = Shell(diskWriter, "df -h")
 		if err != nil {
 			return fmt.Errorf("unable to read df -h due to error %v", err)
@@ -499,6 +529,44 @@ func collectPromMetrics() error {
 }
 
 func collectJfr() error {
+	if !skipJFR {
+		var dremioPIDOutput bytes.Buffer
+		if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
+			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+		}
+		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+		if err != nil {
+			return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+		}
+
+		var w bytes.Buffer
+		if err := Shell(&w, fmt.Sprintf("jcmd %v VM.unlock_commercial_features", dremioPID)); err != nil {
+			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+		}
+		glog.V(2).Infof("node: %v - jfr unlock commerictial output - %v", nodeName, w.String())
+		w = bytes.Buffer{}
+		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir, nodeName)); err != nil {
+			return fmt.Errorf("unable to run JFR due to error %v", err)
+		}
+		glog.V(2).Infof("node: %v - jfr start output - %v", nodeName, w.String())
+		time.Sleep(time.Duration(dremioJFRTimeSeconds) * time.Second)
+		// do not "optimize". the recording first needs to be stopped for all processes before collecting the data.
+		glog.Info("... stopping JFR $BASEPOD")
+		w = bytes.Buffer{}
+		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", dremioPID)); err != nil {
+			return fmt.Errorf("unable to dump JFR due to error %v", err)
+		}
+		glog.V(2).Infof("node: %v - jfr dump output %v", nodeName, w.String())
+		w = bytes.Buffer{}
+		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.stop name=\"DREMIO_JFR\"", dremioPID)); err != nil {
+			return fmt.Errorf("unable to dump JFR due to error %v", err)
+		}
+		glog.V(2).Infof("node: %v - jfr stop output %v", nodeName, w.String())
+		w = bytes.Buffer{}
+		if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir, nodeName)); err != nil {
+			return fmt.Errorf("unable to dump JFR due to error %v", err)
+		}
+	}
 	return nil
 }
 
@@ -596,7 +664,7 @@ func getOutputDir(now time.Time) string {
 }
 
 // Shell executes a shell command with shell expansion and appends its output to the provided io.Writer.
-func Shell(writer *os.File, commandLine string) error {
+func Shell(writer io.Writer, commandLine string) error {
 	cmd := exec.Command("bash", "-c", commandLine)
 	cmd.Stdout = writer
 	cmd.Stderr = writer
@@ -604,10 +672,6 @@ func Shell(writer *os.File, commandLine string) error {
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("command execution failed: %w", err)
-	}
-
-	if err := writer.Sync(); err != nil {
-		return fmt.Errorf("unable to sync the writer due to error: %v", err)
 	}
 
 	return nil
@@ -643,6 +707,7 @@ func init() {
 	localCollectCmd.Flags().StringVar(&awsAccessKeyID, "aws-access-key-id", "NOTSET", "AWS Access Key ID")
 	localCollectCmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "NOTSET", "AWS Secret Access Key")
 	localCollectCmd.Flags().StringVar(&awsS3Path, "aws-s3-path", "NOTSET", "S3 path for Dremio data")
+	localCollectCmd.Flags().StringVar(&awsDefaultRegion, "aws-default-region", "us-west-1", "Default region for AWS")
 
 	// Add flags for Azure information
 	localCollectCmd.Flags().StringVar(&azureSASURL, "azure-sas-url", "<AZURE_SAS_URL>", "Azure SAS URL for Dremio data")
@@ -678,8 +743,7 @@ func init() {
 	localCollectCmd.Flags().BoolVar(&skipCollectWLM, "skip-collect-wlm", false, "Skip the Collect WLM collector")
 	localCollectCmd.Flags().BoolVar(&skipHeapDumpCoordinator, "skip-heap-dump-coordinator", true, "Skip the Heap Dump Coordinator collector")
 	localCollectCmd.Flags().BoolVar(&skipHeapDumpExecutor, "skip-heap-dump-executor", true, "Skip the Heap Dump Executor collector")
-	localCollectCmd.Flags().BoolVar(&skipJFRCoordinator, "skip-jfr-coordinator", true, "Skip the JFR Coordinator collector")
-	localCollectCmd.Flags().BoolVar(&skipJFRExecutor, "skip-jfr-executor", true, "Skip the JFR Executor collector")
+	localCollectCmd.Flags().BoolVar(&skipJFR, "skip-jfr", true, "Skip the JFR (Java Flight Recorder) collection")
 
 	// Add flags for other options
 	localCollectCmd.Flags().IntVar(&dremioJFRTimeSeconds, "dremio-jfr-time-seconds", 300, "Duration in seconds to run the JFR collector")
@@ -696,12 +760,24 @@ func init() {
 	localCollectCmd.Flags().IntVar(&prometheusChunkSizeHours, "prometheus-chunk-size-hours", 6, "Chunk size in hours for exporting data to Prometheus")
 
 	// Mark required flags
-	localCollectCmd.MarkFlagRequired("dremio-endpoint")
-	localCollectCmd.MarkFlagRequired("dremio-username")
-	localCollectCmd.MarkFlagRequired("dremio-pat-token")
-	localCollectCmd.MarkFlagRequired("dremio-storage-type")
+	if err := localCollectCmd.MarkFlagRequired("dremio-endpoint"); err != nil {
+		log.Printf("WARN: unable to mark flag 'dremio-endpoint' as required due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
+	if err := localCollectCmd.MarkFlagRequired("dremio-username"); err != nil {
+		log.Printf("WARN: unable to mark flag 'dremio-username' as required due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
+	if err := localCollectCmd.MarkFlagRequired("dremio-pat-token"); err != nil {
+		log.Printf("WARN: unable to mark flag 'dremio-pat-token' as required due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
+	if err := localCollectCmd.MarkFlagRequired("dremio-storage-type"); err != nil {
+		log.Printf("WARN: unable to mark flag 'dremio-storage-type' as required due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
 
 	// Set glog flags
-	flag.Set("log_dir", logDir)
-	flag.Set("v", strconv.Itoa(verbose))
+	if err := flag.Set("log_dir", logDir); err != nil {
+		log.Printf("WARN: unable to set flag 'log_dir' due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
+	if err := flag.Set("v", strconv.Itoa(verbose)); err != nil {
+		log.Printf("WARN: unable to set flag 'v' due to error '%v', this is unexpected and should be reported as a bug", err)
+	}
 }
