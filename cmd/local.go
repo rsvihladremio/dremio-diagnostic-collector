@@ -37,6 +37,7 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -646,6 +647,23 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
+		//check if required flags are set
+		requiredFlags := []string{"dremio-endpoint", "dremio-username", "dremio-pat-token", "dremio-storage-type"}
+
+		failed := false
+		for _, flag := range requiredFlags {
+			if viper.GetString(flag) == "" {
+				log.Printf("Error: required flag '--%s' not set", flag)
+				failed = true
+			}
+		}
+		if failed {
+			err := cmd.Usage()
+			if err != nil {
+				log.Fatalf("unable to even print usage, this is critical report this bug %v", err)
+			}
+			os.Exit(1)
+		}
 		// Run application
 		defer glog.Flush()
 		glog.Info("Starting collection...")
@@ -684,95 +702,220 @@ func init() {
 	now := time.Now()
 	tmpDir := getOutputDir(now)
 	localCollectCmd.Flags().StringVarP(&outputDir, "tmp-output-dir", "o", tmpDir, "temporary output directory for log collection")
+	if err := viper.BindPFlag("tmp-output-dir", localCollectCmd.Flags().Lookup("tmp-output-dir")); err != nil {
+		log.Fatalf("unable to bind configuration for tmp-output-dir due to error: %v", err)
+	}
+
 	// set node name
 	hostName, err := os.Hostname()
 	if err != nil {
 		hostName = fmt.Sprintf("unknown-%v", uuid.New())
 	}
 	localCollectCmd.Flags().StringVarP(&nodeName, "node-name", "n", hostName, "name to give to the node")
+	if err := viper.BindPFlag("node-name", localCollectCmd.Flags().Lookup("node-name")); err != nil {
+		log.Fatalf("unable to bind configuration for node-name due to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&logDir, "collect-log-dir", "", "logging output directory for the collector")
+	if err := viper.BindPFlag("collect-log-dir", localCollectCmd.Flags().Lookup("collect-log-dir")); err != nil {
+		log.Fatalf("unable to bind configuration for collect-log-dir to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "/var/log/dremio", "directory with gc logs on dremio")
+	if err := viper.BindPFlag("dremio-gc-file-pattern", localCollectCmd.Flags().Lookup("dremio-gc-file-pattern")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-gc-file-pattern to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&dremioLogsDir, "dremio-log-dir", "/var/log/dremio", "directory with application logs on dremio")
+	if err := viper.BindPFlag("dremio-log-dir", localCollectCmd.Flags().Lookup("dremio-log-dir")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-log-dir to error: %v", err)
+	}
+
 	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
+	if err := viper.BindPFlag("verbose", localCollectCmd.Flags().Lookup("verbose")); err != nil {
+		log.Fatalf("unable to bind configuration for verbose to error: %v", err)
+	}
+
 	defaultThreads := getThreads(runtime.NumCPU())
 	localCollectCmd.Flags().IntVarP(&numberThreads, "number-threads", "t", defaultThreads, "control concurrency in the system")
+	if err := viper.BindPFlag("number-threads", localCollectCmd.Flags().Lookup("number-threads")); err != nil {
+		log.Fatalf("unable to bind configuration for number-threads to error: %v", err)
+	}
 
 	// Add flags for Dremio connection information
 	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://dremio-client:9047", "Dremio REST API endpoint")
+	if err := viper.BindPFlag("dremio-endpoint", localCollectCmd.Flags().Lookup("dremio-endpoint")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-endpoint to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "<DREMIO_ADMIN_USER>", "Dremio username")
+	if err := viper.BindPFlag("dremio-username", localCollectCmd.Flags().Lookup("dremio-username")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-username to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "<DREMIO_PAT>", "Dremio Personal Access Token (PAT)")
+	if err := viper.BindPFlag("dremio-pat-token", localCollectCmd.Flags().Lookup("dremio-pat-token")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-pat-token to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&dremioStorageType, "dremio-storage-type", "adls", "Dremio storage type (adls, s3, azure, or hdfs)")
+	if err := viper.BindPFlag("dremio-storage-type", localCollectCmd.Flags().Lookup("dremio-storage-type")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-storage-type to error: %v", err)
+	}
 
 	// Add flags for AWS information
 	localCollectCmd.Flags().StringVar(&awsAccessKeyID, "aws-access-key-id", "NOTSET", "AWS Access Key ID")
+	if err := viper.BindPFlag("aws-access-key-id", localCollectCmd.Flags().Lookup("aws-access-key-id")); err != nil {
+		log.Fatalf("unable to bind configuration for aws-access-key-id to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "NOTSET", "AWS Secret Access Key")
+	if err := viper.BindPFlag("aws-secret-access-key", localCollectCmd.Flags().Lookup("aws-secret-access-key")); err != nil {
+		log.Fatalf("unable to bind configuration for aws-access-access-key to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&awsS3Path, "aws-s3-path", "NOTSET", "S3 path for Dremio data")
+	if err := viper.BindPFlag("aws-s3-path", localCollectCmd.Flags().Lookup("aws-s3-path")); err != nil {
+		log.Fatalf("unable to bind configuration for aws-s3-path to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&awsDefaultRegion, "aws-default-region", "us-west-1", "Default region for AWS")
+	if err := viper.BindPFlag("aws-default-region", localCollectCmd.Flags().Lookup("aws-default-region")); err != nil {
+		log.Fatalf("unable to bind configuration for aws-default-region to error: %v", err)
+	}
 
 	// Add flags for Azure information
 	localCollectCmd.Flags().StringVar(&azureSASURL, "azure-sas-url", "<AZURE_SAS_URL>", "Azure SAS URL for Dremio data")
+	if err := viper.BindPFlag("azure-sas-url", localCollectCmd.Flags().Lookup("azure-sas-url")); err != nil {
+		log.Fatalf("unable to bind configuration for azure-sas-url to error: %v", err)
+	}
 
 	// Add flags for Dremio diagnostic collection options
 	localCollectCmd.Flags().IntVar(&dremioQueryAnalyzerNumDays, "dremio-query-analyzer-num-days", 28, "Number of days of query history to collect for the Query Analyzer collector")
+	if err := viper.BindPFlag("dremio-query-analyzer-num-days", localCollectCmd.Flags().Lookup("dremio-query-analyzer-num-days")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-query-analyzer-num-days to error: %v", err)
+	}
+
 	localCollectCmd.Flags().IntVar(&dremioMasterLogsNumDays, "dremio-master-logs-num-days", 3, "Number of days of Dremio master logs to collect for the Master Logs collector")
+	if err := viper.BindPFlag("dremio-master-logs-num-days", localCollectCmd.Flags().Lookup("dremio-master-logs-num-days")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-master-logs-num-days to error: %v", err)
+	}
+
 	localCollectCmd.Flags().IntVar(&dremioExecutorLogsNumDays, "dremio-executor-logs-num-days", 3, "Number of days of Dremio executor logs to collect for the Executor Logs collector")
+	if err := viper.BindPFlag("dremio-executor-logs-num-days", localCollectCmd.Flags().Lookup("dremio-executor-logs-num-days")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-master-logs-num-days to error: %v", err)
+	}
+
 	//localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "/opt/dremio/data/log", "Path to Dremio log directory")
 	localCollectCmd.Flags().StringVar(&dremioGCFilePattern, "dremio-gc-file-pattern", "gc*.log", "File pattern to match for Dremio GC logs")
+	if err := viper.BindPFlag("dremio-gc-file-pattern", localCollectCmd.Flags().Lookup("dremio-gc-file-pattern")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-gc-file-pattern to error: %v", err)
+	}
+
 	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "/opt/dremio/data/db", "Path to Dremio RocksDB directory")
+	viper.BindPFlag("dremio-rocksdb-dir", localCollectCmd.Flags().Lookup("dremio-rocksdb-dir"))
 
 	// Add flags for Kubernetes information
 	localCollectCmd.Flags().BoolVar(&isKubernetes, "is-kubernetes", false, "Set to true if running in a Kubernetes environment")
+	viper.BindPFlag("is-kubernetes", localCollectCmd.Flags().Lookup("is-kubernetes"))
 
 	localCollectCmd.Flags().StringVar(&kubernetesNamespace, "kubernetes namespace", "default", "Kubernetes namespace")
+	viper.BindPFlag("kubernetes-namespace", localCollectCmd.Flags().Lookup("kubernetes-namespace"))
+
 	// Add flags for skipping collectors
 	localCollectCmd.Flags().BoolVar(&skipDremioCloner, "skip-dremio-cloner", true, "Skip the Dremio Cloner collector")
+	viper.BindPFlag("skip-dremio-cloner", localCollectCmd.Flags().Lookup("skip-dremio-cloner"))
+
 	localCollectCmd.Flags().BoolVar(&skipQueryAnalyzer, "skip-query-analyzer", false, "Skip the Query Analyzer collector")
+	viper.BindPFlag("skip-query-analyzer", localCollectCmd.Flags().Lookup("skip-query-analyzer"))
+
 	localCollectCmd.Flags().BoolVar(&skipExportSystemTables, "skip-export-system-tables", false, "Skip the Export System Tables collector")
+	viper.BindPFlag("skip-export-system-tables", localCollectCmd.Flags().Lookup("skip-export-system-tables"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectDiskUsage, "skip-collect-disk-usage", false, "Skip the Collect Disk Usage collector")
+	viper.BindPFlag("skip-collect-disk-usage", localCollectCmd.Flags().Lookup("skip-collect-disk-usage"))
+
 	localCollectCmd.Flags().BoolVar(&skipDownloadJobProfiles, "skip-download-job-profiles", false, "Skip the Download Job Profiles collector")
+	viper.BindPFlag("skip-download-job-profiles", localCollectCmd.Flags().Lookup("skip-download-job-profiles"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectQueriesJSON, "skip-collect-queries-json", false, "Skip the Collect Queries JSON collector")
+	viper.BindPFlag("skip-collect-queries-json", localCollectCmd.Flags().Lookup("skip-collect-queries-json"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectKubernetesInfo, "skip-collect-kubernetes-info", true, "Skip the Collect Kubernetes Info collector")
+	viper.BindPFlag("skip-collect-kubernetes-info", localCollectCmd.Flags().Lookup("skip-collect-kubernetes-info"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectDremioConfiguration, "skip-collect-dremio-configuration", false, "Skip the Collect Dremio Configuration collector")
+	viper.BindPFlag("skip-collect-dremio-configuration", localCollectCmd.Flags().Lookup("skip-collect-dremio-configuration"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectKVStoreReport, "skip-collect-kvstore-report", false, "Skip the Collect KVStore Report collector")
+	viper.BindPFlag("skip-collect-kvstore-report", localCollectCmd.Flags().Lookup("skip-collect-kvstore-report"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectServerLogs, "skip-collect-server-logs", false, "Skip the Collect Server Logs collector")
+	viper.BindPFlag("skip-collect-server-logs", localCollectCmd.Flags().Lookup("skip-collect-server-logs"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectMetaRefreshLog, "skip-collect-meta-refresh-log", false, "Skip the Collect Meta Refresh Log collector")
+	viper.BindPFlag("skip-collect-meta-refresh-log", localCollectCmd.Flags().Lookup("skip-collect-meta-refresh-log"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectReflectionLog, "skip-collect-reflection-log", false, "Skip the Collect Reflection Log collector")
+	viper.BindPFlag("skip-collect-reflection-log", localCollectCmd.Flags().Lookup("skip-collect-reflection-log"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectAccelerationLog, "skip-collect-acceleration-log", true, "Skip the Collect Acceleration Log collector")
+	viper.BindPFlag("skip-collect-acceleration-log", localCollectCmd.Flags().Lookup("skip-collect-acceleration-log"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectAccessLog, "skip-collect-access-log", false, "Skip the Collect Access Log collector")
+	viper.BindPFlag("skip-collect-access-log", localCollectCmd.Flags().Lookup("skip-collect-access-log"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectGCLogs, "skip-collect-gc-logs", false, "Skip the Collect GC Logs collector")
+	viper.BindPFlag("skip-collect-gc-logs", localCollectCmd.Flags().Lookup("skip-collect-gc-logs"))
+
 	localCollectCmd.Flags().BoolVar(&skipCollectWLM, "skip-collect-wlm", false, "Skip the Collect WLM collector")
+	viper.BindPFlag("skip-collect-wlm", localCollectCmd.Flags().Lookup("skip-collect-wlm"))
+
 	localCollectCmd.Flags().BoolVar(&skipHeapDumpCoordinator, "skip-heap-dump-coordinator", true, "Skip the Heap Dump Coordinator collector")
+	viper.BindPFlag("skip-heap-dump-coordinator", localCollectCmd.Flags().Lookup("skip-heap-dump-coordinator"))
+
 	localCollectCmd.Flags().BoolVar(&skipHeapDumpExecutor, "skip-heap-dump-executor", true, "Skip the Heap Dump Executor collector")
+	viper.BindPFlag("skip-heap-dump-executor", localCollectCmd.Flags().Lookup("skip-heap-dump-executor"))
+
 	localCollectCmd.Flags().BoolVar(&skipJFR, "skip-jfr", true, "Skip the JFR (Java Flight Recorder) collection")
+	viper.BindPFlag("skip-jfr", localCollectCmd.Flags().Lookup("skip-jfr"))
 
 	// Add flags for other options
 	localCollectCmd.Flags().IntVar(&dremioJFRTimeSeconds, "dremio-jfr-time-seconds", 300, "Duration in seconds to run the JFR collector")
+	viper.BindPFlag("dremio-jfr-time-seconds", localCollectCmd.Flags().Lookup("dremio-jfr-time-seconds"))
+
 	localCollectCmd.Flags().IntVar(&jobProfilesNumDays, "job-profiles-num-days", 28, "Number of days of job profile history to collect")
+	viper.BindPFlag("job-profiles-num-days", localCollectCmd.Flags().Lookup("job-profiles-num-days"))
+
 	localCollectCmd.Flags().IntVar(&jobProfilesNumSlowExec, "job-profiles-num-slow-exec", 10000, "Number of slowest job profiles to collect by execution time")
+	viper.BindPFlag("job-profiles-num-slow-exec", localCollectCmd.Flags().Lookup("job-profiles-num-slow-exec"))
+
 	localCollectCmd.Flags().IntVar(&jobProfilesNumHighQueryCost, "job-profiles-num-high-query-cost", 5000, "Number of job profiles to collect with the highest query cost")
+	viper.BindPFlag("job-profiles-num-high-query-cost", localCollectCmd.Flags().Lookup("job-profiles-num-high-query-cost"))
+
 	localCollectCmd.Flags().IntVar(&jobProfilesNumSlowPlanning, "job-profiles-num-slow-planning", 5000, "Number of slowest job profiles to collect by planning time")
+	viper.BindPFlag("job-profiles-num-slow-planning", localCollectCmd.Flags().Lookup("job-profiles-num-slow-planning"))
+
 	localCollectCmd.Flags().IntVar(&jobProfilesNumRecentErrors, "job-profiles-num-recent-errors", 5000, "Number of most recent job profiles to collect with errors")
+	viper.BindPFlag("job-profiles-num-recent-errors", localCollectCmd.Flags().Lookup("job-profiles-num-recent-errors"))
+
 	localCollectCmd.Flags().BoolVar(&skipPrometheusExport, "skip-prometheus-export", true, "Skip exporting results to Prometheus")
+	viper.BindPFlag("skip-prometheus-export", localCollectCmd.Flags().Lookup("skip-prometheus-export"))
+
 	localCollectCmd.Flags().StringVar(&prometheusEndpoint, "prometheus-endpoint", "http://localhost:9090", "Prometheus endpoint")
+	viper.BindPFlag("prometheus-endpoint", localCollectCmd.Flags().Lookup("prometheus-endpoint"))
+
 	localCollectCmd.Flags().IntVar(&prometheusNumDays, "prometheus-num-days", 28, "Number of days of data to export to Prometheus")
+	viper.BindPFlag("prometheus-num-days", localCollectCmd.Flags().Lookup("prometheus-num-days"))
+
 	localCollectCmd.Flags().StringVar(&prometheusDremioCoordFilter, "prometheus-dremio-coord-filter", "{container='dremio-master-coordinator'}", "Prometheus filter expression for Dremio master coordinator metrics")
+	viper.BindPFlag("prometheus-dremio-coord-filter", localCollectCmd.Flags().Lookup("prometheus-dremio-coord-filter"))
+
 	localCollectCmd.Flags().StringVar(&prometheusDremioExecFilter, "prometheus-dremio-exec-filter", "{container='dremio-executor'}", "Prometheus filter expression for Dremio executor metrics")
+	viper.BindPFlag("prometheus-dremio-exec-filter", localCollectCmd.Flags().Lookup("prometheus-dremio-exec-filter"))
+
 	localCollectCmd.Flags().IntVar(&prometheusChunkSizeHours, "prometheus-chunk-size-hours", 6, "Chunk size in hours for exporting data to Prometheus")
-
-	// Mark required flags
-	if err := localCollectCmd.MarkFlagRequired("dremio-endpoint"); err != nil {
-		log.Printf("WARN: unable to mark flag 'dremio-endpoint' as required due to error '%v', this is unexpected and should be reported as a bug", err)
-	}
-	if err := localCollectCmd.MarkFlagRequired("dremio-username"); err != nil {
-		log.Printf("WARN: unable to mark flag 'dremio-username' as required due to error '%v', this is unexpected and should be reported as a bug", err)
-	}
-	if err := localCollectCmd.MarkFlagRequired("dremio-pat-token"); err != nil {
-		log.Printf("WARN: unable to mark flag 'dremio-pat-token' as required due to error '%v', this is unexpected and should be reported as a bug", err)
-	}
-	if err := localCollectCmd.MarkFlagRequired("dremio-storage-type"); err != nil {
-		log.Printf("WARN: unable to mark flag 'dremio-storage-type' as required due to error '%v', this is unexpected and should be reported as a bug", err)
-	}
-
+	viper.BindPFlag("prometheus-chunk-size-hours", localCollectCmd.Flags().Lookup("prometheus-chunk-size-hours"))
 	// Set glog flags
 	if err := flag.Set("log_dir", logDir); err != nil {
 		log.Printf("WARN: unable to set flag 'log_dir' due to error '%v', this is unexpected and should be reported as a bug", err)
@@ -780,4 +923,47 @@ func init() {
 	if err := flag.Set("v", strconv.Itoa(verbose)); err != nil {
 		log.Printf("WARN: unable to set flag 'v' due to error '%v', this is unexpected and should be reported as a bug", err)
 	}
+	//Viper will use the values from the configuration file, environment variables,
+	//and command line flags in the following order of precedence (highest to lowest):
+	//command line flags, environment variables, and then the configuration file.
+	//This means that the command line flags will override the environment variables and configuration file values if they are set.
+	baseConfig := "ddc-config"
+	viper.SetConfigName(baseConfig) // Name of config file (without extension)
+
+	//find the location of the ddc executable
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Printf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
+		execPath = "."
+	}
+	// use that as the default location of the configuration
+	configDir := filepath.Dir(execPath)
+	viper.AddConfigPath(configDir)
+
+	supportedExtensions := []string{"yaml", "json", "toml", "hcl", "env", "props"}
+	var confFiles []string
+	for _, e := range supportedExtensions {
+		confFiles = append(confFiles, fmt.Sprintf("%v.%v", baseConfig, e))
+	}
+	log.Printf("searching for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
+
+	found := false
+	foundConfig := ""
+	//searching for all known
+	for _, ext := range supportedExtensions {
+		viper.SetConfigType(ext)
+		err = viper.ReadInConfig()
+		if err == nil {
+			found = true
+			foundConfig = fmt.Sprintf("%v.%v", baseConfig, ext)
+			break
+		}
+	}
+	if !found {
+		log.Printf("WARN: unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), err)
+	} else {
+		log.Printf("INFO: found config file %v", foundConfig)
+	}
+	viper.AutomaticEnv() // Automatically read environment variables
+
 }
