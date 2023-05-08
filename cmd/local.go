@@ -596,8 +596,11 @@ func collectKvReport() error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
-	fmt.Fprint(file, sb)
-	file.Close()
+	defer file.Close()
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
 	log.Println("SUCCESS - Created " + filename)
 	return nil
 }
@@ -626,8 +629,11 @@ func collectWlm() error {
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 		}
-		fmt.Fprint(file, sb)
-		file.Close()
+		defer file.Close()
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
 		log.Println("SUCCESS - Created " + filename)
 	}
 	return nil
@@ -665,8 +671,11 @@ func downloadJobProfile(jobid string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
-	fmt.Fprint(file, sb)
-	file.Close()
+	defer file.Close()
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
 	return nil
 }
 
@@ -737,8 +746,11 @@ func collectDremioSystemTables() error {
 		if err != nil {
 			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
 		}
-		fmt.Fprint(file, sb)
-		file.Close()
+		defer file.Close()
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
 		log.Println("SUCCESS - Created " + filename)
 	}
 	return nil
