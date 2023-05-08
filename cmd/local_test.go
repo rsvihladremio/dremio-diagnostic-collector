@@ -45,8 +45,6 @@ func TestDownloadJobProfile(t *testing.T) {
 }
 
 func TestValidateApiCredentials(t *testing.T) {
-	// dremioendpoint := "https://hc.fieldnarwhal.com/"
-	// pat := "CUO+KPLhQQ+FYjlFYxi2sp+CzzX2LFxNQeR/w42RmzxaIqK4T/TdncthpKX39w=="
 	err := validateApiCredentials()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)

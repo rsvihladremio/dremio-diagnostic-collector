@@ -962,10 +962,7 @@ func validateApiCredentials() error {
 	url := dremioEndpoint + "/apiv2/login"
 	headers := map[string]string{"Content-Type": "application/json"}
 	_, err := apiRequest(url, dremioPATToken, "GET", headers)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
