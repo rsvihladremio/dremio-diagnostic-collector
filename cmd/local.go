@@ -652,7 +652,44 @@ func collectJobProfiles() error {
 	if err != nil {
 		return err
 	}
-	// TODO
+	files, err := ioutil.ReadDir(queriesOutDir)
+	if err != nil {
+		return err
+	}
+	queriesjsons := []string{}
+	for _, file := range files {
+		queriesjsons = append(queriesjsons, path.Join(queriesOutDir, file.Name()))
+	}
+
+	queriesrows := collectQueriesJson(queriesjsons)
+	profilesToCollect := map[string]string{}
+
+	slowplanqueriesrows := getSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
+	addRowsToSet(slowplanqueriesrows, profilesToCollect)
+
+	slowexecqueriesrows := getSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
+	addRowsToSet(slowexecqueriesrows, profilesToCollect)
+
+	highcostqueriesrows := getHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
+	addRowsToSet(highcostqueriesrows, profilesToCollect)
+
+	errorqueriesrows := getRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
+	addRowsToSet(errorqueriesrows, profilesToCollect)
+
+	log.Println("jobProfilesNumSlowPlanning:", jobProfilesNumSlowPlanning)
+	log.Println("jobProfilesNumSlowExec:", jobProfilesNumSlowExec)
+	log.Println("jobProfilesNumHighQueryCost:", jobProfilesNumHighQueryCost)
+	log.Println("jobProfilesNumRecentErrors:", jobProfilesNumRecentErrors)
+
+	log.Println("Downloading", len(profilesToCollect), "job profiles...")
+	for key := range profilesToCollect {
+		err := downloadJobProfile(key)
+		if err != nil {
+			log.Println(err) // Print instead of Error
+		}
+	}
+	log.Println("Finished downloading", len(profilesToCollect), "job profiles")
+
 	return nil
 }
 
