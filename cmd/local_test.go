@@ -15,7 +15,10 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -24,6 +27,15 @@ import (
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 )
+
+type AuthResponse struct {
+	Token string `json:"token"`
+}
+
+type AuthRequest struct {
+	Username string `json:"userName"`
+	Password string `json:"password"`
+}
 
 var dremioTestPort string
 
@@ -74,9 +86,7 @@ func TestMain(m *testing.M) {
 
 	requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
 	dremioEndpoint = requestURL
-	dremioUsername = "dremio"
-	//TODO need to script logging in and generating a pat to pass to the CLI below
-	dremioPATToken = "dremio123"
+
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
 	if err := pool.Retry(func() error {
 		res, err := http.Get(requestURL)
@@ -88,6 +98,39 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != expectedCode {
 			return fmt.Errorf("expected status code %v but instead got %v. Dremio is not ready", expectedCode, res.StatusCode)
 		}
+		dremioUsername = "dremio"
+		authRequest := &AuthRequest{
+			Username: "dremio",
+			Password: "dremio123",
+		}
+		body, err := json.Marshal(authRequest)
+		if err != nil {
+			return fmt.Errorf("Error marshaling JSON: %v", err)
+		}
+		res, err = http.Post(fmt.Sprintf("http://localhost:%v/apiv2/login", dremioTestPort), "application/json", bytes.NewBuffer(body))
+		if err != nil {
+			log.Fatalf("error logging in to get token : %s\n", err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != expectedCode {
+			if text, err := io.ReadAll(res.Body); err != nil {
+				log.Fatalf("fatal attempt to decode body from dremio auth %v and unable to read body for debugging", err)
+			} else {
+				log.Printf("body was %s", string(text))
+			}
+			log.Fatalf("expected status code %v but instead got %v with message %v. Unable to get dremio PAT", expectedCode, res.StatusCode, res.Status)
+		}
+		var authResponse AuthResponse
+		err = json.NewDecoder(res.Body).Decode(&authResponse)
+		if err != nil {
+			if text, err := io.ReadAll(res.Body); err != nil {
+				log.Fatalf("fatal attempt to decode body from dremio auth %v and unable to read body for debugging", err)
+			} else {
+				log.Printf("body was %s", string(text))
+			}
+			log.Fatalf("fatal attempt to decode body from dremio auth %v", err)
+		}
+		dremioPATToken = authResponse.Token
 		return nil
 	}); err != nil {
 		log.Fatalf("Could not connect to dremio: %s", err)
