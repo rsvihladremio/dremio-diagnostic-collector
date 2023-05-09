@@ -17,11 +17,14 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -575,10 +578,64 @@ func collectJstacks() error {
 }
 
 func collectKvReport() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	filename := "kvstore-report.zip"
+	apipath := "/apiv2/kvstore/report"
+	url := dremioEndpoint + apipath
+	headers := map[string]string{"Accept": "application/octet-stream"}
+	body, err := apiRequest(url, dremioPATToken, "GET", headers)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve KV store report from %s due to error %v", url, err)
+	}
+	sb := string(body)
+	kvStoreReportFile := path.Join(kvstoreOutDir, filename)
+	file, err := os.Create(kvStoreReportFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	defer file.Close()
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	log.Println("SUCCESS - Created " + filename)
 	return nil
 }
 
 func collectWlm() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	apiobjects := [][]string{
+		{"/api/v3/wlm/queue", "queues.json"},
+		{"/api/v3/wlm/rule", "rules.json"},
+	}
+	for _, apiobject := range apiobjects {
+		apipath := apiobject[0]
+		filename := apiobject[1]
+		url := dremioEndpoint + apipath
+		headers := map[string]string{"Content-Type": "application/json"}
+		body, err := apiRequest(url, dremioPATToken, "GET", headers)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve WLM from %s due to error %v", url, err)
+		}
+		sb := string(body)
+		wlmFile := path.Join(wlmOutDir, filename)
+		file, err := os.Create(wlmFile)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		defer file.Close()
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		log.Println("SUCCESS - Created " + filename)
+	}
 	return nil
 }
 
@@ -591,6 +648,71 @@ func collectQueriesJSON() error {
 }
 
 func collectJobProfiles() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	files, err := ioutil.ReadDir(queriesOutDir)
+	if err != nil {
+		return err
+	}
+	queriesjsons := []string{}
+	for _, file := range files {
+		queriesjsons = append(queriesjsons, path.Join(queriesOutDir, file.Name()))
+	}
+
+	queriesrows := collectQueriesJson(queriesjsons)
+	profilesToCollect := map[string]string{}
+
+	slowplanqueriesrows := getSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
+	addRowsToSet(slowplanqueriesrows, profilesToCollect)
+
+	slowexecqueriesrows := getSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
+	addRowsToSet(slowexecqueriesrows, profilesToCollect)
+
+	highcostqueriesrows := getHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
+	addRowsToSet(highcostqueriesrows, profilesToCollect)
+
+	errorqueriesrows := getRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
+	addRowsToSet(errorqueriesrows, profilesToCollect)
+
+	log.Println("jobProfilesNumSlowPlanning:", jobProfilesNumSlowPlanning)
+	log.Println("jobProfilesNumSlowExec:", jobProfilesNumSlowExec)
+	log.Println("jobProfilesNumHighQueryCost:", jobProfilesNumHighQueryCost)
+	log.Println("jobProfilesNumRecentErrors:", jobProfilesNumRecentErrors)
+
+	log.Println("Downloading", len(profilesToCollect), "job profiles...")
+	for key := range profilesToCollect {
+		err := downloadJobProfile(key)
+		if err != nil {
+			log.Println(err) // Print instead of Error
+		}
+	}
+	log.Println("Finished downloading", len(profilesToCollect), "job profiles")
+
+	return nil
+}
+
+func downloadJobProfile(jobid string) error {
+	apipath := "/apiv2/support/" + jobid + "/download"
+	filename := jobid + ".zip"
+	url := dremioEndpoint + apipath
+	headers := map[string]string{"Accept": "application/octet-stream"}
+	body, err := apiRequest(url, dremioPATToken, "POST", headers)
+	if err != nil {
+		return err
+	}
+	sb := string(body)
+	jobProfileFile := path.Join(jobProfilesOutDir, filename)
+	file, err := os.Create(jobProfileFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	defer file.Close()
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
 	return nil
 }
 
@@ -603,7 +725,108 @@ func collectK8sConfig() error {
 }
 
 func collectDremioSystemTables() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	// TODO: Row limit and sleem MS need to be configured
+	rowlimit := 100000
+	sleepms := 100
+
+	systemtables := [...]string{
+		"\\\"tables\\\"",
+		"boot",
+		"fragments",
+		"jobs",
+		"materializations",
+		"membership",
+		"memory",
+		"nodes",
+		"options",
+		"privileges",
+		"reflection_dependencies",
+		"reflections",
+		"refreshes",
+		"roles",
+		"services",
+		"slicing_threads",
+		"table_statistics",
+		"threads",
+		"version",
+		"views",
+		"cache.datasets",
+		"cache.mount_points",
+		"cache.objects",
+		"cache.storage_plugins",
+	}
+
+	for _, systable := range systemtables {
+		filename := "sys." + systable + ".json"
+		body, err := downloadSysTable(systable, rowlimit, sleepms)
+		if err != nil {
+			return err
+		}
+		dat := make(map[string]interface{})
+		err = json.Unmarshal(body, &dat)
+		if err != nil {
+			return fmt.Errorf("unable to unmarshall JSON response - %w", err)
+		}
+		if err == nil {
+			rowcount := dat["returnedRowCount"].(float64)
+			if int(rowcount) == rowlimit {
+				log.Println("WARNING: Returned row count for sys." + systable + " has been limited to " + strconv.Itoa(rowlimit))
+			}
+		}
+		sb := string(body)
+		systemTableFile := path.Join(systemTablesOutDir, filename)
+		file, err := os.Create(systemTableFile)
+		if err != nil {
+			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
+		}
+		defer file.Close()
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		log.Println("SUCCESS - Created " + filename)
+	}
 	return nil
+}
+
+func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error) {
+	// TODO: Consider using official api/v3, requires paging of job results
+	headers := map[string]string{"Content-Type": "application/json"}
+	sqlurl := dremioEndpoint + "/api/v3/sql"
+	joburl := dremioEndpoint + "/api/v3/job/"
+	jobid, err := postQuery(sqlurl, dremioPATToken, headers, systable)
+	if err != nil {
+		return nil, err
+	}
+	jobstateurl := joburl + jobid
+	jobstate := "RUNNING"
+	for jobstate == "RUNNING" {
+		time.Sleep(time.Duration(sleepms) * time.Millisecond)
+		body, err := apiRequest(jobstateurl, dremioPATToken, "GET", headers)
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve job state from %s due to error %v", jobstateurl, err)
+		}
+		dat := make(map[string]interface{})
+		err = json.Unmarshal(body, &dat)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshall JSON response - %w", err)
+		}
+		jobstate = dat["jobState"].(string)
+	}
+	if jobstate == "COMPLETED" {
+		jobresultsurl := dremioEndpoint + "/apiv2/job/" + jobid + "/data?offset=0&limit=" + strconv.Itoa(rowlimit)
+		log.Println("Retrieving job results ...")
+		body, err := apiRequest(jobresultsurl, dremioPATToken, "GET", headers)
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve job results from %s due to error %v", jobresultsurl, err)
+		}
+		return body, nil
+	}
+	return nil, fmt.Errorf("unable to retrieve job results for sys." + systable)
 }
 
 func collectGcLogs() error {
@@ -780,4 +1003,74 @@ func init() {
 	if err := flag.Set("v", strconv.Itoa(verbose)); err != nil {
 		log.Printf("WARN: unable to set flag 'v' due to error '%v', this is unexpected and should be reported as a bug", err)
 	}
+}
+
+// ### Helper functions
+func validateApiCredentials() error {
+	log.Printf("Validating REST API user credentials...")
+	url := dremioEndpoint + "/apiv2/login"
+	headers := map[string]string{"Content-Type": "application/json"}
+	_, err := apiRequest(url, dremioPATToken, "GET", headers)
+	return err
+}
+
+func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
+	log.Printf("Requesting %s", url)
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest(request, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create request due to error %v", err)
+	}
+	authorization := "Bearer " + pat
+	req.Header.Set("Authorization", authorization)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf(res.Status)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
+	log.Printf("Collecting sys." + systable)
+
+	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("POST", url, strings.NewReader(sqlbody))
+	if err != nil {
+		return "", fmt.Errorf("unable to create request due to error %v", err)
+	}
+	authorization := "Bearer " + pat
+	req.Header.Set("Authorization", authorization)
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf(res.Status)
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	var job map[string]string
+	if err := json.Unmarshal(body, &job); err != nil {
+		return "", err
+	}
+	return job["id"], nil
 }
