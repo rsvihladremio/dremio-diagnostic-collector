@@ -25,7 +25,7 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 )
 
-var dremioTestPort = "10947"
+var dremioTestPort string
 
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
@@ -46,9 +46,6 @@ func TestMain(m *testing.M) {
 		Repository: "dremio/dremio-oss",
 		Tag:        "24.0",
 		//Env:        []string{},
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"9047/tcp": {{HostPort: dremioTestPort}},
-		},
 	}, func(config *dc.HostConfig) {
 		// set AutoRemove to true so that stopped container goes away by itself
 		config.AutoRemove = true
@@ -61,13 +58,15 @@ func TestMain(m *testing.M) {
 		}
 		config.Mounts = []dc.HostMount{
 			{
-				Target: "/opt/dremio/config/dremio.conf",
-				Source: fmt.Sprintf("%s/testfiles/config/dremio.conf", pwd),
+				Target: "/opt/dremio/conf/dremio.conf",
+				Source: fmt.Sprintf("%s/testfiles/conf/dremio.conf", pwd),
 				Type:   "bind",
 			},
 		}
 
 	})
+	dremioTestPort = resource.GetPort("9047/tcp")
+
 	resource.Expire(120)
 	if err != nil {
 		log.Fatalf("Could not start resource: %s", err)
