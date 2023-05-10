@@ -67,17 +67,17 @@ type QueriesRow struct {
 
 func ReadGzFile(filename string) ([]QueriesRow, error) {
 	queriesrows := []QueriesRow{}
-	fi, err := os.Open(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		return queriesrows, err
 	}
-	defer fi.Close()
+	defer errCheck(file.Close)
 
-	fz, err := gzip.NewReader(fi)
+	fz, err := gzip.NewReader(file)
 	if err != nil {
 		return queriesrows, err
 	}
-	defer fz.Close()
+	defer errCheck(fz.Close)
 
 	scanner := *bufio.NewScanner(fz)
 
@@ -97,13 +97,13 @@ func ReadGzFile(filename string) ([]QueriesRow, error) {
 func ReadJsonFile(filename string) ([]QueriesRow, error) {
 	// Source: https://gist.github.com/kendellfab/7417164
 	queriesrows := []QueriesRow{}
-	inFile, err := os.Open(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err.Error() + `: ` + filename)
 		return queriesrows, err
 	}
-	defer inFile.Close()
-	scanner := *bufio.NewScanner(inFile)
+	defer errCheck(file.Close)
+	scanner := *bufio.NewScanner(file)
 	i := 0
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -227,34 +227,34 @@ func collectQueriesJson(queriesjsons []string) []QueriesRow {
 }
 
 func writeToCSV(queriesrows []QueriesRow, filter string, limit int) {
+	// Can be used for testing or debugging
 
-	file, _ := os.Create("job_ids_go_" + filter + strconv.Itoa(limit) + ".csv")
+	file, err := os.Create("job_ids_go_" + filter + strconv.Itoa(limit) + ".csv")
+	if err != nil {
+		panic(err)
+	}
 	w := csv.NewWriter(file)
-	w.Write([]string{"job_id"})
+	err = w.Write([]string{"job_id"})
+	if err != nil {
+		panic(err)
+	}
+	sortingmetric := -1
 	for _, row := range queriesrows {
 		if filter == "slowplanqueriesrows" {
-			err := w.Write([]string{fmt.Sprintf("%v", row.QueryID), fmt.Sprintf("%d", int(row.ExecutionPlanningTime))})
-			if err != nil {
-				panic(err)
-			}
+			sortingmetric = int(row.ExecutionPlanningTime)
+		} else if filter == "slowexecqueriesrows" {
+			sortingmetric = int(row.RunningTime)
+		} else if filter == "highcostqueriesrows" {
+			sortingmetric = int(row.QueryCost)
+		} else if filter == "errorqueriesrows" {
+			sortingmetric = int(row.Start)
+		} else {
+			log.Println("unknown filter", filter)
+			break
 		}
-		if filter == "slowexecqueriesrows" {
-			err := w.Write([]string{fmt.Sprintf("%v", row.QueryID), fmt.Sprintf("%d", int(row.RunningTime))})
-			if err != nil {
-				panic(err)
-			}
-		}
-		if filter == "highcostqueriesrows" {
-			err := w.Write([]string{fmt.Sprintf("%v", row.QueryID), fmt.Sprintf("%d", int(row.QueryCost))})
-			if err != nil {
-				panic(err)
-			}
-		}
-		if filter == "errorqueriesrows" {
-			err := w.Write([]string{fmt.Sprintf("%v", row.QueryID), fmt.Sprintf("%d", int(row.Start))})
-			if err != nil {
-				panic(err)
-			}
+		err := w.Write([]string{fmt.Sprintf("%v", row.QueryID), fmt.Sprintf("%d", sortingmetric)})
+		if err != nil {
+			panic(err)
 		}
 	}
 	w.Flush()

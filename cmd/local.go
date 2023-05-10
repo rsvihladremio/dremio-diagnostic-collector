@@ -596,7 +596,7 @@ func collectKvReport() error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
-	defer file.Close()
+	defer errCheck(file.Close)
 	_, err = fmt.Fprint(file, sb)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -629,7 +629,7 @@ func collectWlm() error {
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 		}
-		defer file.Close()
+		defer errCheck(file.Close)
 		_, err = fmt.Fprint(file, sb)
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -708,7 +708,7 @@ func downloadJobProfile(jobid string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
-	defer file.Close()
+	defer errCheck(file.Close)
 	_, err = fmt.Fprint(file, sb)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -783,7 +783,7 @@ func collectDremioSystemTables() error {
 		if err != nil {
 			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
 		}
-		defer file.Close()
+		defer errCheck(file.Close)
 		_, err = fmt.Fprint(file, sb)
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -921,7 +921,7 @@ func init() {
 	localCollectCmd.Flags().IntVarP(&numberThreads, "number-threads", "t", defaultThreads, "control concurrency in the system")
 
 	// Add flags for Dremio connection information
-    localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://localhost:9047", "Dremio REST API endpoint")
+	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://localhost:9047", "Dremio REST API endpoint")
 	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "<DREMIO_ADMIN_USER>", "Dremio username")
 	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "<DREMIO_PAT>", "Dremio Personal Access Token (PAT)")
 	localCollectCmd.Flags().StringVar(&dremioStorageType, "dremio-storage-type", "adls", "Dremio storage type (adls, s3, azure, or hdfs)")
@@ -1073,4 +1073,11 @@ func postQuery(url string, pat string, headers map[string]string, systable strin
 		return "", err
 	}
 	return job["id"], nil
+}
+
+func errCheck(f func() error) {
+	err := f()
+	if err != nil {
+		fmt.Println("Received error:", err)
+	}
 }
