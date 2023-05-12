@@ -97,6 +97,7 @@ var (
 	prometheusDremioCoordFilter    string
 	prometheusDremioExecFilter     string
 	prometheusChunkSizeHours       int
+	acceptCollectionConsent        bool
 )
 
 func configurationOutDir() string {
@@ -114,6 +115,115 @@ func nodeInfoOutDir() string     { return path.Join(outputDir, "node-info", node
 func queriesOutDir() string      { return path.Join(outputDir, "queries", nodeName) }
 func systemTablesOutDir() string { return path.Join(outputDir, "system-tables") }
 func wlmOutDir() string          { return path.Join(outputDir, "wlm") }
+
+type ErrorlessStringBuilder struct {
+	builder strings.Builder
+}
+
+func (e *ErrorlessStringBuilder) WriteString(s string) {
+	if _, err := e.builder.WriteString(); err != nil {
+		log.Fatalf("this should never return an error so this is truly critical: %v", err)
+	}
+}
+func (e *ErrorlessStringBuilder) String() string {
+	return e.builder.String()
+}
+
+func outputConsent() string {
+	builder := ErrorlessStringBuilder{}
+	builder.WriteString(`
+	Dremio Data Collection Consent Form
+
+	Introduction
+
+	Dremio ("we", "us", "our") requests your consent to collect and use certain data files from your device for the purposes of diagnostics. We take your privacy seriously and will only use these files to improve our services and troubleshoot any issues you may be experiencing. 
+
+	Data Collection and Use
+
+	We would like to collect the following files from your device:
+	`)
+	if !skipDremioCloner {
+
+	}
+	if !skipQueryAnalyzer {
+
+	}
+	if !skipExportSystemTables {
+
+	}
+	if !skipCollectDiskUsage {
+
+	}
+	if !skipDownloadJobProfiles {
+
+	}
+	if !skipCollectQueriesJSON {
+
+	}
+	if !skipCollectKubernetesInfo {
+
+	}
+	if !skipCollectDremioConfiguration {
+
+	}
+	if !skipCollectKVStoreReport {
+
+	}
+	if !skipCollectServerLogs {
+
+	}
+	if !skipCollectMetaRefreshLog {
+
+	}
+	if !skipCollectReflectionLog {
+
+	}
+	if !skipCollectAccelerationLog {
+
+	}
+	if !skipCollectAccessLog {
+
+	}
+	if !skipCollectGCLogs {
+
+	}
+	if !skipCollectWLM {
+
+	}
+	if !skipHeapDumpCoordinator {
+
+	}
+	if skipHeapDumpExecutor {
+
+	}
+	if skipJFR {
+
+	}
+	builder.WriteString(`
+	Please note that the files we collect may contain personal data. We will minimize the collection of personal data wherever possible and will anonymize the data where feasible. 
+
+We will use these files to:
+
+1. Identify and diagnose problems with our products or services that you are using.
+2. Improve our products and services.
+3. Carry out other purposes that we will disclose to you at the time we collect the files.
+
+Consent
+
+By clicking "I Agree", you grant us permission to access, collect, store, and use the files listed above from your device for the purposes outlined.
+
+Withdrawal of Consent
+
+You have the right to withdraw your consent at any time. If you wish to do so, please contact us at support@dremio.com. Upon receipt of your withdrawal request, we will stop collecting new files and will delete any files we have already collected, unless we are required by law to retain them.
+
+Changes to this Consent Form
+
+We reserve the right to update this consent form from time to time. Any changes will be communicated to you in advance.
+
+By running ddc with the --accept-collection-consent flag, you acknowledge that you have read, understood, and agree to the data collection practices described in this consent form.
+	`)
+	return builder.String()
+}
 
 type ThreadPool struct {
 	semaphore chan bool
@@ -725,7 +835,19 @@ func collectDremioServerLog() error {
 	return nil
 }
 
+// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInYAML(yamlText string) string {
+	return yamlText
+}
+
+// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInJSON(jsonText string) string {
+	return jsonText
+}
+
 func collectK8sConfig() error {
+	//foreach yaml file
+	//maskPasswordKeysYAML
 	return nil
 }
 
@@ -874,6 +996,10 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if acceptCollectionConsent {
+			fmt.Println(outputConsent())
+			os.Exit(1)
+		}
 		// Run application
 		defer glog.Flush()
 		glog.Info("Starting collection...")
@@ -986,6 +1112,9 @@ func init() {
 	localCollectCmd.Flags().StringVar(&prometheusDremioCoordFilter, "prometheus-dremio-coord-filter", "{container='dremio-master-coordinator'}", "Prometheus filter expression for Dremio master coordinator metrics")
 	localCollectCmd.Flags().StringVar(&prometheusDremioExecFilter, "prometheus-dremio-exec-filter", "{container='dremio-executor'}", "Prometheus filter expression for Dremio executor metrics")
 	localCollectCmd.Flags().IntVar(&prometheusChunkSizeHours, "prometheus-chunk-size-hours", 6, "Chunk size in hours for exporting data to Prometheus")
+
+	// consent form
+	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
 
 	// Mark required flags
 	if err := localCollectCmd.MarkFlagRequired("dremio-endpoint"); err != nil {
