@@ -121,7 +121,7 @@ type ErrorlessStringBuilder struct {
 }
 
 func (e *ErrorlessStringBuilder) WriteString(s string) {
-	if _, err := e.builder.WriteString(); err != nil {
+	if _, err := e.builder.WriteString(s); err != nil {
 		log.Fatalf("this should never return an error so this is truly critical: %v", err)
 	}
 }
