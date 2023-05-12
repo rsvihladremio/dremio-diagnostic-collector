@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// cmd package contains all the command line flag and initialization logic for commands
-package cmd
+// queries package contains the logic for collecting queries.json information
+package queries
 
 import (
 	"bufio"
@@ -151,7 +151,7 @@ func parseLine(line string, i int) (QueriesRow, error) {
 	return queriesrow, err
 }
 
-func getRecentErrorJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
+func GetRecentErrorJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 	errorqueriesrows := []QueriesRow{}
 
 	for i := range queriesrows {
@@ -167,7 +167,7 @@ func getRecentErrorJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 	return errorqueriesrows[:min(totalrows, limit)]
 }
 
-func getSlowExecJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
+func GetSlowExecJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 
 	totalrows := len(queriesrows)
 	sort.Slice(queriesrows, func(i, j int) bool {
@@ -176,7 +176,7 @@ func getSlowExecJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 	return queriesrows[:min(totalrows, limit)]
 }
 
-func getSlowPlanningJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
+func GetSlowPlanningJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 
 	totalrows := len(queriesrows)
 	sort.Slice(queriesrows, func(i, j int) bool {
@@ -185,7 +185,7 @@ func getSlowPlanningJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 	return queriesrows[:min(totalrows, limit)]
 }
 
-func getHighCostJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
+func GetHighCostJobs(queriesrows []QueriesRow, limit int) []QueriesRow {
 
 	totalrows := len(queriesrows)
 	sort.Slice(queriesrows, func(i, j int) bool {
@@ -202,7 +202,7 @@ func min(a, b int) int {
 	return b
 }
 
-func addRowsToSet(queriesrows []QueriesRow, profilesToCollect map[string]string) map[string]string {
+func AddRowsToSet(queriesrows []QueriesRow, profilesToCollect map[string]string) map[string]string {
 	for _, row := range queriesrows {
 		jobid := row.QueryID
 		profilesToCollect[jobid] = ""
@@ -210,7 +210,7 @@ func addRowsToSet(queriesrows []QueriesRow, profilesToCollect map[string]string)
 	return profilesToCollect
 }
 
-func collectQueriesJson(queriesjsons []string) []QueriesRow {
+func CollectQueriesJson(queriesjsons []string) []QueriesRow {
 
 	queriesrows := []QueriesRow{}
 	for _, queriesjson := range queriesjsons {
@@ -274,4 +274,11 @@ func writeToCSV(queriesrows []QueriesRow, filter string, limit int) {
 	}
 	w.Flush()
 
+}
+
+func errCheck(f func() error) {
+	err := f()
+	if err != nil {
+		fmt.Println("Received error:", err)
+	}
 }

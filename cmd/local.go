@@ -40,6 +40,8 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queries"
 )
 
 var (
@@ -750,20 +752,20 @@ func collectJobProfiles() error {
 		queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
 	}
 
-	queriesrows := collectQueriesJson(queriesjsons)
+	queriesrows := queries.CollectQueriesJson(queriesjsons)
 	profilesToCollect := map[string]string{}
 
-	slowplanqueriesrows := getSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
-	addRowsToSet(slowplanqueriesrows, profilesToCollect)
+	slowplanqueriesrows := queries.GetSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
+	queries.AddRowsToSet(slowplanqueriesrows, profilesToCollect)
 
-	slowexecqueriesrows := getSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
-	addRowsToSet(slowexecqueriesrows, profilesToCollect)
+	slowexecqueriesrows := queries.GetSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
+	queries.AddRowsToSet(slowexecqueriesrows, profilesToCollect)
 
-	highcostqueriesrows := getHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
-	addRowsToSet(highcostqueriesrows, profilesToCollect)
+	highcostqueriesrows := queries.GetHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
+	queries.AddRowsToSet(highcostqueriesrows, profilesToCollect)
 
-	errorqueriesrows := getRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
-	addRowsToSet(errorqueriesrows, profilesToCollect)
+	errorqueriesrows := queries.GetRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
+	queries.AddRowsToSet(errorqueriesrows, profilesToCollect)
 
 	log.Println("jobProfilesNumSlowPlanning:", jobProfilesNumSlowPlanning)
 	log.Println("jobProfilesNumSlowExec:", jobProfilesNumSlowExec)

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// cmd package contains all the command line flag and initialization logic for commands
-package cmd
+// queries package contains the logic for collecting queries.json information
+package queries
 
 import (
 	"testing"
@@ -78,13 +78,13 @@ func TestGetSlowExecJobs_small(t *testing.T) {
 
 	// Slow Planning
 	numSlowPlanningJobs := 10
-	slowplanqueriesrows := getSlowPlanningJobs(queriesrows, numSlowPlanningJobs)
+	slowplanqueriesrows := GetSlowPlanningJobs(queriesrows, numSlowPlanningJobs)
 	if len(slowplanqueriesrows) != 5 {
 		t.Errorf("Error")
 	}
 
 	numSlowPlanningJobs = 3
-	slowplanqueriesrows = getSlowPlanningJobs(queriesrows, numSlowPlanningJobs)
+	slowplanqueriesrows = GetSlowPlanningJobs(queriesrows, numSlowPlanningJobs)
 	if len(slowplanqueriesrows) != 3 {
 		t.Errorf("Error")
 	}
@@ -100,13 +100,13 @@ func TestGetSlowExecJobs_small(t *testing.T) {
 
 	// Slow Execution
 	numSlowExecJobs := 10
-	slowexecqueriesrows := getSlowExecJobs(queriesrows, numSlowExecJobs)
+	slowexecqueriesrows := GetSlowExecJobs(queriesrows, numSlowExecJobs)
 	if len(slowexecqueriesrows) != 5 {
 		t.Errorf("Error")
 	}
 
 	numSlowExecJobs = 3
-	slowexecqueriesrows = getSlowExecJobs(queriesrows, numSlowExecJobs)
+	slowexecqueriesrows = GetSlowExecJobs(queriesrows, numSlowExecJobs)
 	if len(slowexecqueriesrows) != 3 {
 		t.Errorf("Error")
 	}
@@ -122,13 +122,13 @@ func TestGetSlowExecJobs_small(t *testing.T) {
 
 	// High Cost
 	numHighQueryCostJobs := 10
-	highcostqueriesrows := getHighCostJobs(queriesrows, numHighQueryCostJobs)
+	highcostqueriesrows := GetHighCostJobs(queriesrows, numHighQueryCostJobs)
 	if len(highcostqueriesrows) != 5 {
 		t.Errorf("Error")
 	}
 
 	numHighQueryCostJobs = 3
-	highcostqueriesrows = getHighCostJobs(queriesrows, numHighQueryCostJobs)
+	highcostqueriesrows = GetHighCostJobs(queriesrows, numHighQueryCostJobs)
 	if len(highcostqueriesrows) != 3 {
 		t.Errorf("Error")
 	}
@@ -144,13 +144,13 @@ func TestGetSlowExecJobs_small(t *testing.T) {
 
 	// Recent Errors
 	numRecentErrorJobs := 10
-	errorqueriesrows := getRecentErrorJobs(queriesrows, numRecentErrorJobs)
+	errorqueriesrows := GetRecentErrorJobs(queriesrows, numRecentErrorJobs)
 	if len(errorqueriesrows) != 3 {
 		t.Errorf("Error")
 	}
 
 	numRecentErrorJobs = 2
-	errorqueriesrows = getRecentErrorJobs(queriesrows, numRecentErrorJobs)
+	errorqueriesrows = GetRecentErrorJobs(queriesrows, numRecentErrorJobs)
 	if len(errorqueriesrows) != 2 {
 		t.Errorf("Error")
 	}
