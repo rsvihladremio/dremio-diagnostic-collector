@@ -1077,8 +1077,8 @@ func init() {
 	}
 
 	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "/var/log/dremio", "directory with gc logs on dremio")
-	if err := viper.BindPFlag("dremio-gc-file-pattern", localCollectCmd.Flags().Lookup("dremio-gc-file-pattern")); err != nil {
-		log.Fatalf("unable to bind configuration for dremio-gc-file-pattern to error: %v", err)
+	if err := viper.BindPFlag("dremio-gclogs-dir", localCollectCmd.Flags().Lookup("dremio-gclogs-dir")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-gclogs-dir to error: %v", err)
 	}
 
 	localCollectCmd.Flags().StringVar(&dremioLogsDir, "dremio-log-dir", "/var/log/dremio", "directory with application logs on dremio")
