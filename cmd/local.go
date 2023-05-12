@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -768,7 +767,7 @@ func collectJobProfiles() error {
 	if err != nil {
 		return err
 	}
-	files, err := ioutil.ReadDir(queriesOutDir())
+	files, err := os.ReadDir(queriesOutDir())
 	if err != nil {
 		return err
 	}
@@ -1355,7 +1354,7 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf(res.Status)
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1386,7 +1385,7 @@ func postQuery(url string, pat string, headers map[string]string, systable strin
 		return "", fmt.Errorf(res.Status)
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
 	}
