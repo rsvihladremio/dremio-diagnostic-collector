@@ -39,6 +39,12 @@ type AuthRequest struct {
 
 var dremioTestPort string
 
+func cleanupOutput() {
+	if err := os.RemoveAll(outputDir); err != nil {
+		log.Printf("WARN unable to remove %v it may have to be manually cleaned up", outputDir)
+	}
+}
+
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
 	// uses a sensible default on windows (tcp/http) and linux/osx (socket)
@@ -71,11 +77,10 @@ func TestMain(m *testing.M) {
 		config.Mounts = []dc.HostMount{
 			{
 				Target: "/opt/dremio/conf/dremio.conf",
-				Source: fmt.Sprintf("%s/testfiles/conf/dremio.conf", pwd),
+				Source: fmt.Sprintf("%s/testdata/conf/dremio.conf", pwd),
 				Type:   "bind",
 			},
 		}
-
 	})
 	dremioTestPort = resource.GetPort("9047/tcp")
 
@@ -135,9 +140,9 @@ func TestMain(m *testing.M) {
 	}); err != nil {
 		log.Fatalf("Could not connect to dremio: %s", err)
 	}
-
+	outputDir = "testdata/output"
 	code := m.Run()
-
+	cleanupOutput()
 	// You can't defer this because os.Exit doesn't care for defer
 	if err := pool.Purge(resource); err != nil {
 		log.Fatalf("Could not purge resource: %s", err)
@@ -146,7 +151,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestCreateAllDirs(t *testing.T) {
-
 	err := createAllDirs()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
@@ -154,7 +158,6 @@ func TestCreateAllDirs(t *testing.T) {
 }
 
 func TestCollectWlm(t *testing.T) {
-
 	err := collectWlm()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
@@ -162,7 +165,6 @@ func TestCollectWlm(t *testing.T) {
 }
 
 func TestCollectKVReport(t *testing.T) {
-
 	err := collectKvReport()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)

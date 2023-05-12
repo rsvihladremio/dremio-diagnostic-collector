@@ -97,25 +97,30 @@ var (
 	prometheusDremioCoordFilter    string
 	prometheusDremioExecFilter     string
 	prometheusChunkSizeHours       int
-	configurationOutDir            = path.Join(outputDir, "configuration", nodeName)
-	jfrOutDir                      = path.Join(outputDir, "jfr")
-	threadDumpsOutDir              = path.Join(outputDir, "jfr", "thread-dumps")
-	heapDumpsOutDir                = path.Join(outputDir, "heap-dumps")
-	promOutDir                     = path.Join(outputDir, "prometheus")
-	jobProfilesOutDir              = path.Join(outputDir, "job-profiles", nodeName)
-	kubernetesOutDir               = path.Join(outputDir, "kubernetes")
-	kvstoreOutDir                  = path.Join(outputDir, "kvstore")
-	logsOutDir                     = path.Join(outputDir, "logs", nodeName)
-	nodeInfoOutDir                 = path.Join(outputDir, "node-info", nodeName)
-	queriesOutDir                  = path.Join(outputDir, "queries", nodeName)
-	systemTablesOutDir             = path.Join(outputDir, "system-tables")
-	wlmOutDir                      = path.Join(outputDir, "wlm")
 )
+
+func configurationOutDir() string {
+	return path.Join(outputDir, "configuration", nodeName)
+}
+func jfrOutDir() string          { return path.Join(outputDir, "jfr") }
+func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps") }
+func heapDumpsOutDir() string    { return path.Join(outputDir, "heap-dumps") }
+func promOutDir() string         { return path.Join(outputDir, "prometheus") }
+func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles", nodeName) }
+func kubernetesOutDir() string   { return path.Join(outputDir, "kubernetes") }
+func kvstoreOutDir() string      { return path.Join(outputDir, "kvstore") }
+func logsOutDir() string         { return path.Join(outputDir, "logs", nodeName) }
+func nodeInfoOutDir() string     { return path.Join(outputDir, "node-info", nodeName) }
+func queriesOutDir() string      { return path.Join(outputDir, "queries", nodeName) }
+func systemTablesOutDir() string { return path.Join(outputDir, "system-tables") }
+func wlmOutDir() string          { return path.Join(outputDir, "wlm") }
 
 type ThreadPool struct {
 	semaphore chan bool
 }
 
+// NewThreadPool creates a thread pool based on channels which will run no more than the parameter numberThreads
+// of threads concurrently
 func NewThreadPool(numberThreads int) *ThreadPool {
 	semaphore := make(chan bool, numberThreads)
 	return &ThreadPool{
@@ -147,43 +152,43 @@ func (t *ThreadPool) Wait() {
 }
 
 func createAllDirs() error {
-	if err := os.MkdirAll(configurationOutDir, 0755); err != nil {
+	if err := os.MkdirAll(configurationOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create configuration directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jfrOutDir, 0755); err != nil {
+	if err := os.MkdirAll(jfrOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create jfr directory due to error %v", err)
 	}
-	if err := os.MkdirAll(threadDumpsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(threadDumpsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create thread-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(heapDumpsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(heapDumpsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create heap-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(promOutDir, 0755); err != nil {
+	if err := os.MkdirAll(promOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create prometheus directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jobProfilesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(jobProfilesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create job-profiles directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kubernetesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(kubernetesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create kubernetes directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kvstoreOutDir, 0755); err != nil {
+	if err := os.MkdirAll(kvstoreOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create kvstore directory due to error %v", err)
 	}
-	if err := os.MkdirAll(logsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(logsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create logs directory due to error %v", err)
 	}
-	if err := os.MkdirAll(nodeInfoOutDir, 0755); err != nil {
+	if err := os.MkdirAll(nodeInfoOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create node-info directory due to error %v", err)
 	}
-	if err := os.MkdirAll(queriesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(queriesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create queries directory due to error %v", err)
 	}
-	if err := os.MkdirAll(systemTablesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(systemTablesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create system-tables directory due to error %v", err)
 	}
-	if err := os.MkdirAll(wlmOutDir, 0755); err != nil {
+	if err := os.MkdirAll(wlmOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create wlm directory due to error %v", err)
 	}
 	return nil
@@ -318,7 +323,7 @@ func collectDremioConfig() error {
 	}
 	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
 	if err != nil {
-		return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+		return fmt.Errorf("unable to parse dremio PID due to error %v", err)
 	}
 	err = Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
 	if err != nil {
@@ -394,7 +399,7 @@ func collectJvmConfig() error {
 		return fmt.Errorf("unable to search for gc logs in directory %v due to error %v", gcLogsDir, err)
 	}
 	for _, file := range files {
-		if err := copyFile(file, logsOutDir); err != nil {
+		if err := copyFile(file, logsOutDir()); err != nil {
 			return fmt.Errorf("unable to copy gclog %v due to error %v", file, err)
 		}
 	}
@@ -539,7 +544,7 @@ func collectJfr() error {
 		}
 		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
 		if err != nil {
-			return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+			return fmt.Errorf("unable to parse dremio PID due to error %v", err)
 		}
 
 		var w bytes.Buffer
@@ -548,7 +553,7 @@ func collectJfr() error {
 		}
 		glog.V(2).Infof("node: %v - jfr unlock commerictial output - %v", nodeName, w.String())
 		w = bytes.Buffer{}
-		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir, nodeName)); err != nil {
+		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir(), nodeName)); err != nil {
 			return fmt.Errorf("unable to run JFR due to error %v", err)
 		}
 		glog.V(2).Infof("node: %v - jfr start output - %v", nodeName, w.String())
@@ -566,7 +571,7 @@ func collectJfr() error {
 		}
 		glog.V(2).Infof("node: %v - jfr stop output %v", nodeName, w.String())
 		w = bytes.Buffer{}
-		if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir, nodeName)); err != nil {
+		if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
 			return fmt.Errorf("unable to dump JFR due to error %v", err)
 		}
 	}
@@ -591,7 +596,7 @@ func collectKvReport() error {
 		return fmt.Errorf("unable to retrieve KV store report from %s due to error %v", url, err)
 	}
 	sb := string(body)
-	kvStoreReportFile := path.Join(kvstoreOutDir, filename)
+	kvStoreReportFile := path.Join(kvstoreOutDir(), filename)
 	file, err := os.Create(kvStoreReportFile)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -624,7 +629,7 @@ func collectWlm() error {
 			return fmt.Errorf("unable to retrieve WLM from %s due to error %v", url, err)
 		}
 		sb := string(body)
-		wlmFile := path.Join(wlmOutDir, filename)
+		wlmFile := path.Join(wlmOutDir(), filename)
 		file, err := os.Create(wlmFile)
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -652,13 +657,13 @@ func collectJobProfiles() error {
 	if err != nil {
 		return err
 	}
-	files, err := ioutil.ReadDir(queriesOutDir)
+	files, err := ioutil.ReadDir(queriesOutDir())
 	if err != nil {
 		return err
 	}
 	queriesjsons := []string{}
 	for _, file := range files {
-		queriesjsons = append(queriesjsons, path.Join(queriesOutDir, file.Name()))
+		queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
 	}
 
 	queriesrows := collectQueriesJson(queriesjsons)
@@ -703,7 +708,7 @@ func downloadJobProfile(jobid string) error {
 		return err
 	}
 	sb := string(body)
-	jobProfileFile := path.Join(jobProfilesOutDir, filename)
+	jobProfileFile := path.Join(jobProfilesOutDir(), filename)
 	file, err := os.Create(jobProfileFile)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
@@ -778,7 +783,7 @@ func collectDremioSystemTables() error {
 			}
 		}
 		sb := string(body)
-		systemTableFile := path.Join(systemTablesOutDir, filename)
+		systemTableFile := path.Join(systemTablesOutDir(), filename)
 		file, err := os.Create(systemTableFile)
 		if err != nil {
 			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
