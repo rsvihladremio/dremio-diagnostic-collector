@@ -17,11 +17,14 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -95,25 +98,140 @@ var (
 	prometheusDremioCoordFilter    string
 	prometheusDremioExecFilter     string
 	prometheusChunkSizeHours       int
-	configurationOutDir            = path.Join(outputDir, "configuration", nodeName)
-	jfrOutDir                      = path.Join(outputDir, "jfr")
-	threadDumpsOutDir              = path.Join(outputDir, "jfr", "thread-dumps")
-	heapDumpsOutDir                = path.Join(outputDir, "heap-dumps")
-	promOutDir                     = path.Join(outputDir, "prometheus")
-	jobProfilesOutDir              = path.Join(outputDir, "job-profiles", nodeName)
-	kubernetesOutDir               = path.Join(outputDir, "kubernetes")
-	kvstoreOutDir                  = path.Join(outputDir, "kvstore")
-	logsOutDir                     = path.Join(outputDir, "logs", nodeName)
-	nodeInfoOutDir                 = path.Join(outputDir, "node-info", nodeName)
-	queriesOutDir                  = path.Join(outputDir, "queries", nodeName)
-	systemTablesOutDir             = path.Join(outputDir, "system-tables")
-	wlmOutDir                      = path.Join(outputDir, "wlm")
+	acceptCollectionConsent        bool
 )
+
+func configurationOutDir() string {
+	return path.Join(outputDir, "configuration", nodeName)
+}
+func jfrOutDir() string          { return path.Join(outputDir, "jfr") }
+func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps") }
+func heapDumpsOutDir() string    { return path.Join(outputDir, "heap-dumps") }
+func promOutDir() string         { return path.Join(outputDir, "prometheus") }
+func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles", nodeName) }
+func kubernetesOutDir() string   { return path.Join(outputDir, "kubernetes") }
+func kvstoreOutDir() string      { return path.Join(outputDir, "kvstore") }
+func logsOutDir() string         { return path.Join(outputDir, "logs", nodeName) }
+func nodeInfoOutDir() string     { return path.Join(outputDir, "node-info", nodeName) }
+func queriesOutDir() string      { return path.Join(outputDir, "queries", nodeName) }
+func systemTablesOutDir() string { return path.Join(outputDir, "system-tables") }
+func wlmOutDir() string          { return path.Join(outputDir, "wlm") }
+
+type ErrorlessStringBuilder struct {
+	builder strings.Builder
+}
+
+func (e *ErrorlessStringBuilder) WriteString(s string) {
+	if _, err := e.builder.WriteString(s); err != nil {
+		log.Fatalf("this should never return an error so this is truly critical: %v", err)
+	}
+}
+func (e *ErrorlessStringBuilder) String() string {
+	return e.builder.String()
+}
+
+func outputConsent() string {
+	builder := ErrorlessStringBuilder{}
+	builder.WriteString(`
+	Dremio Data Collection Consent Form
+
+	Introduction
+
+	Dremio ("we", "us", "our") requests your consent to collect and use certain data files from your device for the purposes of diagnostics. We take your privacy seriously and will only use these files to improve our services and troubleshoot any issues you may be experiencing. 
+
+	Data Collection and Use
+
+	We would like to collect the following files from your device:
+	`)
+	if !skipDremioCloner {
+
+	}
+	if !skipQueryAnalyzer {
+
+	}
+	if !skipExportSystemTables {
+
+	}
+	if !skipCollectDiskUsage {
+
+	}
+	if !skipDownloadJobProfiles {
+
+	}
+	if !skipCollectQueriesJSON {
+
+	}
+	if !skipCollectKubernetesInfo {
+
+	}
+	if !skipCollectDremioConfiguration {
+
+	}
+	if !skipCollectKVStoreReport {
+
+	}
+	if !skipCollectServerLogs {
+
+	}
+	if !skipCollectMetaRefreshLog {
+
+	}
+	if !skipCollectReflectionLog {
+
+	}
+	if !skipCollectAccelerationLog {
+
+	}
+	if !skipCollectAccessLog {
+
+	}
+	if !skipCollectGCLogs {
+
+	}
+	if !skipCollectWLM {
+
+	}
+	if !skipHeapDumpCoordinator {
+
+	}
+	if skipHeapDumpExecutor {
+
+	}
+	if skipJFR {
+
+	}
+	builder.WriteString(`
+	Please note that the files we collect may contain personal data. We will minimize the collection of personal data wherever possible and will anonymize the data where feasible. 
+
+We will use these files to:
+
+1. Identify and diagnose problems with our products or services that you are using.
+2. Improve our products and services.
+3. Carry out other purposes that we will disclose to you at the time we collect the files.
+
+Consent
+
+By clicking "I Agree", you grant us permission to access, collect, store, and use the files listed above from your device for the purposes outlined.
+
+Withdrawal of Consent
+
+You have the right to withdraw your consent at any time. If you wish to do so, please contact us at support@dremio.com. Upon receipt of your withdrawal request, we will stop collecting new files and will delete any files we have already collected, unless we are required by law to retain them.
+
+Changes to this Consent Form
+
+We reserve the right to update this consent form from time to time. Any changes will be communicated to you in advance.
+
+By running ddc with the --accept-collection-consent flag, you acknowledge that you have read, understood, and agree to the data collection practices described in this consent form.
+	`)
+	return builder.String()
+}
 
 type ThreadPool struct {
 	semaphore chan bool
 }
 
+// NewThreadPool creates a thread pool based on channels which will run no more than the parameter numberThreads
+// of threads concurrently
 func NewThreadPool(numberThreads int) *ThreadPool {
 	semaphore := make(chan bool, numberThreads)
 	return &ThreadPool{
@@ -145,43 +263,43 @@ func (t *ThreadPool) Wait() {
 }
 
 func createAllDirs() error {
-	if err := os.MkdirAll(configurationOutDir, 0755); err != nil {
+	if err := os.MkdirAll(configurationOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create configuration directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jfrOutDir, 0755); err != nil {
+	if err := os.MkdirAll(jfrOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create jfr directory due to error %v", err)
 	}
-	if err := os.MkdirAll(threadDumpsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(threadDumpsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create thread-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(heapDumpsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(heapDumpsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create heap-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(promOutDir, 0755); err != nil {
+	if err := os.MkdirAll(promOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create prometheus directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jobProfilesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(jobProfilesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create job-profiles directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kubernetesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(kubernetesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create kubernetes directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kvstoreOutDir, 0755); err != nil {
+	if err := os.MkdirAll(kvstoreOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create kvstore directory due to error %v", err)
 	}
-	if err := os.MkdirAll(logsOutDir, 0755); err != nil {
+	if err := os.MkdirAll(logsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create logs directory due to error %v", err)
 	}
-	if err := os.MkdirAll(nodeInfoOutDir, 0755); err != nil {
+	if err := os.MkdirAll(nodeInfoOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create node-info directory due to error %v", err)
 	}
-	if err := os.MkdirAll(queriesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(queriesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create queries directory due to error %v", err)
 	}
-	if err := os.MkdirAll(systemTablesOutDir, 0755); err != nil {
+	if err := os.MkdirAll(systemTablesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create system-tables directory due to error %v", err)
 	}
-	if err := os.MkdirAll(wlmOutDir, 0755); err != nil {
+	if err := os.MkdirAll(wlmOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create wlm directory due to error %v", err)
 	}
 	return nil
@@ -316,7 +434,7 @@ func collectDremioConfig() error {
 	}
 	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
 	if err != nil {
-		return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+		return fmt.Errorf("unable to parse dremio PID due to error %v", err)
 	}
 	err = Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
 	if err != nil {
@@ -392,7 +510,7 @@ func collectJvmConfig() error {
 		return fmt.Errorf("unable to search for gc logs in directory %v due to error %v", gcLogsDir, err)
 	}
 	for _, file := range files {
-		if err := copyFile(file, logsOutDir); err != nil {
+		if err := copyFile(file, logsOutDir()); err != nil {
 			return fmt.Errorf("unable to copy gclog %v due to error %v", file, err)
 		}
 	}
@@ -537,7 +655,7 @@ func collectJfr() error {
 		}
 		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
 		if err != nil {
-			return fmt.Errorf("Unable to parse dremio PID due to error %v", err)
+			return fmt.Errorf("unable to parse dremio PID due to error %v", err)
 		}
 
 		var w bytes.Buffer
@@ -546,7 +664,7 @@ func collectJfr() error {
 		}
 		glog.V(2).Infof("node: %v - jfr unlock commerictial output - %v", nodeName, w.String())
 		w = bytes.Buffer{}
-		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir, nodeName)); err != nil {
+		if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir(), nodeName)); err != nil {
 			return fmt.Errorf("unable to run JFR due to error %v", err)
 		}
 		glog.V(2).Infof("node: %v - jfr start output - %v", nodeName, w.String())
@@ -564,7 +682,7 @@ func collectJfr() error {
 		}
 		glog.V(2).Infof("node: %v - jfr stop output %v", nodeName, w.String())
 		w = bytes.Buffer{}
-		if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir, nodeName)); err != nil {
+		if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
 			return fmt.Errorf("unable to dump JFR due to error %v", err)
 		}
 	}
@@ -576,10 +694,64 @@ func collectJstacks() error {
 }
 
 func collectKvReport() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	filename := "kvstore-report.zip"
+	apipath := "/apiv2/kvstore/report"
+	url := dremioEndpoint + apipath
+	headers := map[string]string{"Accept": "application/octet-stream"}
+	body, err := apiRequest(url, dremioPATToken, "GET", headers)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve KV store report from %s due to error %v", url, err)
+	}
+	sb := string(body)
+	kvStoreReportFile := path.Join(kvstoreOutDir(), filename)
+	file, err := os.Create(kvStoreReportFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	defer errCheck(file.Close)
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	log.Println("SUCCESS - Created " + filename)
 	return nil
 }
 
 func collectWlm() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	apiobjects := [][]string{
+		{"/api/v3/wlm/queue", "queues.json"},
+		{"/api/v3/wlm/rule", "rules.json"},
+	}
+	for _, apiobject := range apiobjects {
+		apipath := apiobject[0]
+		filename := apiobject[1]
+		url := dremioEndpoint + apipath
+		headers := map[string]string{"Content-Type": "application/json"}
+		body, err := apiRequest(url, dremioPATToken, "GET", headers)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve WLM from %s due to error %v", url, err)
+		}
+		sb := string(body)
+		wlmFile := path.Join(wlmOutDir(), filename)
+		file, err := os.Create(wlmFile)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		defer errCheck(file.Close)
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		log.Println("SUCCESS - Created " + filename)
+	}
 	return nil
 }
 
@@ -592,6 +764,71 @@ func collectQueriesJSON() error {
 }
 
 func collectJobProfiles() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	files, err := ioutil.ReadDir(queriesOutDir())
+	if err != nil {
+		return err
+	}
+	queriesjsons := []string{}
+	for _, file := range files {
+		queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
+	}
+
+	queriesrows := collectQueriesJson(queriesjsons)
+	profilesToCollect := map[string]string{}
+
+	slowplanqueriesrows := getSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
+	addRowsToSet(slowplanqueriesrows, profilesToCollect)
+
+	slowexecqueriesrows := getSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
+	addRowsToSet(slowexecqueriesrows, profilesToCollect)
+
+	highcostqueriesrows := getHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
+	addRowsToSet(highcostqueriesrows, profilesToCollect)
+
+	errorqueriesrows := getRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
+	addRowsToSet(errorqueriesrows, profilesToCollect)
+
+	log.Println("jobProfilesNumSlowPlanning:", jobProfilesNumSlowPlanning)
+	log.Println("jobProfilesNumSlowExec:", jobProfilesNumSlowExec)
+	log.Println("jobProfilesNumHighQueryCost:", jobProfilesNumHighQueryCost)
+	log.Println("jobProfilesNumRecentErrors:", jobProfilesNumRecentErrors)
+
+	log.Println("Downloading", len(profilesToCollect), "job profiles...")
+	for key := range profilesToCollect {
+		err := downloadJobProfile(key)
+		if err != nil {
+			log.Println(err) // Print instead of Error
+		}
+	}
+	log.Println("Finished downloading", len(profilesToCollect), "job profiles")
+
+	return nil
+}
+
+func downloadJobProfile(jobid string) error {
+	apipath := "/apiv2/support/" + jobid + "/download"
+	filename := jobid + ".zip"
+	url := dremioEndpoint + apipath
+	headers := map[string]string{"Accept": "application/octet-stream"}
+	body, err := apiRequest(url, dremioPATToken, "POST", headers)
+	if err != nil {
+		return err
+	}
+	sb := string(body)
+	jobProfileFile := path.Join(jobProfilesOutDir(), filename)
+	file, err := os.Create(jobProfileFile)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
+	defer errCheck(file.Close)
+	_, err = fmt.Fprint(file, sb)
+	if err != nil {
+		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+	}
 	return nil
 }
 
@@ -599,12 +836,125 @@ func collectDremioServerLog() error {
 	return nil
 }
 
+// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInYAML(yamlText string) string {
+	return yamlText
+}
+
+// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInJSON(jsonText string) string {
+	return jsonText
+}
+
 func collectK8sConfig() error {
+	//foreach yaml file
+	//maskPasswordKeysYAML
 	return nil
 }
 
 func collectDremioSystemTables() error {
+	err := validateApiCredentials()
+	if err != nil {
+		return err
+	}
+	// TODO: Row limit and sleem MS need to be configured
+	rowlimit := 100000
+	sleepms := 100
+
+	systemtables := [...]string{
+		"\\\"tables\\\"",
+		"boot",
+		"fragments",
+		"jobs",
+		"materializations",
+		"membership",
+		"memory",
+		"nodes",
+		"options",
+		"privileges",
+		"reflection_dependencies",
+		"reflections",
+		"refreshes",
+		"roles",
+		"services",
+		"slicing_threads",
+		"table_statistics",
+		"threads",
+		"version",
+		"views",
+		"cache.datasets",
+		"cache.mount_points",
+		"cache.objects",
+		"cache.storage_plugins",
+	}
+
+	for _, systable := range systemtables {
+		filename := "sys." + systable + ".json"
+		body, err := downloadSysTable(systable, rowlimit, sleepms)
+		if err != nil {
+			return err
+		}
+		dat := make(map[string]interface{})
+		err = json.Unmarshal(body, &dat)
+		if err != nil {
+			return fmt.Errorf("unable to unmarshall JSON response - %w", err)
+		}
+		if err == nil {
+			rowcount := dat["returnedRowCount"].(float64)
+			if int(rowcount) == rowlimit {
+				log.Println("WARNING: Returned row count for sys." + systable + " has been limited to " + strconv.Itoa(rowlimit))
+			}
+		}
+		sb := string(body)
+		systemTableFile := path.Join(systemTablesOutDir(), filename)
+		file, err := os.Create(systemTableFile)
+		if err != nil {
+			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
+		}
+		defer errCheck(file.Close)
+		_, err = fmt.Fprint(file, sb)
+		if err != nil {
+			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+		}
+		log.Println("SUCCESS - Created " + filename)
+	}
 	return nil
+}
+
+func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error) {
+	// TODO: Consider using official api/v3, requires paging of job results
+	headers := map[string]string{"Content-Type": "application/json"}
+	sqlurl := dremioEndpoint + "/api/v3/sql"
+	joburl := dremioEndpoint + "/api/v3/job/"
+	jobid, err := postQuery(sqlurl, dremioPATToken, headers, systable)
+	if err != nil {
+		return nil, err
+	}
+	jobstateurl := joburl + jobid
+	jobstate := "RUNNING"
+	for jobstate == "RUNNING" {
+		time.Sleep(time.Duration(sleepms) * time.Millisecond)
+		body, err := apiRequest(jobstateurl, dremioPATToken, "GET", headers)
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve job state from %s due to error %v", jobstateurl, err)
+		}
+		dat := make(map[string]interface{})
+		err = json.Unmarshal(body, &dat)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshall JSON response - %w", err)
+		}
+		jobstate = dat["jobState"].(string)
+	}
+	if jobstate == "COMPLETED" {
+		jobresultsurl := dremioEndpoint + "/apiv2/job/" + jobid + "/data?offset=0&limit=" + strconv.Itoa(rowlimit)
+		log.Println("Retrieving job results ...")
+		body, err := apiRequest(jobresultsurl, dremioPATToken, "GET", headers)
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve job results from %s due to error %v", jobresultsurl, err)
+		}
+		return body, nil
+	}
+	return nil, fmt.Errorf("unable to retrieve job results for sys." + systable)
 }
 
 func collectGcLogs() error {
@@ -647,6 +997,10 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if acceptCollectionConsent {
+			fmt.Println(outputConsent())
+			os.Exit(1)
+		}
 		//check if required flags are set
 		requiredFlags := []string{"dremio-endpoint", "dremio-username", "dremio-pat-token", "dremio-storage-type"}
 
@@ -664,6 +1018,7 @@ var localCollectCmd = &cobra.Command{
 			}
 			os.Exit(1)
 		}
+
 		// Run application
 		defer glog.Flush()
 		glog.Info("Starting collection...")
@@ -743,11 +1098,10 @@ func init() {
 	}
 
 	// Add flags for Dremio connection information
-	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://dremio-client:9047", "Dremio REST API endpoint")
+	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://localhost:9047", "Dremio REST API endpoint")
 	if err := viper.BindPFlag("dremio-endpoint", localCollectCmd.Flags().Lookup("dremio-endpoint")); err != nil {
 		log.Fatalf("unable to bind configuration for dremio-endpoint to error: %v", err)
 	}
-
 	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "<DREMIO_ADMIN_USER>", "Dremio username")
 	if err := viper.BindPFlag("dremio-username", localCollectCmd.Flags().Lookup("dremio-username")); err != nil {
 		log.Fatalf("unable to bind configuration for dremio-username to error: %v", err)
@@ -916,6 +1270,11 @@ func init() {
 
 	localCollectCmd.Flags().IntVar(&prometheusChunkSizeHours, "prometheus-chunk-size-hours", 6, "Chunk size in hours for exporting data to Prometheus")
 	viper.BindPFlag("prometheus-chunk-size-hours", localCollectCmd.Flags().Lookup("prometheus-chunk-size-hours"))
+
+	// consent form
+	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
+	viper.BindPFlag("accept-collection-consent", localCollectCmd.Flags().Lookup("accept-collection-consent"))
+
 	// Set glog flags
 	if err := flag.Set("log_dir", logDir); err != nil {
 		log.Printf("WARN: unable to set flag 'log_dir' due to error '%v', this is unexpected and should be reported as a bug", err)
@@ -966,4 +1325,81 @@ func init() {
 	}
 	viper.AutomaticEnv() // Automatically read environment variables
 
+}
+
+// ### Helper functions
+func validateApiCredentials() error {
+	log.Printf("Validating REST API user credentials...")
+	url := dremioEndpoint + "/apiv2/login"
+	headers := map[string]string{"Content-Type": "application/json"}
+	_, err := apiRequest(url, dremioPATToken, "GET", headers)
+	return err
+}
+
+func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
+	log.Printf("Requesting %s", url)
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest(request, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create request due to error %v", err)
+	}
+	authorization := "Bearer " + pat
+	req.Header.Set("Authorization", authorization)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf(res.Status)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
+	log.Printf("Collecting sys." + systable)
+
+	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("POST", url, strings.NewReader(sqlbody))
+	if err != nil {
+		return "", fmt.Errorf("unable to create request due to error %v", err)
+	}
+	authorization := "Bearer " + pat
+	req.Header.Set("Authorization", authorization)
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf(res.Status)
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	var job map[string]string
+	if err := json.Unmarshal(body, &job); err != nil {
+		return "", err
+	}
+	return job["id"], nil
+}
+
+func errCheck(f func() error) {
+	err := f()
+	if err != nil {
+		fmt.Println("Received error:", err)
+	}
 }
