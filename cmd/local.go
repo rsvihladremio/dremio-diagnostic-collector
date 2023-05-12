@@ -1,18 +1,18 @@
-/*
-Copyright 2023 Dremio
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-	http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// cmd package contains all the command line flag and initialization logic for commands
 package cmd
 
 import (
@@ -59,15 +59,12 @@ var (
 	awsS3Path                      string
 	awsDefaultRegion               string
 	azureSASURL                    string
-	dremioQueryAnalyzerNumDays     int
 	dremioMasterLogsNumDays        int
 	dremioExecutorLogsNumDays      int
 	dremioGCFilePattern            string
 	dremioRocksDBDir               string
 	isKubernetes                   bool
 	kubernetesNamespace            string
-	skipDremioCloner               bool
-	skipQueryAnalyzer              bool
 	skipExportSystemTables         bool
 	skipCollectDiskUsage           bool
 	skipDownloadJobProfiles        bool
@@ -91,12 +88,6 @@ var (
 	jobProfilesNumHighQueryCost    int
 	jobProfilesNumSlowPlanning     int
 	jobProfilesNumRecentErrors     int
-	skipPrometheusExport           bool
-	prometheusEndpoint             string
-	prometheusNumDays              int
-	prometheusDremioCoordFilter    string
-	prometheusDremioExecFilter     string
-	prometheusChunkSizeHours       int
 	acceptCollectionConsent        bool
 )
 
@@ -106,7 +97,6 @@ func configurationOutDir() string {
 func jfrOutDir() string          { return path.Join(outputDir, "jfr") }
 func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps") }
 func heapDumpsOutDir() string    { return path.Join(outputDir, "heap-dumps") }
-func promOutDir() string         { return path.Join(outputDir, "prometheus") }
 func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles", nodeName) }
 func kubernetesOutDir() string   { return path.Join(outputDir, "kubernetes") }
 func kvstoreOutDir() string      { return path.Join(outputDir, "kvstore") }
@@ -142,12 +132,6 @@ func outputConsent() string {
 
 	We would like to collect the following files from your device:
 	`)
-	if !skipDremioCloner {
-
-	}
-	if !skipQueryAnalyzer {
-
-	}
 	if !skipExportSystemTables {
 
 	}
@@ -274,9 +258,6 @@ func createAllDirs() error {
 	if err := os.MkdirAll(heapDumpsOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create heap-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(promOutDir(), 0755); err != nil {
-		return fmt.Errorf("unable to create prometheus directory due to error %v", err)
-	}
 	if err := os.MkdirAll(jobProfilesOutDir(), 0755); err != nil {
 		return fmt.Errorf("unable to create job-profiles directory due to error %v", err)
 	}
@@ -315,7 +296,6 @@ func collect(numberThreads int) {
 	t.FireJob(collectDremioConfig)
 	t.FireJob(collectDiskUsage)
 	t.FireJob(collectNodeMetrics)
-	t.FireJob(collectPromMetrics)
 	t.FireJob(collectJfr)
 	t.FireJob(collectJstacks)
 	t.FireJob(collectKvReport)
@@ -331,8 +311,6 @@ func collect(numberThreads int) {
 	t.FireJob(collectReflectionLog)
 	t.FireJob(collectAccelerationLog)
 	t.FireJob(collectDremioAccessLog)
-	t.FireJob(collectDremioQueryAnalyzer)
-	t.FireJob(collectDremioCloner)
 	t.Wait()
 }
 
@@ -640,10 +618,6 @@ func collectNodeMetrics() error {
 func getTotalTime(c cpu.TimesStat) float64 {
 	return c.User + c.System + c.Idle + c.Nice + c.Iowait + c.Irq +
 		c.Softirq + c.Steal + c.Guest + c.GuestNice
-}
-
-func collectPromMetrics() error {
-	return nil
 }
 
 func collectJfr() error {
@@ -967,13 +941,6 @@ func collectMetadataRefreshLog() error {
 func collectReflectionLog() error {
 	return nil
 }
-func collectDremioQueryAnalyzer() error {
-	return nil
-}
-
-func collectDremioCloner() error {
-	return nil
-}
 
 func collectDremioAccessLog() error {
 	return nil
@@ -1144,10 +1111,6 @@ func init() {
 	}
 
 	// Add flags for Dremio diagnostic collection options
-	localCollectCmd.Flags().IntVar(&dremioQueryAnalyzerNumDays, "dremio-query-analyzer-num-days", 28, "Number of days of query history to collect for the Query Analyzer collector")
-	if err := viper.BindPFlag("dremio-query-analyzer-num-days", localCollectCmd.Flags().Lookup("dremio-query-analyzer-num-days")); err != nil {
-		log.Fatalf("unable to bind configuration for dremio-query-analyzer-num-days to error: %v", err)
-	}
 
 	localCollectCmd.Flags().IntVar(&dremioMasterLogsNumDays, "dremio-master-logs-num-days", 3, "Number of days of Dremio master logs to collect for the Master Logs collector")
 	if err := viper.BindPFlag("dremio-master-logs-num-days", localCollectCmd.Flags().Lookup("dremio-master-logs-num-days")); err != nil {
@@ -1176,11 +1139,6 @@ func init() {
 	viper.BindPFlag("kubernetes-namespace", localCollectCmd.Flags().Lookup("kubernetes-namespace"))
 
 	// Add flags for skipping collectors
-	localCollectCmd.Flags().BoolVar(&skipDremioCloner, "skip-dremio-cloner", true, "Skip the Dremio Cloner collector")
-	viper.BindPFlag("skip-dremio-cloner", localCollectCmd.Flags().Lookup("skip-dremio-cloner"))
-
-	localCollectCmd.Flags().BoolVar(&skipQueryAnalyzer, "skip-query-analyzer", false, "Skip the Query Analyzer collector")
-	viper.BindPFlag("skip-query-analyzer", localCollectCmd.Flags().Lookup("skip-query-analyzer"))
 
 	localCollectCmd.Flags().BoolVar(&skipExportSystemTables, "skip-export-system-tables", false, "Skip the Export System Tables collector")
 	viper.BindPFlag("skip-export-system-tables", localCollectCmd.Flags().Lookup("skip-export-system-tables"))
@@ -1251,24 +1209,6 @@ func init() {
 
 	localCollectCmd.Flags().IntVar(&jobProfilesNumRecentErrors, "job-profiles-num-recent-errors", 5000, "Number of most recent job profiles to collect with errors")
 	viper.BindPFlag("job-profiles-num-recent-errors", localCollectCmd.Flags().Lookup("job-profiles-num-recent-errors"))
-
-	localCollectCmd.Flags().BoolVar(&skipPrometheusExport, "skip-prometheus-export", true, "Skip exporting results to Prometheus")
-	viper.BindPFlag("skip-prometheus-export", localCollectCmd.Flags().Lookup("skip-prometheus-export"))
-
-	localCollectCmd.Flags().StringVar(&prometheusEndpoint, "prometheus-endpoint", "http://localhost:9090", "Prometheus endpoint")
-	viper.BindPFlag("prometheus-endpoint", localCollectCmd.Flags().Lookup("prometheus-endpoint"))
-
-	localCollectCmd.Flags().IntVar(&prometheusNumDays, "prometheus-num-days", 28, "Number of days of data to export to Prometheus")
-	viper.BindPFlag("prometheus-num-days", localCollectCmd.Flags().Lookup("prometheus-num-days"))
-
-	localCollectCmd.Flags().StringVar(&prometheusDremioCoordFilter, "prometheus-dremio-coord-filter", "{container='dremio-master-coordinator'}", "Prometheus filter expression for Dremio master coordinator metrics")
-	viper.BindPFlag("prometheus-dremio-coord-filter", localCollectCmd.Flags().Lookup("prometheus-dremio-coord-filter"))
-
-	localCollectCmd.Flags().StringVar(&prometheusDremioExecFilter, "prometheus-dremio-exec-filter", "{container='dremio-executor'}", "Prometheus filter expression for Dremio executor metrics")
-	viper.BindPFlag("prometheus-dremio-exec-filter", localCollectCmd.Flags().Lookup("prometheus-dremio-exec-filter"))
-
-	localCollectCmd.Flags().IntVar(&prometheusChunkSizeHours, "prometheus-chunk-size-hours", 6, "Chunk size in hours for exporting data to Prometheus")
-	viper.BindPFlag("prometheus-chunk-size-hours", localCollectCmd.Flags().Lookup("prometheus-chunk-size-hours"))
 
 	// consent form
 	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
