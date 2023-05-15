@@ -10,7 +10,8 @@ jobs:
   os_matrix:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        #os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Login to Docker Hub
@@ -18,7 +19,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USER }}
           password: ${{ secrets.DOCKER_HUB_PAT }}
-      - name: docker login and pull dremio-ee
+      - name: docker pull dremio-ee
         run: docker pull dremio/dremio-ee:24.0
       - uses: actions/checkout@v3
       - name: Set up Go
