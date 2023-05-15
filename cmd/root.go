@@ -50,7 +50,6 @@ var sudoUser string
 var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
-var format string
 var namespace string
 
 // var isEmbeddedK8s bool
@@ -111,12 +110,9 @@ func Execute() {
 			OutputLoc:                 filepath.Clean(outputLoc),
 			DremioConfDir:             filepath.Clean(dremioConfDir),
 			DremioLogDir:              filepath.Clean(dremioLogDir),
-			GCLogOverride:             filepath.Clean(dremioGcDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
-			LogAge:                    logAge,
 			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
-			ExcludeFiles:              excludeFiles,
 			DDCfs:                     helpers.NewRealFileSystem(),
 		}
 
@@ -170,10 +166,6 @@ func Execute() {
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)
 		}
-		if err := rootCmd.Execute(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 	}
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -200,8 +192,6 @@ func sshDefault() (string, error) {
 }
 
 func init() {
-	// subcommand
-	rootCmd.AddCommand(localCollectCmd)
 	// command line flags
 
 	rootCmd.Flags().StringVar(&coordinatorContainer, "coordinator-container", "dremio-master-coordinator", "for use with -k8s flag: sets the container name to use to retrieve logs in the coordinators")
@@ -216,13 +206,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
-	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
-	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)")
-	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
-	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (choices are \"healthcheck\" (default) and \"basic\"")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
