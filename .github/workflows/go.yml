@@ -13,6 +13,13 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USER }}
+          password: ${{ secrets.DOCKER_HUB_PAT }}
+      - name: docker login and pull dremio-ee
+        run: docker pull dremio/dremio-ee:24.0
       - uses: actions/checkout@v3
       - name: Set up Go
         uses: actions/setup-go@v3

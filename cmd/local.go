@@ -775,10 +775,6 @@ func downloadJobProfile(jobid string) error {
 	return nil
 }
 
-func collectDremioServerLog() error {
-	return nil
-}
-
 // maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
 func maskPasswordsInYAML(yamlText string) string {
 	return yamlText
@@ -898,6 +894,10 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 		return body, nil
 	}
 	return nil, fmt.Errorf("unable to retrieve job results for sys." + systable)
+}
+
+func collectDremioServerLog() error {
+	return nil
 }
 
 func collectGcLogs() error {
