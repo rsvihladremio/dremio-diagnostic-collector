@@ -33,7 +33,6 @@ import (
 
 var dremioConfDir string
 var dremioLogDir string
-var dremioGcDir string
 var coordinatorContainer string
 var executorsContainer string
 var coordinatorStr string
@@ -44,10 +43,8 @@ var outputLoc string
 var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
-var logAge int
 var jfrduration int
 var sudoUser string
-var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
 var namespace string

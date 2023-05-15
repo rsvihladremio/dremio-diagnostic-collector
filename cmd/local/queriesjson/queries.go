@@ -241,7 +241,7 @@ func CollectQueriesJSON(queriesjsons []string) []QueriesRow {
 	return queriesrows
 }
 
-func writeToCSV(queriesrows []QueriesRow, filter string, limit int) {
+func writeToCSV(queriesrows []QueriesRow, filter string, limit int) { //nolint
 	// Can be used for testing or debugging
 
 	file, err := os.Create("job_ids_go_" + filter + strconv.Itoa(limit) + ".csv")

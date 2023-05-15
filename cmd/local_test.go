@@ -39,7 +39,7 @@ type AuthRequest struct {
 	Password string `json:"password"`
 }
 
-type JobApiResponse struct {
+type JobAPIResponse struct {
 	ID string `json:"id"`
 }
 
@@ -121,7 +121,7 @@ func TestMain(m *testing.M) {
 		// accept EULA
 		var empty bytes.Buffer
 		eulaURL := fmt.Sprintf("http://localhost:%v/apiv2/eula/accept", dremioTestPort)
-		res, err = http.Post(eulaURL, "application/json", &empty)
+		res, err = http.Post(eulaURL, "application/json", &empty) //nolint
 		if err != nil {
 			log.Printf("error accepting EULA request: %s\n", err)
 			return err
@@ -260,7 +260,7 @@ func TestDownloadJobProfile(t *testing.T) {
 		log.Printf("body was %s", string(text))
 		t.Fatalf("expected status code greater than 299 but instead got %v while trying to create source", res.StatusCode)
 	}
-	var jobResponse JobApiResponse
+	var jobResponse JobAPIResponse
 	err = json.NewDecoder(res.Body).Decode(&jobResponse)
 	if err != nil {
 		text, err := io.ReadAll(res.Body)

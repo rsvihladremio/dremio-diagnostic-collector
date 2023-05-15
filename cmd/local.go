@@ -776,12 +776,12 @@ func downloadJobProfile(jobid string) error {
 }
 
 // maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInYAML(yamlText string) string {
+func maskPasswordsInYAML(yamlText string) string { //nolint
 	return yamlText
 }
 
 // maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInJSON(jsonText string) string {
+func maskPasswordsInJSON(jsonText string) string { //nolint
 	return jsonText
 }
 
