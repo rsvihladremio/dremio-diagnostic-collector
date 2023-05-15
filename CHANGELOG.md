@@ -103,7 +103,7 @@ This reduces the amount of remote calls substantially, in exchange for increasin
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
-0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
+[0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
 [0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.5...v0.2.0
