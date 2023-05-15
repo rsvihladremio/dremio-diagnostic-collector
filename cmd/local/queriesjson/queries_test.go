@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// queries package contains the logic for collecting queries.json information
-package queries
+// queriesjson package contains the logic for collecting queries.json information
+package queriesjson
 
 import (
 	"testing"

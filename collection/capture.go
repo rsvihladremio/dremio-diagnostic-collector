@@ -114,7 +114,7 @@ func Capture(conf HostCaptureConfiguration) (files []helpers.CollectedFile, fail
 }
 
 // AWSE deployments archive the logs under and EFS drive mounted on
-func adjustForAWSE(file, baseDir string) (nodeType, nodeName string) {
+func adjustForAWSE(file, _ string) (nodeType, nodeName string) {
 	var pathParts []string
 	// If the deployment type is AWSE then we might need to rename the file to avoid clobbering files, the file tree typically looks like this
 	/*

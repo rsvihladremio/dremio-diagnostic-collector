@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// queries package contains the logic for collecting queries.json information
-package queries
+// queriesjson package contains the logic for collecting queries.json information
+package queriesjson
 
 import (
 	"bufio"
@@ -109,7 +109,7 @@ func ReadGzFile(filename string) ([]QueriesRow, error) {
 	return queriesrows, err
 }
 
-func ReadJsonFile(filename string) ([]QueriesRow, error) {
+func ReadJSONFile(filename string) ([]QueriesRow, error) {
 	// Source: https://gist.github.com/kendellfab/7417164
 	queriesrows := []QueriesRow{}
 	file, err := os.Open(filename)
@@ -210,7 +210,7 @@ func AddRowsToSet(queriesrows []QueriesRow, profilesToCollect map[string]string)
 	return profilesToCollect
 }
 
-func CollectQueriesJson(queriesjsons []string) []QueriesRow {
+func CollectQueriesJSON(queriesjsons []string) []QueriesRow {
 
 	queriesrows := []QueriesRow{}
 	for _, queriesjson := range queriesjsons {
@@ -226,7 +226,7 @@ func CollectQueriesJson(queriesjsons []string) []QueriesRow {
 			}
 			queriesrows = append(queriesrows, rows...)
 		} else if strings.HasSuffix(queriesjson, ".json") {
-			rows, err = ReadJsonFile(queriesjson)
+			rows, err = ReadJSONFile(queriesjson)
 			if err != nil {
 				log.Println("ERROR", err)
 				continue
@@ -253,7 +253,7 @@ func writeToCSV(queriesrows []QueriesRow, filter string, limit int) {
 	if err != nil {
 		panic(err)
 	}
-	sortingmetric := -1
+	var sortingmetric int
 	for _, row := range queriesrows {
 		if filter == "slowplanqueriesrows" {
 			sortingmetric = int(row.ExecutionPlanningTime)

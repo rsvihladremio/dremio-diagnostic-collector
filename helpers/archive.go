@@ -33,17 +33,17 @@ import (
 
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
 // to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
-func ArchiveDiagDirectory(outputFile, outputDir string, fileList []CollectedFile) error {
+func ArchiveDiagDirectory(outputFile, outputDir string, _ []CollectedFile) error {
 
 	// Make a complete list of collected files
 	found, err := findAllFiles(outputDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("uanble to find files while archiving due to error %v", err)
 	}
 	// Get all file sizes
 	files, err := createFileList(found)
 	if err != nil {
-		return err
+		return fmt.Errorf("uanble to create file list of files to archive due to error %v", err)
 	}
 
 	ext := filepath.Ext(outputFile)
@@ -162,12 +162,12 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		}
 	}
 	if err := tw.Close(); err != nil {
-		return err
+		return fmt.Errorf("unable to close the archive %v due to error %v", tarFile, err)
 	}
 	return nil
 }
 
-func GZipDiag(zipFileName string, baseDir string, file string) error {
+func GZipDiag(zipFileName string, _ string, file string) error {
 	// Create a buffer to write our archive to.
 	zipFile, err := os.Create(filepath.Clean(zipFileName))
 	if err != nil {

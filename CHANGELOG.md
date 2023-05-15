@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0-beta1] - 2023-05-15
+### Added
+- Local capture command that can run locally on a node. 
+- the default command now attempts to copy itself if on Linux or download a version of the DDC for Linux and copy that to remove nodes.
+This reduces the amount of remote calls substantially, in exchange for increasing the bandwidth for copying the binary around. However, if DDC is already available, in the path, and running the same version, the already installed DDC binary will be used instead and the copy step will be skipped.
+- Added configuration file support ddc-capture.yaml in local folder (also supports json, toml, hcl, env, and props file formats). The configuration options are the same name as the flags. Run ddc local-capture --help for more information.
+
 ## [0.2.1] - 2023-02-14
 ### Added
   Easier to use http client

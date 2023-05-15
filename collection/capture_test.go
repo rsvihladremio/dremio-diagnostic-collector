@@ -92,7 +92,7 @@ func (m *MockCollector) CopyFromHost(hostString string, isCoordinator bool, sour
 	}
 	return response[0].(string), response[1].(error)
 }
-func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error) {
+func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, _, source, destination string) (out string, err error) {
 	args := make(map[string]interface{})
 	args["hostString"] = hostString
 	args["isCoordinator"] = isCoordinator
@@ -103,10 +103,10 @@ func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, 
 	m.CallCounter++
 	if response[1] == nil {
 		return response[0].(string), nil
-
 	}
 	return response[0].(string), response[1].(error)
 }
+
 func (m *MockCollector) FindHosts(searchTerm string) (podName []string, err error) {
 	args := make(map[string]interface{})
 	args["searchTerm"] = searchTerm

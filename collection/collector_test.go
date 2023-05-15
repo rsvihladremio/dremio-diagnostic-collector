@@ -68,11 +68,11 @@ func (s *MockStrategy) CreatePath(fileType, source, nodeType string) (path strin
 	return path, nil
 }
 
-func (s *MockStrategy) GzipAllFiles(path string) ([]helpers.CollectedFile, error) {
+func (s *MockStrategy) GzipAllFiles(_ string) ([]helpers.CollectedFile, error) {
 	return nil, nil
 }
 
-func (s *MockStrategy) ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error {
+func (s *MockStrategy) ArchiveDiag(_ string, _ string, _ []helpers.CollectedFile) error {
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (m *MockCapCollector) CopyFromHost(hostString string, isCoordinator bool, s
 	return response, err
 }
 
-func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (response string, err error) {
+func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator bool, _, source, destination string) (response string, err error) {
 	copyCall := MockCapCopy{
 		HostString:    hostString,
 		IsCoordinator: isCoordinator,
@@ -137,7 +137,7 @@ func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator boo
 	return response, err
 }
 
-func (m *MockCapCollector) HostExecute(hostString string, isCoordinator bool, args ...string) (response string, err error) {
+func (m *MockCapCollector) HostExecute(hostString string, _ bool, args ...string) (response string, err error) {
 
 	fullCmd := strings.Join(args, " ")
 
@@ -145,7 +145,7 @@ func (m *MockCapCollector) HostExecute(hostString string, isCoordinator bool, ar
 	return response, err
 }
 
-func (m *MockCapCollector) GzipAllFiles(hostString string, isCoordinator bool, args ...string) (response string, err error) {
+func (m *MockCapCollector) GzipAllFiles(hostString string, _ bool, args ...string) (response string, err error) {
 
 	fullCmd := strings.Join(args, " ")
 
@@ -153,7 +153,7 @@ func (m *MockCapCollector) GzipAllFiles(hostString string, isCoordinator bool, a
 	return response, err
 }
 
-func (m *MockCapCollector) Cleanup(ddcfs helpers.Filesystem) error {
+func (m *MockCapCollector) Cleanup(_ helpers.Filesystem) error {
 
 	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var dremioConfDir string
@@ -69,7 +70,17 @@ ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key 
 
 ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor --output diag.zip
 `,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, args []string) {
+
+	},
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	foundCmd, _, err := rootCmd.Find(os.Args[1:])
+	// default cmd if no cmd is given
+	if err == nil && foundCmd.Use == rootCmd.Use && foundCmd.Flags().Parse(os.Args[1:]) != pflag.ErrHelp {
 		if sshKeyLoc == "" {
 			sshDefault, err := sshDefault()
 			if err != nil {
@@ -120,7 +131,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 		if err != nil {
 			fmt.Println("COMMAND HELP TEXT:")
 			fmt.Println("")
-			err := cmd.Help()
+			err := rootCmd.Help()
 			if err != nil {
 				log.Fatalf("unable to print help %v", err)
 			}
@@ -159,15 +170,14 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)
 		}
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		log.Fatal(err)
+		if err := rootCmd.Execute(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 

@@ -171,12 +171,12 @@ func (f FakeFileSystem) Stat(name string) (os.FileInfo, error) {
 }
 
 // Create
-func (f FakeFileSystem) Create(name string) (File, error) {
+func (f FakeFileSystem) Create(_ string) (File, error) {
 	return &FakeFile{}, nil
 }
 
 // Mkdir
-func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
+func (f FakeFileSystem) Mkdir(_ string, _ os.FileMode) error {
 	return nil
 }
 
@@ -195,21 +195,21 @@ func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
 }
 
 // MkdirAll
-func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
+func (f FakeFileSystem) MkdirAll(_ string, _ os.FileMode) error {
 	return nil
 }
 
 // Remove
-func (f FakeFileSystem) Remove(path string) error {
+func (f FakeFileSystem) Remove(_ string) error {
 	return nil
 }
 
 // RemoveAll
-func (f FakeFileSystem) RemoveAll(path string) error {
+func (f FakeFileSystem) RemoveAll(_ string) error {
 	return nil
 }
 
 // Writefile
-func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+func (f FakeFileSystem) WriteFile(_ string, _ []byte, _ os.FileMode) error {
 	return nil
 }

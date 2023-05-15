@@ -65,7 +65,7 @@ func (c *KubectlK8sActions) CopyFromHost(hostString string, isCoordinator bool, 
 	return c.cli.Execute(c.kubectlPath, "cp", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), fmt.Sprintf("%v:%v", hostString, source), destination)
 }
 
-func (c *KubectlK8sActions) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error) {
+func (c *KubectlK8sActions) CopyFromHostSudo(hostString string, isCoordinator bool, _, source, destination string) (out string, err error) {
 	if strings.HasPrefix(destination, `C:`) {
 		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
 		// only replace once because more doesn't make sense

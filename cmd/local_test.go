@@ -83,11 +83,14 @@ func TestMain(m *testing.M) {
 			},
 		}
 	})
-	dremioTestPort = resource.GetPort("9047/tcp")
-
-	resource.Expire(120)
 	if err != nil {
 		log.Fatalf("Could not start resource: %s", err)
+	}
+	dremioTestPort = resource.GetPort("9047/tcp")
+
+	err = resource.Expire(120)
+	if err != nil {
+		log.Fatalf("Could not set expiry on resource : %s", err)
 	}
 
 	requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
@@ -95,7 +98,7 @@ func TestMain(m *testing.M) {
 
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
 	if err := pool.Retry(func() error {
-		res, err := http.Get(requestURL)
+		res, err := http.Get(requestURL) //nolint
 		if err != nil {
 			log.Printf("error making http request: %s\n", err)
 			return err
@@ -119,21 +122,21 @@ func TestMain(m *testing.M) {
 		}
 		defer res.Body.Close()
 		if res.StatusCode != expectedCode {
-			if text, err := io.ReadAll(res.Body); err != nil {
+			text, err := io.ReadAll(res.Body)
+			if err != nil {
 				log.Fatalf("fatal attempt to decode body from dremio auth %v and unable to read body for debugging", err)
-			} else {
-				log.Printf("body was %s", string(text))
 			}
+			log.Printf("body was %s", string(text))
 			log.Fatalf("expected status code %v but instead got %v with message %v. Unable to get dremio PAT", expectedCode, res.StatusCode, res.Status)
 		}
 		var authResponse AuthResponse
 		err = json.NewDecoder(res.Body).Decode(&authResponse)
 		if err != nil {
-			if text, err := io.ReadAll(res.Body); err != nil {
+			text, err := io.ReadAll(res.Body)
+			if err != nil {
 				log.Fatalf("fatal attempt to decode body from dremio auth %v and unable to read body for debugging", err)
-			} else {
-				log.Printf("body was %s", string(text))
 			}
+			log.Printf("body was %s", string(text))
 			log.Fatalf("fatal attempt to decode body from dremio auth %v", err)
 		}
 		dremioPATToken = authResponse.Token
@@ -187,8 +190,8 @@ func TestDownloadJobProfile(t *testing.T) {
 	}
 }
 
-func TestValidateApiCredentials(t *testing.T) {
-	err := validateApiCredentials()
+func TestValidateAPICredentials(t *testing.T) {
+	err := validateAPICredentials()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}

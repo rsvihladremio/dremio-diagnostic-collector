@@ -39,15 +39,15 @@ type CmdSSHActions struct {
 	sshUser string
 }
 
-func (c *CmdSSHActions) CopyFromHost(hostName string, isCoordinator bool, source, destination string) (string, error) {
+func (c *CmdSSHActions) CopyFromHost(hostName string, _ bool, source, destination string) (string, error) {
 	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, source), destination)
 }
 
-func (c *CmdSSHActions) CopyFromHostSudo(hostName string, isCoordinator bool, sudoUser, source, destination string) (string, error) {
+func (c *CmdSSHActions) CopyFromHostSudo(hostName string, _ bool, _, source, destination string) (string, error) {
 	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, source), destination)
 }
 
-func (c *CmdSSHActions) HostExecute(hostName string, isCoordinator bool, args ...string) (string, error) {
+func (c *CmdSSHActions) HostExecute(hostName string, _ bool, args ...string) (string, error) {
 	sshArgs := []string{"ssh", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no"}
 	sshArgs = append(sshArgs, fmt.Sprintf("%v@%v", c.sshUser, hostName))
 	sshArgs = append(sshArgs, strings.Join(args, " "))
