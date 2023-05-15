@@ -1115,7 +1115,7 @@ func init() {
 		glog.Fatalf("unable to bind flag due to error %v", err)
 	}
 
-	localCollectCmd.Flags().StringVar(&kubernetesNamespace, "kubernetes namespace", "default", "Kubernetes namespace")
+	localCollectCmd.Flags().StringVar(&kubernetesNamespace, "kubernetes-namespace", "default", "Kubernetes namespace")
 	if err := viper.BindPFlag("kubernetes-namespace", localCollectCmd.Flags().Lookup("kubernetes-namespace")); err != nil {
 		glog.Fatalf("unable to bind flag due to error %v", err)
 	}
