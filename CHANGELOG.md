@@ -3,7 +3,7 @@
 ## [0.2.2] - 2023-05-15
 
 ### Added
-- support for 
+- support for sudo
 
 ## [0.2.1] - 2023-02-14
 
