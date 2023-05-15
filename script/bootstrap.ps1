@@ -1,16 +1,6 @@
 # script/bootstrap: Resolve all dependencies that the application requires to
 #                   run.
 
-Write-Output "Checking if goveralls is installed"
-Get-Date 
-
-if (Get-Command 'goveralls' -errorAction SilentlyContinue) {
-    "goveralls installed"
-} else {
-    Write-Output "goveralls not found installing"
-    Get-Date
-    go install github.com/mattn/goveralls@latest
-}
 
 Write-Output "Checking if scoop is installed"
 Get-Date
