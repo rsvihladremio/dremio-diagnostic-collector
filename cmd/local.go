@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -48,6 +49,7 @@ import (
 
 var (
 	unableToReadConfigError        error
+	kubernetesConfTypes            = []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	supportedExtensions            = []string{"yaml", "json", "toml", "hcl", "env", "props"}
 	confFiles                      []string
 	configIsFound                  bool
@@ -68,8 +70,7 @@ var (
 	awsS3Path                      string
 	awsDefaultRegion               string
 	azureSASURL                    string
-	dremioMasterLogsNumDays        int
-	dremioExecutorLogsNumDays      int
+	dremioLogsNumDays              int
 	dremioGCFilePattern            string
 	dremioRocksDBDir               string
 	isKubernetes                   bool
@@ -91,12 +92,41 @@ var (
 	skipHeapDump                   bool
 	skipJFR                        bool
 	dremioJFRTimeSeconds           int
+	skipJStack                     bool
+	dremioJStackFreqSeconds        int
+	dremioJStackTimeSeconds        int
 	jobProfilesNumDays             int
 	jobProfilesNumSlowExec         int
 	jobProfilesNumHighQueryCost    int
 	jobProfilesNumSlowPlanning     int
 	jobProfilesNumRecentErrors     int
 	acceptCollectionConsent        bool
+	systemtables                   = [...]string{
+		"\\\"tables\\\"",
+		"boot",
+		"fragments",
+		"jobs",
+		"materializations",
+		"membership",
+		"memory",
+		"nodes",
+		"options",
+		"privileges",
+		"reflection_dependencies",
+		"reflections",
+		"refreshes",
+		"roles",
+		"services",
+		"slicing_threads",
+		"table_statistics",
+		"threads",
+		"version",
+		"views",
+		"cache.datasets",
+		"cache.mount_points",
+		"cache.objects",
+		"cache.storage_plugins",
+	}
 )
 
 func configurationOutDir() string {
@@ -141,57 +171,81 @@ func outputConsent() string {
 	We would like to collect the following files from your device:
 	`)
 	if !skipExportSystemTables {
-		glog.Info("skipping collection of system tables")
+		glog.Info("collecting system tables")
+		builder.WriteString(fmt.Sprintf("* the following system tables: %v\n", strings.Join(systemtables[:], ",")))
 	}
 	if !skipCollectDiskUsage {
-		glog.Info("skipping collection of disk usage")
+		glog.Info("collecting disk usage")
+		builder.WriteString("* df -h output\n")
 	}
 
 	if !skipDownloadJobProfiles {
-		glog.Info("skipping collection of job profiles")
+		glog.Info("collecting job profiles")
+		builder.WriteString(fmt.Sprintf("* %v job profiles randomly selected\n", jobProfilesNumHighQueryCost+jobProfilesNumRecentErrors+jobProfilesNumSlowExec+jobProfilesNumSlowPlanning))
 	}
 
 	if !skipCollectQueriesJSON {
-		glog.Info("skipping collection of queries.json")
+		glog.Info("collecting queries.json")
+		builder.WriteString("* queries.json files\n")
 	}
+
 	if !skipCollectKubernetesInfo {
-		glog.Info("skipping collection of kubernetes configuration")
+		glog.Info("collecting kubernetes configuration")
+		builder.WriteString(fmt.Sprintf("* collecting the following kubernetes types related to Dremio: %v\n", strings.Join(kubernetesConfTypes, ",")))
 	}
+
 	if !skipCollectDremioConfiguration {
-		glog.Info("skipping collection of dremio configuration")
+		glog.Info("collecting dremio configuration")
+		builder.WriteString("* dremio-env, dremio.conf, logback.xml, and logback-access.xml\n")
 	}
 	if !skipCollectKVStoreReport {
-		glog.Info("skipping collection of kv store report")
+		glog.Info("collecting kv store report")
+		builder.WriteString("* usage statistics on the internal Key Value Store (KVStore)\n")
+		builder.WriteString("* list of all sources, their type and name\n")
 	}
 	if !skipCollectServerLogs {
-		glog.Info("skipping collection of metadata server logs")
+		glog.Info("collecting metadata server logs")
+		builder.WriteString("* server.log including any archived versions, and server.out\n")
 	}
 	if !skipCollectMetaRefreshLog {
-		glog.Info("skipping collection of metadata refresh logs")
+		glog.Info("collecting metadata refresh logs")
+		builder.WriteString("* dremio-env, dremio.conf, logback.xml, and logback-access.xml\n")
 	}
 	if !skipCollectReflectionLog {
-		glog.Info("skipping collection of reflection logs")
+		glog.Info("collecting reflection logs")
+		builder.WriteString("* reflection.log including archived versions\n")
 	}
 	if !skipCollectAccelerationLog {
-		glog.Info("skipping collection of accerlation logs")
+		glog.Info("collecting acceleration logs")
+		builder.WriteString("* acceleration.log including archived versions\n")
 	}
 	if !skipCollectAccessLog {
-		glog.Info("skipping collection of access logs")
+		glog.Info("collecting access logs")
+		builder.WriteString("* access.log including archived versions\n")
 	}
 	if !skipCollectGCLogs {
-		glog.Info("skipping collection of gc logs")
+		glog.Info("collecting gc logs")
+		builder.WriteString("* all gc.log files produced by dremio\n")
 	}
 	if !skipCollectWLM {
-		glog.Info("skipping collection of Workload Manager")
+		glog.Info("collecting Workload Manager information")
+		builder.WriteString("* Work Load Manager queue names and rule names\n")
 	}
 	if !skipHeapDump {
-		glog.Info("skipping collection of Java Heap Dump")
+		glog.Info("collecting Java Heap Dump")
+		builder.WriteString("* a Java heap dump which contains a copy of all data in the JVM heap\n")
 	}
-	if skipJFR {
-		glog.Info("skipping collection of JFR")
+	if !skipJStack {
+		glog.Info("collecting JStacks")
+		builder.WriteString("* Java thread dumps collected via jstack\n")
+	}
+	if !skipJFR {
+		glog.Info("collecting JFR")
+		builder.WriteString("* Java Flight Record diagnostic information\n")
 	}
 	builder.WriteString(`
-	Please note that the files we collect may contain personal data. We will minimize the collection of personal data wherever possible and will anonymize the data where feasible. 
+
+	Please note that the files we collect may contain confidential data. We will minimize the collection of confidential data wherever possible and will anonymize the data where feasible. 
 
 We will use these files to:
 
@@ -209,7 +263,7 @@ You have the right to withdraw your consent at any time. If you wish to do so, p
 
 Changes to this Consent Form
 
-We reserve the right to update this consent form from time to time. Any changes will be communicated to you in advance.
+We reserve the right to update this consent form from time to time.
 
 By running ddc with the --accept-collection-consent flag, you acknowledge that you have read, understood, and agree to the data collection practices described in this consent form.
 	`)
@@ -263,10 +317,8 @@ func collect(numberThreads int) {
 		os.Exit(1)
 	}
 	t := threading.NewThreadPool(numberThreads)
-	t.FireJob(collectSystemConfig)
 	t.FireJob(collectJvmConfig)
 	t.FireJob(collectDremioConfig)
-	t.FireJob(collectDiskUsage)
 	t.FireJob(collectNodeMetrics)
 	t.FireJob(collectJfr)
 	t.FireJob(collectJstacks)
@@ -647,6 +699,35 @@ func collectJfr() error {
 }
 
 func collectJstacks() error {
+	if skipJStack {
+		glog.Info("skipping Collection of java thread dump")
+	} else {
+		threadDumpFreq := dremioJStackFreqSeconds
+		iterations := dremioJStackTimeSeconds
+		glog.Infof("Running Java thread dumps every %v second(s) for a total of $ITERATIONS iterations ...", threadDumpFreq)
+		var dremioPIDOutput bytes.Buffer
+		if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
+			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+		}
+		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+		if err != nil {
+			return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+		}
+		for i := 0; i < iterations; i++ {
+			var w bytes.Buffer
+			if err := Shell(&w, fmt.Sprintf("jcmd %v Thread.print -l", dremioPID)); err != nil {
+				glog.Warningf("unable to capture jstack of pid %v due to error %v", dremioPID, err)
+			}
+			date := time.Now().Format("2006-01-02_15_04_05")
+			threadDumpFileName := path.Join(threadDumpsOutDir(), nodeName, fmt.Sprintf("threadDump-%s-%s", nodeName, date))
+			if err := os.WriteFile(path.Clean(threadDumpFileName), w.Bytes(), 0600); err != nil {
+				return fmt.Errorf("unable to write thread dump %v due to error %v", threadDumpFileName, err)
+			}
+			glog.Infof("Saved %v", threadDumpFileName)
+		}
+		glog.Infof("Waiting %v second(s) ...", threadDumpFreq)
+		time.Sleep(time.Duration(threadDumpFreq))
+	}
 	return nil
 }
 
@@ -814,33 +895,6 @@ func collectDremioSystemTables() error {
 	rowlimit := 100000
 	sleepms := 100
 
-	systemtables := [...]string{
-		"\\\"tables\\\"",
-		"boot",
-		"fragments",
-		"jobs",
-		"materializations",
-		"membership",
-		"memory",
-		"nodes",
-		"options",
-		"privileges",
-		"reflection_dependencies",
-		"reflections",
-		"refreshes",
-		"roles",
-		"services",
-		"slicing_threads",
-		"table_statistics",
-		"threads",
-		"version",
-		"views",
-		"cache.datasets",
-		"cache.mount_points",
-		"cache.objects",
-		"cache.storage_plugins",
-	}
-
 	for _, systable := range systemtables {
 		filename := "sys." + systable + ".json"
 		body, err := downloadSysTable(systable, rowlimit, sleepms)
@@ -911,34 +965,163 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 }
 
 func collectDremioServerLog() error {
+	glog.Info("... collecting server.log")
+	if err := exportArchivedLogs(dremioLogsDir, "server.log", "server", dremioLogsNumDays); err != nil {
+		return fmt.Errorf("trying to archive server logs we got error: %v", err)
+	}
+	glog.Info("... collecting server.out")
+	src := path.Join(dremioLogsDir, "server.out")
+	dest := path.Join(logsOutDir(), "server.out")
+	if err := copyFile(path.Clean(src), path.Clean(dest)); err != nil {
+		return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
+	}
+	glog.Warning("Server logs from executors and scale-out coordinators must be collected separately!")
+	glog.Info("... collecting server logs COMPLETED")
 	return nil
 }
 
 func collectGcLogs() error {
+	if skipCollectGCLogs {
+		glog.Info("Skipping Collect Garbage Collection Logs  ...")
+	} else {
+		glog.Info("Collecting GC logs ...")
+		files, err := os.ReadDir(path.Clean(gcLogsDir))
+		if err != nil {
+			return fmt.Errorf("error reading directory: %w", err)
+		}
+
+		for _, file := range files {
+			if !file.IsDir() && strings.HasPrefix(file.Name(), "gc.log") {
+				srcPath := filepath.Join(gcLogsDir, file.Name())
+				destPath := filepath.Join(logsOutDir(), file.Name())
+				if err := copyFile(path.Clean(srcPath), path.Clean(destPath)); err != nil {
+					return fmt.Errorf("error copying file %s: %w", file.Name(), err)
+				}
+				glog.V(2).Infof("Copied file %s to %s", srcPath, destPath)
+			}
+		}
+		glog.Warning("GC logs from executors and scale-out coordinators must be collected separately!")
+		glog.Info("... collecting GC logs COMPLETED")
+	}
 	return nil
 }
 
 func collectMetadataRefreshLog() error {
+	if skipCollectMetaRefreshLog {
+		glog.Info("Skipping Collect Metadata Refresh Logs  ...")
+	} else {
+		glog.Info("Collecting metadata refresh logs from Coordinator(s) ...")
+		if err := exportArchivedLogs(logDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
+			return fmt.Errorf("unable to collect metadata refresh logs due to error %v", err)
+		}
+		glog.Warning("Metadata refresh logs from scale-out coordinators must be collected separately!")
+		glog.Info("... collecting meta data refresh logs from Coordinator(s) COMPLETED")
+	}
 	return nil
 }
 
 func collectReflectionLog() error {
+	if skipCollectReflectionLog {
+		glog.Info("Skipping Collect Reflection Logs  ...")
+	} else {
+		glog.Info("Collecting reflection logs from Coordinator(s) ...")
+		if err := exportArchivedLogs(logDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
+			return fmt.Errorf("unable to collect reflection logs due to error %v", err)
+		}
+		glog.Info("... collecting reflection logs from Coordinator(s) COMPLETED")
+	}
 	return nil
 }
 
 func collectDremioAccessLog() error {
-	return nil
-}
-
-func collectSystemConfig() error {
+	if skipCollectAccessLog {
+		glog.Info("Skipping Collect Access Logs  ...")
+	} else {
+		glog.Info("Collecting access logs from Coordinator(s) ...")
+		glog.Warning("Access logs from scale-out coordinators must be collected separately!")
+		if err := exportArchivedLogs(dremioLogsDir, "access.log", "access", dremioLogsNumDays); err != nil {
+			return fmt.Errorf("unable to archive access.logs due to error %v", err)
+		}
+		glog.Info("... collecting access logs from Coordinator(s) COMPLETED")
+	}
 	return nil
 }
 
 func collectAccelerationLog() error {
+	if !skipCollectAccelerationLog {
+		glog.Info("Skipping Collect Acceleration Logs  ...")
+	} else {
+		glog.Info("Collecting acceleration logs from Coordinator(s) ...")
+		glog.Warning("Acceleration logs from scale-out coordinators must be collected separately!")
+		if err := exportArchivedLogs(dremioLogsDir, "acceleration.log", "acceleration", dremioLogsNumDays); err != nil {
+			return fmt.Errorf("unable to archive acceleration.logs due to error %v", err)
+		}
+		glog.Info("... collecting acceleragtion logs from Coordinator(s) COMPLETED")
+	}
 	return nil
 }
 
-func collectDiskUsage() error {
+func gzipFile(src, dst string) error {
+	sourceFile, err := os.Open(path.Clean(src))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			glog.Errorf("unable to close source file %v due to error %v", sourceFile, err)
+		}
+	}()
+
+	destFile, err := os.Create(path.Clean(dst))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := destFile.Close(); err != nil {
+			glog.Errorf("unable to close gzip file %v due to error %v", dst, err)
+		}
+	}()
+
+	gzipWriter := gzip.NewWriter(destFile)
+	defer gzipWriter.Close()
+
+	_, err = io.Copy(gzipWriter, sourceFile)
+	if err != nil {
+		return fmt.Errorf("unable to create gzip due to error %v", err)
+	}
+
+	return nil
+}
+
+func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
+	src := path.Join(logDir, unarchivedFile)
+	dest := path.Join(logsOutDir(), unarchivedFile)
+	//instead of copying it we just archive it to a new location
+	if err := gzipFile(path.Clean(src), path.Clean(dest+".gz")); err != nil {
+		return fmt.Errorf("archiving of log file %v failed due to error %v", unarchivedFile, err)
+	}
+
+	today := time.Now()
+
+	for i := 0; i <= archiveDays; i++ {
+		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
+		files, err := os.ReadDir(filepath.Join(logDir, "archive"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, f := range files {
+			if strings.HasPrefix(f.Name(), logPrefix+"."+processingDate) && strings.HasSuffix(f.Name(), ".gz") {
+				glog.Info("Copying archive file for " + processingDate + ": " + f.Name())
+				src := filepath.Join(logDir, "archive", f.Name())
+				dst := logsOutDir()
+				err := copyFile(path.Clean(src), path.Clean(dst))
+				if err != nil {
+					return fmt.Errorf("unable to rename file")
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -1102,17 +1285,10 @@ func init() {
 
 	// Add flags for Dremio diagnostic collection options
 
-	localCollectCmd.Flags().IntVar(&dremioMasterLogsNumDays, "dremio-master-logs-num-days", 3, "Number of days of Dremio master logs to collect for the Master Logs collector")
-	if err := viper.BindPFlag("dremio-master-logs-num-days", localCollectCmd.Flags().Lookup("dremio-master-logs-num-days")); err != nil {
-		log.Fatalf("unable to bind configuration for dremio-master-logs-num-days to error: %v", err)
+	localCollectCmd.Flags().IntVar(&dremioLogsNumDays, "dremio-logs-num-days", 3, "Number of days of Dremio logs to collect for the Logs collector")
+	if err := viper.BindPFlag("dremio-logs-num-days", localCollectCmd.Flags().Lookup("dremio-logs-num-days")); err != nil {
+		log.Fatalf("unable to bind configuration for dremio-logs-num-days to error: %v", err)
 	}
-
-	localCollectCmd.Flags().IntVar(&dremioExecutorLogsNumDays, "dremio-executor-logs-num-days", 3, "Number of days of Dremio executor logs to collect for the Executor Logs collector")
-	if err := viper.BindPFlag("dremio-executor-logs-num-days", localCollectCmd.Flags().Lookup("dremio-executor-logs-num-days")); err != nil {
-		log.Fatalf("unable to bind configuration for dremio-master-logs-num-days to error: %v", err)
-	}
-
-	//localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "/opt/dremio/data/log", "Path to Dremio log directory")
 	localCollectCmd.Flags().StringVar(&dremioGCFilePattern, "dremio-gc-file-pattern", "gc*.log", "File pattern to match for Dremio GC logs")
 	if err := viper.BindPFlag("dremio-gc-file-pattern", localCollectCmd.Flags().Lookup("dremio-gc-file-pattern")); err != nil {
 		log.Fatalf("unable to bind configuration for dremio-gc-file-pattern to error: %v", err)
@@ -1219,6 +1395,21 @@ func init() {
 	// Add flags for other options
 	localCollectCmd.Flags().IntVar(&dremioJFRTimeSeconds, "dremio-jfr-time-seconds", 300, "Duration in seconds to run the JFR collector")
 	if err := viper.BindPFlag("dremio-jfr-time-seconds", localCollectCmd.Flags().Lookup("dremio-jfr-time-seconds")); err != nil {
+		glog.Fatalf("unable to bind flag due to error %v", err)
+	}
+
+	localCollectCmd.Flags().BoolVar(&skipJFR, "skip-jstack", true, "Skip the JStack collection")
+	if err := viper.BindPFlag("skip-jstack", localCollectCmd.Flags().Lookup("skip-jstack")); err != nil {
+		glog.Fatalf("unable to bind flag due to error %v", err)
+	}
+
+	localCollectCmd.Flags().IntVar(&dremioJStackTimeSeconds, "dremio-jstack-time-seconds", 300, "Duration in seconds to run the JStack collector")
+	if err := viper.BindPFlag("dremio-jstack-time-seconds", localCollectCmd.Flags().Lookup("dremio-jstack-time-seconds")); err != nil {
+		glog.Fatalf("unable to bind flag due to error %v", err)
+	}
+
+	localCollectCmd.Flags().IntVar(&dremioJStackFreqSeconds, "dremio-jstack-freq-seconds", 1, "Frequency in seconds to run the JStack collector")
+	if err := viper.BindPFlag("dremio-jstack-freq-seconds", localCollectCmd.Flags().Lookup("dremio-jstack-freq-seconds")); err != nil {
 		glog.Fatalf("unable to bind flag due to error %v", err)
 	}
 
