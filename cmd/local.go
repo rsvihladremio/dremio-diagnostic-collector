@@ -133,7 +133,7 @@ func configurationOutDir() string {
 	return path.Join(outputDir, "configuration", nodeName)
 }
 func jfrOutDir() string          { return path.Join(outputDir, "jfr") }
-func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps") }
+func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps", nodeName) }
 func heapDumpsOutDir() string    { return path.Join(outputDir, "heap-dumps") }
 func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles", nodeName) }
 func kubernetesOutDir() string   { return path.Join(outputDir, "kubernetes") }
@@ -359,54 +359,54 @@ func collectDremioConfig() error {
 
 	_, err = w.Write([]byte("___\n>>> cat /etc/*-release\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write release file header for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write release file header for os_info.txt due to error %v", err)
 	}
 
 	err = Shell(w, "cat /etc/*-release")
 	if err != nil {
-		return fmt.Errorf("unable to write release files for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write release files for os_info.txt due to error %v", err)
 	}
 
 	_, err = w.Write([]byte("___\n>>> uname -r\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write uname header for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write uname header for os_info.txt due to error %v", err)
 	}
 
 	err = Shell(w, "uname -r")
 	if err != nil {
-		return fmt.Errorf("unable to write uname -r for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write uname -r for os_info.txt due to error %v", err)
 	}
 	_, err = w.Write([]byte("___\n>>> lsb_release -a\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write lsb_release -r header for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write lsb_release -r header for os_info.txt due to error %v", err)
 	}
 	err = Shell(w, "lsb_release -a")
 	if err != nil {
-		return fmt.Errorf("unable to write lsb_release -a for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write lsb_release -a for os_info.txt due to error %v", err)
 	}
 	_, err = w.Write([]byte("___\n>>> hostnamectl\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write hostnamectl for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write hostnamectl for os_info.txt due to error %v", err)
 	}
 	err = Shell(w, "hostnamectl")
 	if err != nil {
-		return fmt.Errorf("unable to write hostnamectl for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write hostnamectl for os_info.txt due to error %v", err)
 	}
 	_, err = w.Write([]byte("___\n>>> cat /proc/meminfo\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write /proc/meminfo header for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write /proc/meminfo header for os_info.txt due to error %v", err)
 	}
 	err = Shell(w, "cat /proc/meminfo")
 	if err != nil {
-		return fmt.Errorf("unable to write /proc/meminfo for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write /proc/meminfo for os_info.txt due to error %v", err)
 	}
 	_, err = w.Write([]byte("___\n>>> lscpu\n"))
 	if err != nil {
-		return fmt.Errorf("unable to write lscpu header for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write lscpu header for os_info.txt due to error %v", err)
 	}
 	err = Shell(w, "lscpu")
 	if err != nil {
-		return fmt.Errorf("unable to write lscpu for os_info.txt due to error %v", err)
+		glog.Warningf("unable to write lscpu for os_info.txt due to error %v", err)
 	}
 
 	glog.Infof("... Collecting OS Information from %v COMPLETED", nodeName)
@@ -428,33 +428,29 @@ func collectDremioConfig() error {
 			glog.Warningf("unable to close the os_info.txt file due to error: %v", err)
 		}
 	}()
-	var dremioPIDOutput bytes.Buffer
-	if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
-		glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
-	}
-	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+	dremioPID, err := getDremioPID()
 	if err != nil {
-		return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+		return fmt.Errorf("unable to get dremio PID %v", err)
 	}
 	err = Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
 	if err != nil {
-		return fmt.Errorf("unable to write jvm_settings.txt file due to error %v", err)
+		glog.Warningf("unable to write jvm_settings.txt file due to error %v", err)
 	}
 	err = copyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
 	if err != nil {
-		return fmt.Errorf("unable to copy dremio.conf due to error %v", err)
+		glog.Warningf("unable to copy dremio.conf due to error %v", err)
 	}
 	err = copyFile("/opt/dremio/conf/dremio-env", filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
 	if err != nil {
-		return fmt.Errorf("unable to copy dremio.env due to error %v", err)
+		glog.Warningf("unable to copy dremio.env due to error %v", err)
 	}
 	err = copyFile("/opt/dremio/conf/logback.xml", filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
 	if err != nil {
-		return fmt.Errorf("unable to copy logback.xml due to error %v", err)
+		glog.Warningf("unable to copy logback.xml due to error %v", err)
 	}
 	err = copyFile("/opt/dremio/conf/logback-access.xml", filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
 	if err != nil {
-		return fmt.Errorf("unable to copy logback-access.xml due to error %v", err)
+		glog.Warningf("unable to copy logback-access.xml due to error %v", err)
 	}
 	//# shell "cat /opt/dremio/conf/core-site.xml" > $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/core-site.xml
 
@@ -480,7 +476,7 @@ func collectDremioConfig() error {
 		}()
 		err = Shell(diskWriter, "df -h")
 		if err != nil {
-			return fmt.Errorf("unable to read df -h due to error %v", err)
+			glog.Warningf("unable to read df -h due to error %v", err)
 		}
 
 		if strings.Contains(nodeName, "dremio-master") {
@@ -495,7 +491,7 @@ func collectDremioConfig() error {
 			}()
 			err = Shell(rocksDbDiskUsageWriter, "du -sh /opt/dremio/data/db/*")
 			if err != nil {
-				return fmt.Errorf("unable to write du -sh to rocksdb_disk_allocation.txt due to error %v", err)
+				glog.Warningf("unable to write du -sh to rocksdb_disk_allocation.txt due to error %v", err)
 			}
 
 		}
@@ -657,15 +653,10 @@ func getTotalTime(c cpu.TimesStat) float64 {
 
 func collectJfr() error {
 	if !skipJFR {
-		var dremioPIDOutput bytes.Buffer
-		if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
-			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
-		}
-		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+		dremioPID, err := getDremioPID()
 		if err != nil {
-			return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+			return fmt.Errorf("unable to get dremio PID %v", err)
 		}
-
 		var w bytes.Buffer
 		if err := Shell(&w, fmt.Sprintf("jcmd %v VM.unlock_commercial_features", dremioPID)); err != nil {
 			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
@@ -704,13 +695,9 @@ func collectJstacks() error {
 		threadDumpFreq := dremioJStackFreqSeconds
 		iterations := dremioJStackTimeSeconds
 		glog.Infof("Running Java thread dumps every %v second(s) for a total of $ITERATIONS iterations ...", threadDumpFreq)
-		var dremioPIDOutput bytes.Buffer
-		if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
-			glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
-		}
-		dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+		dremioPID, err := getDremioPID()
 		if err != nil {
-			return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+			return fmt.Errorf("unable to get dremio PID %v", err)
 		}
 		for i := 0; i < iterations; i++ {
 			var w bytes.Buffer
@@ -718,7 +705,7 @@ func collectJstacks() error {
 				glog.Warningf("unable to capture jstack of pid %v due to error %v", dremioPID, err)
 			}
 			date := time.Now().Format("2006-01-02_15_04_05")
-			threadDumpFileName := path.Join(threadDumpsOutDir(), nodeName, fmt.Sprintf("threadDump-%s-%s", nodeName, date))
+			threadDumpFileName := path.Join(threadDumpsOutDir(), fmt.Sprintf("threadDump-%s-%s.txt", nodeName, date))
 			if err := os.WriteFile(path.Clean(threadDumpFileName), w.Bytes(), 0600); err != nil {
 				return fmt.Errorf("unable to write thread dump %v due to error %v", threadDumpFileName, err)
 			}
@@ -793,16 +780,12 @@ func collectWlm() error {
 }
 
 func collectHeapDump() error {
-	var dremioPIDOutput bytes.Buffer
-	if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
-		glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
-	}
-	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+	dremioPID, err := getDremioPID()
 	if err != nil {
-		return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+		return fmt.Errorf("unable to get dremio pid %v", err)
 	}
-
-	hprofFile := fmt.Sprintf("/tmp/%v.hprof", nodeName)
+	baseName := fmt.Sprintf("%v.hprof", nodeName)
+	hprofFile := fmt.Sprintf("/tmp/%v.hprof", baseName)
 	hprofGzFile := fmt.Sprintf("%v.gz", hprofFile)
 	if err := os.Remove(path.Clean(hprofGzFile)); err != nil {
 		glog.Warningf("unable to remove hprof.gz file with error %v", err)
@@ -821,8 +804,9 @@ func collectHeapDump() error {
 	if err := os.Remove(path.Clean(hprofFile)); err != nil {
 		glog.Warningf("unable to remove old hprof file, must remove manually", err)
 	}
-	if err := os.Rename(path.Clean(hprofGzFile), path.Clean(heapDumpsOutDir())); err != nil {
-		return fmt.Errorf("unable to move heap dump to archive folder")
+	dest := path.Join(heapDumpsOutDir(), baseName+".gz")
+	if err := os.Rename(path.Clean(hprofGzFile), path.Clean(dest)); err != nil {
+		return fmt.Errorf("unable to move heap dump to %v due to error %v", dest, err)
 	}
 	return nil
 }
@@ -1221,7 +1205,21 @@ func Shell(writer io.Writer, commandLine string) error {
 	return nil
 }
 
+func getDremioPID() (int, error) {
+	var dremioPIDOutput bytes.Buffer
+	if err := Shell(&dremioPIDOutput, "jps | grep DremioDaemon | awk '{print $1}'"); err != nil {
+		glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+	}
+	dremioIDString := strings.TrimSpace(dremioPIDOutput.String())
+	dremioPID, err := strconv.Atoi(dremioIDString)
+	if err != nil {
+		return -1, fmt.Errorf("unable to parse pid from text '%v' due to error %v", dremioIDString, err)
+	}
+	return dremioPID, nil
+}
+
 func init() {
+	rootCmd.AddCommand(localCollectCmd)
 	// command line flags
 
 	//make default tmp directory

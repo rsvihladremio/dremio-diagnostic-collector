@@ -48,6 +48,7 @@ func (t *ThreadPool) FireJob(job func() error) {
 
 // Wait waits for goroutines to finish by acquiring all slots.
 func (t *ThreadPool) Wait() {
+	glog.Flush()
 	for i := 0; i < cap(t.semaphore); i++ {
 		t.semaphore <- true
 	}
