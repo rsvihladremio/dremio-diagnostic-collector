@@ -26,6 +26,16 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
+// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInYAML(yamlText string) string { //nolint
+	return yamlText
+}
+
+// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInJSON(jsonText string) string { //nolint
+	return jsonText
+}
+
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
 	cmds := []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	for _, cmd := range cmds {

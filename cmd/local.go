@@ -324,7 +324,6 @@ func collect(numberThreads int) {
 	t.FireJob(collectJstacks)
 	t.FireJob(collectKvReport)
 	t.FireJob(collectWlm)
-	t.FireJob(collectK8sConfig)
 	t.FireJob(collectHeapDump)
 	t.FireJob(collectDremioSystemTables)
 	t.FireJob(collectQueriesJSON)
@@ -794,10 +793,59 @@ func collectWlm() error {
 }
 
 func collectHeapDump() error {
+	var dremioPIDOutput bytes.Buffer
+	if err := Shell(&dremioPIDOutput, "bash -c \"ps ax | grep dremio | grep -v grep | awk '{print $1}'"); err != nil {
+		glog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+	}
+	dremioPID, err := strconv.Atoi(dremioPIDOutput.String())
+	if err != nil {
+		return fmt.Errorf("unable to parse dremio PID due to error %v", err)
+	}
+
+	hprofFile := fmt.Sprintf("/tmp/%v.hprof", nodeName)
+	hprofGzFile := fmt.Sprintf("%v.gz", hprofFile)
+	if err := os.Remove(path.Clean(hprofGzFile)); err != nil {
+		glog.Warningf("unable to remove hprof.gz file with error %v", err)
+	}
+	if err := os.Remove(path.Clean(hprofFile)); err != nil {
+		glog.Warningf("unable to remove hprof file with error %v", err)
+	}
+	var w bytes.Buffer
+	if err := Shell(&w, fmt.Sprintf("jmap -dump:format=b,file=%v %v", hprofFile, dremioPID)); err != nil {
+		return fmt.Errorf("unable to capture heap dump %v", err)
+	}
+	glog.Infof("heap dump output %v", w.String())
+	if err := gzipFile(hprofFile, hprofGzFile); err != nil {
+		return fmt.Errorf("unable to gzip heap dump file")
+	}
+	if err := os.Remove(path.Clean(hprofFile)); err != nil {
+		glog.Warningf("unable to remove old hprof file, must remove manually", err)
+	}
+	if err := os.Rename(path.Clean(hprofGzFile), path.Clean(heapDumpsOutDir())); err != nil {
+		return fmt.Errorf("unable to move heap dump to archive folder")
+	}
 	return nil
 }
 
 func collectQueriesJSON() error {
+	if skipCollectQueriesJSON && skipDownloadJobProfiles {
+		glog.Info("Skipping Collect Queries JSON ...")
+		return nil
+	}
+
+	if skipDownloadJobProfiles && !skipDownloadJobProfiles {
+		glog.Warning("NOT Skipping collection of Queries JSON, because --skip-download-job-profiles and job profile download requires queries.json ...")
+	}
+
+	glog.Info("Collecting Queries JSON for Job Profiles ...")
+	err := exportArchivedLogs(dremioLogsDir, "queries.json", "queries", jobProfilesNumDays)
+	if err != nil {
+		return fmt.Errorf("failed to export archived logs: %v", err)
+	}
+
+	glog.Warning("Queries.json from scale-out coordinators must be collected separately!")
+
+	glog.Info("... collecting Queries JSON for Job Profiles COMPLETED")
 	return nil
 }
 
@@ -867,22 +915,6 @@ func downloadJobProfile(jobid string) error {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
-	return nil
-}
-
-// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInYAML(yamlText string) string { //nolint
-	return yamlText
-}
-
-// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInJSON(jsonText string) string { //nolint
-	return jsonText
-}
-
-func collectK8sConfig() error {
-	//foreach yaml file
-	//maskPasswordKeysYAML
 	return nil
 }
 
@@ -1011,7 +1043,7 @@ func collectMetadataRefreshLog() error {
 		glog.Info("Skipping Collect Metadata Refresh Logs  ...")
 	} else {
 		glog.Info("Collecting metadata refresh logs from Coordinator(s) ...")
-		if err := exportArchivedLogs(logDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogsDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to collect metadata refresh logs due to error %v", err)
 		}
 		glog.Warning("Metadata refresh logs from scale-out coordinators must be collected separately!")
@@ -1025,7 +1057,7 @@ func collectReflectionLog() error {
 		glog.Info("Skipping Collect Reflection Logs  ...")
 	} else {
 		glog.Info("Collecting reflection logs from Coordinator(s) ...")
-		if err := exportArchivedLogs(logDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogsDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to collect reflection logs due to error %v", err)
 		}
 		glog.Info("... collecting reflection logs from Coordinator(s) COMPLETED")
