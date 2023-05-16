@@ -1,18 +1,16 @@
-/*
-   Copyright 2022 Ryan SVIHLA
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // collection package provides the interface for collection implementation and the actual collection execution
 package collection
@@ -94,7 +92,7 @@ func (m *MockCollector) CopyFromHost(hostString string, isCoordinator bool, sour
 	}
 	return response[0].(string), response[1].(error)
 }
-func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error) {
+func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, _, source, destination string) (out string, err error) {
 	args := make(map[string]interface{})
 	args["hostString"] = hostString
 	args["isCoordinator"] = isCoordinator
@@ -105,10 +103,10 @@ func (m *MockCollector) CopyFromHostSudo(hostString string, isCoordinator bool, 
 	m.CallCounter++
 	if response[1] == nil {
 		return response[0].(string), nil
-
 	}
 	return response[0].(string), response[1].(error)
 }
+
 func (m *MockCollector) FindHosts(searchTerm string) (podName []string, err error) {
 	args := make(map[string]interface{})
 	args["searchTerm"] = searchTerm

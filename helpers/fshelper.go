@@ -1,18 +1,16 @@
-/*
-   Copyright 2022 Ryan SVIHLA
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+//  Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // fshelper provides functions to wrapper os file system calls
 // to better facilitate testing
@@ -173,12 +171,12 @@ func (f FakeFileSystem) Stat(name string) (os.FileInfo, error) {
 }
 
 // Create
-func (f FakeFileSystem) Create(name string) (File, error) {
+func (f FakeFileSystem) Create(_ string) (File, error) {
 	return &FakeFile{}, nil
 }
 
 // Mkdir
-func (f FakeFileSystem) Mkdir(name string, perms os.FileMode) error {
+func (f FakeFileSystem) Mkdir(_ string, _ os.FileMode) error {
 	return nil
 }
 
@@ -197,21 +195,21 @@ func (f FakeFileSystem) MkdirTemp(name string, pattern string) (string, error) {
 }
 
 // MkdirAll
-func (f FakeFileSystem) MkdirAll(name string, perms os.FileMode) error {
+func (f FakeFileSystem) MkdirAll(_ string, _ os.FileMode) error {
 	return nil
 }
 
 // Remove
-func (f FakeFileSystem) Remove(path string) error {
+func (f FakeFileSystem) Remove(_ string) error {
 	return nil
 }
 
 // RemoveAll
-func (f FakeFileSystem) RemoveAll(path string) error {
+func (f FakeFileSystem) RemoveAll(_ string) error {
 	return nil
 }
 
 // Writefile
-func (f FakeFileSystem) WriteFile(name string, data []byte, perms os.FileMode) error {
+func (f FakeFileSystem) WriteFile(_ string, _ []byte, _ os.FileMode) error {
 	return nil
 }

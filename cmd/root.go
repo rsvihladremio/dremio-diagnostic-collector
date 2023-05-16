@@ -1,18 +1,16 @@
-/*
-   Copyright 2022 Ryan SVIHLA
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // cmd package contains all the command line flag and initialization logic for commands
 package cmd
@@ -30,11 +28,11 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var dremioConfDir string
 var dremioLogDir string
-var dremioGcDir string
 var coordinatorContainer string
 var executorsContainer string
 var coordinatorStr string
@@ -45,13 +43,10 @@ var outputLoc string
 var kubectlPath string
 var isK8s bool
 var durationDiagnosticTooling int
-var logAge int
 var jfrduration int
 var sudoUser string
-var excludeFiles []string
 var GitSha = "unknown"
 var Version = "dev"
-var format string
 var namespace string
 
 // var isEmbeddedK8s bool
@@ -71,7 +66,17 @@ ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key 
 
 ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor --output diag.zip
 `,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, args []string) {
+
+	},
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	foundCmd, _, err := rootCmd.Find(os.Args[1:])
+	// default cmd if no cmd is given
+	if err == nil && foundCmd.Use == rootCmd.Use && foundCmd.Flags().Parse(os.Args[1:]) != pflag.ErrHelp {
 		if sshKeyLoc == "" {
 			sshDefault, err := sshDefault()
 			if err != nil {
@@ -102,12 +107,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 			OutputLoc:                 filepath.Clean(outputLoc),
 			DremioConfDir:             filepath.Clean(dremioConfDir),
 			DremioLogDir:              filepath.Clean(dremioLogDir),
-			GCLogOverride:             filepath.Clean(dremioGcDir),
 			DurationDiagnosticTooling: durationDiagnosticTooling,
-			LogAge:                    logAge,
 			JfrDuration:               jfrduration,
 			SudoUser:                  sudoUser,
-			ExcludeFiles:              excludeFiles,
 			DDCfs:                     helpers.NewRealFileSystem(),
 		}
 
@@ -122,7 +124,7 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 		if err != nil {
 			fmt.Println("COMMAND HELP TEXT:")
 			fmt.Println("")
-			err := cmd.Help()
+			err := rootCmd.Help()
 			if err != nil {
 				log.Fatalf("unable to print help %v", err)
 			}
@@ -134,17 +136,9 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 		}
 		fmt.Println(getVersion())
 
+		cs := helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
-		var cs collection.CopyStrategy
-		switch format {
-		case "basic":
-			cs = helpers.NewBACopyStrategy(collectionArgs.DDCfs)
-		case "healthcheck":
-			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
-		default:
-			cs = helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
-		}
 
 		// Determine namespace
 		var collectorStrategy collection.Collector
@@ -169,15 +163,10 @@ ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator 
 		if err != nil {
 			log.Fatalf("unexpected error running collection '%v'", err)
 		}
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		log.Fatal(err)
+	}
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
@@ -214,13 +203,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
-	rootCmd.Flags().IntVarP(&durationDiagnosticTooling, "diag-tooling-collection-seconds", "d", 60, "the duration to run diagnostic collection tools like iostat, jstack etc")
-	rootCmd.Flags().IntVarP(&logAge, "log-age", "a", 0, "the maximum number of days to go back for log retreival (default is no filter and will retrieve all logs)")
-	rootCmd.Flags().StringVarP(&dremioGcDir, "dremio-gc-dir", "g", "/var/log/dremio", "directory where to find the GC logs")
 	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
-	rootCmd.Flags().StringSliceVarP(&excludeFiles, "exclude-files", "x", []string{"*jfr"}, "comma seperated list of file names to exclude")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "healthcheck", "format for output, (choices are \"healthcheck\" (default) and \"basic\"")
 
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
