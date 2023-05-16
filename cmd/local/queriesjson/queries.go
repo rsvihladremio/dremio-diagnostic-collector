@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,7 +83,7 @@ type QueriesRow struct {
 
 func ReadGzFile(filename string) ([]QueriesRow, error) {
 	queriesrows := []QueriesRow{}
-	file, err := os.Open(filename)
+	file, err := os.Open(path.Clean(filename))
 	if err != nil {
 		return queriesrows, err
 	}
@@ -112,7 +113,7 @@ func ReadGzFile(filename string) ([]QueriesRow, error) {
 func ReadJSONFile(filename string) ([]QueriesRow, error) {
 	// Source: https://gist.github.com/kendellfab/7417164
 	queriesrows := []QueriesRow{}
-	file, err := os.Open(filename)
+	file, err := os.Open(path.Clean(filename))
 	if err != nil {
 		fmt.Println(err.Error() + `: ` + filename)
 		return queriesrows, err
@@ -244,7 +245,7 @@ func CollectQueriesJSON(queriesjsons []string) []QueriesRow {
 func writeToCSV(queriesrows []QueriesRow, filter string, limit int) { //nolint
 	// Can be used for testing or debugging
 
-	file, err := os.Create("job_ids_go_" + filter + strconv.Itoa(limit) + ".csv")
+	file, err := os.Create(path.Clean("job_ids_go_" + filter + strconv.Itoa(limit) + ".csv"))
 	if err != nil {
 		panic(err)
 	}

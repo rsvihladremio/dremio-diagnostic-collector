@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"net/http"
@@ -216,40 +217,41 @@ By running ddc with the --accept-collection-consent flag, you acknowledge that y
 }
 
 func createAllDirs() error {
-	if err := os.MkdirAll(configurationOutDir(), 0755); err != nil {
+	var perms fs.FileMode = 0750
+	if err := os.MkdirAll(configurationOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create configuration directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jfrOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(jfrOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create jfr directory due to error %v", err)
 	}
-	if err := os.MkdirAll(threadDumpsOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(threadDumpsOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create thread-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(heapDumpsOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(heapDumpsOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create heap-dumps directory due to error %v", err)
 	}
-	if err := os.MkdirAll(jobProfilesOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(jobProfilesOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create job-profiles directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kubernetesOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(kubernetesOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create kubernetes directory due to error %v", err)
 	}
-	if err := os.MkdirAll(kvstoreOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(kvstoreOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create kvstore directory due to error %v", err)
 	}
-	if err := os.MkdirAll(logsOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(logsOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create logs directory due to error %v", err)
 	}
-	if err := os.MkdirAll(nodeInfoOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(nodeInfoOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create node-info directory due to error %v", err)
 	}
-	if err := os.MkdirAll(queriesOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(queriesOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create queries directory due to error %v", err)
 	}
-	if err := os.MkdirAll(systemTablesOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(systemTablesOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create system-tables directory due to error %v", err)
 	}
-	if err := os.MkdirAll(wlmOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(wlmOutDir(), perms); err != nil {
 		return fmt.Errorf("unable to create wlm directory due to error %v", err)
 	}
 	return nil
@@ -289,9 +291,9 @@ func collectDremioConfig() error {
 
 	glog.Info("Collecting OS Information from $BASENAME ...")
 	osInfoFile := path.Join(outputDir, "node-info", nodeName, "os_info.txt")
-	w, err := os.Create(osInfoFile)
+	w, err := os.Create(path.Clean(osInfoFile))
 	if err != nil {
-		return fmt.Errorf("unable to create file %v due to error %v", osInfoFile, err)
+		return fmt.Errorf("unable to create file %v due to error %v", path.Clean(osInfoFile), err)
 	}
 	defer func() {
 		if err := w.Sync(); err != nil {
@@ -363,9 +365,9 @@ func collectDremioConfig() error {
 
 	glog.Warning("You may have to run the following command 'jcmd 1 VM.flags' as 'sudo' and specify '-u dremio' when running on Dremio AWSE or VM deployments")
 	jvmSettingsFile := path.Join(outputDir, "node-info", nodeName, "jvm_settings.txt")
-	jvmSettingsFileWriter, err := os.Create(jvmSettingsFile)
+	jvmSettingsFileWriter, err := os.Create(path.Clean(jvmSettingsFile))
 	if err != nil {
-		return fmt.Errorf("unable to create file %v due to error %v", jvmSettingsFile, err)
+		return fmt.Errorf("unable to create file %v due to error %v", path.Clean(jvmSettingsFile), err)
 	}
 	defer func() {
 		if err := jvmSettingsFileWriter.Sync(); err != nil {
@@ -413,7 +415,7 @@ func collectDremioConfig() error {
 		glog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
 	} else {
 		glog.Infof("Collecting Disk Usage from %v ...", nodeName)
-		diskWriter, err := os.Create(filepath.Join(outputDir, "node-info", nodeName, "diskusage.txt"))
+		diskWriter, err := os.Create(path.Clean(filepath.Join(outputDir, "node-info", nodeName, "diskusage.txt")))
 		if err != nil {
 			return fmt.Errorf("unable to create diskusage.txt due to error %v", err)
 		}
@@ -431,11 +433,15 @@ func collectDremioConfig() error {
 		}
 
 		if strings.Contains(nodeName, "dremio-master") {
-			rocksDbDiskUsageWriter, err := os.Create(filepath.Join(outputDir, "node-info", nodeName, "rocksdb_disk_allocation.txt"))
+			rocksDbDiskUsageWriter, err := os.Create(path.Clean(filepath.Join(outputDir, "node-info", nodeName, "rocksdb_disk_allocation.txt")))
 			if err != nil {
 				return fmt.Errorf("unable to create rocksdb_disk_allocation.txt due to error %v", err)
 			}
-			defer rocksDbDiskUsageWriter.Close()
+			defer func() {
+				if err := rocksDbDiskUsageWriter.Close(); err != nil {
+					glog.Warningf("unable to close rocksdb usage writer the file maybe incomplete %v", err)
+				}
+			}()
 			err = Shell(rocksDbDiskUsageWriter, "du -sh /opt/dremio/data/db/*")
 			if err != nil {
 				return fmt.Errorf("unable to write du -sh to rocksdb_disk_allocation.txt due to error %v", err)
@@ -490,18 +496,26 @@ func findMatchingFiles(dirPath string, matchFunc func(filename string) bool) ([]
 
 func copyFile(srcPath, dstPath string) error {
 	// Open the source file
-	srcFile, err := os.Open(srcPath)
+	srcFile, err := os.Open(path.Clean(srcPath))
 	if err != nil {
 		return err
 	}
-	defer srcFile.Close()
+	defer func() {
+		if err := srcFile.Close(); err != nil {
+			glog.Warningf("unable to close %v due to error %v", path.Clean(srcPath), err)
+		}
+	}()
 
 	// Create the destination file
-	dstFile, err := os.Create(dstPath)
+	dstFile, err := os.Create(path.Clean(dstPath))
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer func() {
+		if err := dstFile.Close(); err != nil {
+			log.Fatalf("unable to close file %v due to error %v", path.Clean(dstPath), err)
+		}
+	}()
 
 	// Copy the contents of the source file to the destination file
 	_, err = io.Copy(dstFile, srcFile)
@@ -519,8 +533,8 @@ func copyFile(srcPath, dstPath string) error {
 }
 
 func collectNodeMetrics() error {
-	nodeMetricsFile := path.Join(outputDir, "node-info", nodeName, "metrics.txt")
-	w, err := os.Create(nodeMetricsFile)
+	nodeMetricsFile := path.Clean(path.Join(outputDir, "node-info", nodeName, "metrics.txt"))
+	w, err := os.Create(path.Clean(nodeMetricsFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error %v", nodeMetricsFile, err)
 	}
@@ -651,7 +665,7 @@ func collectKvReport() error {
 	}
 	sb := string(body)
 	kvStoreReportFile := path.Join(kvstoreOutDir(), filename)
-	file, err := os.Create(kvStoreReportFile)
+	file, err := os.Create(path.Clean(kvStoreReportFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
@@ -683,8 +697,8 @@ func collectWlm() error {
 			return fmt.Errorf("unable to retrieve WLM from %s due to error %v", url, err)
 		}
 		sb := string(body)
-		wlmFile := path.Join(wlmOutDir(), filename)
-		file, err := os.Create(wlmFile)
+		wlmFile := path.Clean(path.Join(wlmOutDir(), filename))
+		file, err := os.Create(path.Clean(wlmFile))
 		if err != nil {
 			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 		}
@@ -762,8 +776,8 @@ func downloadJobProfile(jobid string) error {
 		return err
 	}
 	sb := string(body)
-	jobProfileFile := path.Join(jobProfilesOutDir(), filename)
-	file, err := os.Create(jobProfileFile)
+	jobProfileFile := path.Clean(path.Join(jobProfilesOutDir(), filename))
+	file, err := os.Create(path.Clean(jobProfileFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %s due to error %v", filename, err)
 	}
@@ -846,7 +860,7 @@ func collectDremioSystemTables() error {
 		}
 		sb := string(body)
 		systemTableFile := path.Join(systemTablesOutDir(), filename)
-		file, err := os.Create(systemTableFile)
+		file, err := os.Create(path.Clean(systemTableFile))
 		if err != nil {
 			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
 		}
