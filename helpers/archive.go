@@ -1,22 +1,18 @@
-/*
-   Copyright 2022 Ryan SVIHLA
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
-
-/*
-This module controls archiving files that are collected
-*/
+//This module controls archiving files that are collected
 
 package helpers
 
@@ -37,17 +33,17 @@ import (
 
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
 // to archive the old directory. It supports: .tgz, .tar.gz and .zip extensions
-func ArchiveDiagDirectory(outputFile, outputDir string, fileList []CollectedFile) error {
+func ArchiveDiagDirectory(outputFile, outputDir string, _ []CollectedFile) error {
 
 	// Make a complete list of collected files
 	found, err := findAllFiles(outputDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("uanble to find files while archiving due to error %v", err)
 	}
 	// Get all file sizes
 	files, err := createFileList(found)
 	if err != nil {
-		return err
+		return fmt.Errorf("uanble to create file list of files to archive due to error %v", err)
 	}
 
 	ext := filepath.Ext(outputFile)
@@ -166,12 +162,12 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		}
 	}
 	if err := tw.Close(); err != nil {
-		return err
+		return fmt.Errorf("unable to close the archive %v due to error %v", tarFile, err)
 	}
 	return nil
 }
 
-func GZipDiag(zipFileName string, baseDir string, file string) error {
+func GZipDiag(zipFileName string, _ string, file string) error {
 	// Create a buffer to write our archive to.
 	zipFile, err := os.Create(filepath.Clean(zipFileName))
 	if err != nil {

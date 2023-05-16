@@ -8,5 +8,7 @@ cd "$(dirname "$0")/.."
 
 [ -z "$DEBUG" ] || set -x
 
-go test -race -covermode atomic -coverprofile=covprofile ./...
-go tool cover -func=covprofile
+echo "appending test results to test.out"
+go test -v -race -covermode atomic -coverprofile=covprofile ./... > test.out
+go tool cover -func=covprofile >> test.out
+cat ./test.out

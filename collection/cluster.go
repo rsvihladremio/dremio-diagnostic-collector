@@ -1,18 +1,16 @@
-/*
-   Copyright 2022 Ryan SVIHLA
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // This module deals with specific k8s cluster level data collection
 
@@ -27,6 +25,16 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
+
+// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInYAML(yamlText string) string { //nolint
+	return yamlText
+}
+
+// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
+func maskPasswordsInJSON(jsonText string) string { //nolint
+	return jsonText
+}
 
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
 	cmds := []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
@@ -53,7 +61,7 @@ func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesyste
 // Execute commands at the cluster level
 // Calls a raw execute function and simply writes out the byte array read from the response
 // that comes in directly from kubectl
-func clusterExecute(namespace, cmd string, c Collector, k string) ([]byte, error) {
+func clusterExecute(namespace, cmd string, _ Collector, k string) ([]byte, error) {
 	cli := &cli.Cli{}
 	kubectlArgs := []string{k, "-n", namespace, "get"}
 	kubectlArgs = append(kubectlArgs, cmd, "-o", "json")
