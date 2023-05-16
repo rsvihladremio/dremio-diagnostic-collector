@@ -1,5 +1,6 @@
 [![Build Status](https://github.com/rsvihladremio/dremio-diagnostic-collector/actions/workflows/go.yml/badge.svg)](https://github.com/rsvihladremio/dremio-diagnostic-collector/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rsvihladremio/dremio-diagnostic-collector)](https://goreportcard.com/report/github.com/rsvihladremio/dremio-diagnostic-collector)
+![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Frsvihladremio%2Fbaa5764cecee421db0f533239258c064%2Fraw%2Fdremio-diagnostic-collector-go-tests.json)
 ![Coverage Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Frsvihladremio%2Fbaa5764cecee421db0f533239258c064%2Fraw%2Fdremio-diagnostic-collector-go-coverage.json)
 
 # dremio-diagnostic-collector
