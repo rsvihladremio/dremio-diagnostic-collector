@@ -23,8 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/tests/assert"
 )
 
 func TestGet(t *testing.T) {
@@ -42,9 +41,9 @@ func TestGet(t *testing.T) {
 	var headers = make(map[string][]string)
 	headers["abc"] = []string{"a", "b", "c"}
 	response, err := Get(svr.URL, headers)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	body, err := response.GetBody()
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, []byte(expected))
 	assert.Equal(t, "GET", method)
 	assert.Equal(t, "/", urlPassed)
@@ -60,7 +59,7 @@ func TestGetReponseHeaders(t *testing.T) {
 	}))
 	defer svr.Close()
 	response, err := Get(svr.URL, nil)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	headers := response.GetHeaders()
 	expected := make(map[string][]string)
 	expected["Test"] = []string{"1", "2"}
@@ -75,9 +74,9 @@ func TestGetText(t *testing.T) {
 	}))
 	defer svr.Close()
 	response, err := Get(svr.URL, nil)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	body, err := response.GetBodyText()
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, expected)
 }
 
@@ -92,10 +91,10 @@ func TestGetJSON(t *testing.T) {
 	}))
 	defer svr.Close()
 	response, err := Get(svr.URL, nil)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	jsonBody := make(map[string]any)
 	err = response.GetJSONObjectFromBody(&jsonBody)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	expectedJSONBody := make(map[string]any)
 	expectedJSONBody["a"] = 1.0
 	expectedJSONBody["b"] = "abc"
@@ -118,7 +117,7 @@ func TestDelete(t *testing.T) {
 	var headers = make(map[string][]string)
 	headers["abc"] = []string{"a", "b", "c"}
 	response, err := Delete(svr.URL, headers)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	code, status := response.GetStatus()
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "200 OK", status)
@@ -143,7 +142,7 @@ func TestPost(t *testing.T) {
 			text := scanner.Text()
 			_, err := builder.WriteString(text)
 			if err != nil {
-				require.Nil(t, err)
+				assert.Nil(t, err)
 			}
 		}
 		//echo back out the text
@@ -154,12 +153,12 @@ func TestPost(t *testing.T) {
 	headers := make(map[string][]string)
 	headers["abc"] = []string{"a", "b", "c"}
 	response, err := Post(svr.URL, headers, expected)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	code, status := response.GetStatus()
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "200 OK", status)
 	body, err := response.GetBody()
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, expected)
 	assert.Equal(t, "POST", method)
 	assert.Equal(t, "/", urlPassed)
@@ -176,7 +175,7 @@ func TestPostJSON(t *testing.T) {
 			text := scanner.Text()
 			_, err := builder.WriteString(text)
 			if err != nil {
-				require.Nil(t, err)
+				assert.Nil(t, err)
 			}
 		}
 		//echo back out the text
@@ -187,13 +186,13 @@ func TestPostJSON(t *testing.T) {
 	expected["a"] = "123"
 	expected["b"] = "456"
 	response, err := PostJSON(svr.URL, nil, expected)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	code, status := response.GetStatus()
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "200 OK", status)
 	body := make(map[string]string)
 	err = response.GetJSONObjectFromBody(&body)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, expected)
 }
 
@@ -212,7 +211,7 @@ func TestPut(t *testing.T) {
 			text := scanner.Text()
 			_, err := builder.WriteString(text)
 			if err != nil {
-				require.Nil(t, err)
+				assert.Nil(t, err)
 			}
 		}
 		//echo back out the text
@@ -223,12 +222,12 @@ func TestPut(t *testing.T) {
 	headers := make(map[string][]string)
 	headers["abc"] = []string{"a", "b", "c"}
 	response, err := Put(svr.URL, headers, expected)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	code, status := response.GetStatus()
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "200 OK", status)
 	body, err := response.GetBody()
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, expected)
 	assert.Equal(t, "PUT", method)
 	assert.Equal(t, "/", urlPassed)
@@ -245,7 +244,7 @@ func TestPutJSON(t *testing.T) {
 			text := scanner.Text()
 			_, err := builder.WriteString(text)
 			if err != nil {
-				require.Nil(t, err)
+				assert.Nil(t, err)
 			}
 		}
 		//echo back out the text
@@ -256,12 +255,12 @@ func TestPutJSON(t *testing.T) {
 	expected["a"] = "123"
 	expected["b"] = "456"
 	response, err := PutJSON(svr.URL, nil, expected)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	code, status := response.GetStatus()
 	assert.Equal(t, 200, code)
 	assert.Equal(t, "200 OK", status)
 	body := make(map[string]string)
 	err = response.GetJSONObjectFromBody(&body)
-	require.Nil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, body, expected)
 }
