@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/dockertest/v3"
+	dockertest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 )
 
@@ -164,7 +164,7 @@ func TestMain(m *testing.M) {
 		dremioPATToken = authResponse.Token
 
 		nasSource := `{
-			"metadataPolicy": {        
+			"metadataPolicy": {
 				"authTTLMs":86400000,
         		"namesRefreshMs":3600000,
         		"datasetRefreshAfterMs": 3600000,

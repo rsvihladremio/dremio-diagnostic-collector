@@ -15,10 +15,13 @@
 // threading package provides support for simple concurrency and threading
 package threading
 
-import "github.com/golang/glog"
+import (
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+)
 
 type ThreadPool struct {
 	semaphore chan bool
+	thread    int
 }
 
 // NewThreadPool creates a thread pool based on channels which will run no more than the parameter numberThreads
@@ -35,21 +38,23 @@ func (t *ThreadPool) FireJob(job func() error) {
 	go func() {
 		//aquire a lock by sending a value to the channel (can be any value)
 		t.semaphore <- true
+		simplelog.Debugf("starting thread #%v", t.thread)
+		t.thread++
 		defer func() {
 			<-t.semaphore // Release semaphore slot.
 		}()
 		//execute the job
 		err := job()
 		if err != nil {
-			glog.Error(err)
+			simplelog.Debugf("failed the job %v", err)
 		}
 	}()
 }
 
 // Wait waits for goroutines to finish by acquiring all slots.
 func (t *ThreadPool) Wait() {
-	glog.Flush()
 	for i := 0; i < cap(t.semaphore); i++ {
+		simplelog.Debugf("Thread #%v completed", i)
 		t.semaphore <- true
 	}
 }
