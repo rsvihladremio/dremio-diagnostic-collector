@@ -17,6 +17,7 @@ package assert
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -45,5 +46,26 @@ func True(t *testing.T, a interface{}) {
 func Nil(t *testing.T, a interface{}) {
 	if a != nil {
 		t.Errorf("Received %v (type %v), expected nil", a, reflect.TypeOf(a))
+	}
+}
+
+// Error checks if an expected error occurred
+func Error(t *testing.T, err error) {
+	if err == nil {
+		t.Error("expected an error, but got nil")
+	}
+}
+
+// NoError checks that no error occurred
+func NoError(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("expected no error, but got %v", err)
+	}
+}
+
+// Contains checks if a string is contained within another string.
+func Contains(t *testing.T, haystack, needle string) {
+	if !strings.Contains(haystack, needle) {
+		t.Errorf("expected %q to contain %q", haystack, needle)
 	}
 }
