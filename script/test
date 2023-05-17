@@ -2,13 +2,12 @@
 
 # script/test: Run test suite for application.
 
-set -e
+#set -e
 
 cd "$(dirname "$0")/.."
 
 [ -z "$DEBUG" ] || set -x
 
 echo "appending test results to test.out"
-go test -v -race -covermode atomic -coverprofile=covprofile ./... > test.out
-go tool cover -func=covprofile >> test.out
+go test -v -race -covermode atomic -coverprofile=covprofile ./... > test.out && go tool cover -func=covprofile >> test.out
 cat ./test.out

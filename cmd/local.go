@@ -1433,7 +1433,7 @@ func init() {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	localCollectCmd.Flags().BoolVar(&skipJFR, "skip-jstack", true, "Skip the JStack collection")
+	localCollectCmd.Flags().BoolVar(&skipJStack, "skip-jstack", true, "Skip the JStack collection")
 	if err := viper.BindPFlag("skip-jstack", localCollectCmd.Flags().Lookup("skip-jstack")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
