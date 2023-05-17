@@ -23,15 +23,15 @@ import (
 
 // Equal checks if two values are equal
 func Equal(t *testing.T, a interface{}, b interface{}) {
-	if a != b {
+	if !reflect.DeepEqual(a, b) {
 		t.Errorf("Received %v (type %v), expected %v (type %v)", a, reflect.TypeOf(a), b, reflect.TypeOf(b))
 	}
 }
 
 // NotEqual checks if two values are not equal
 func NotEqual(t *testing.T, a interface{}, b interface{}) {
-	if a == b {
-		t.Errorf("Received %v (type %v), did not expect this value", a, reflect.TypeOf(a))
+	if reflect.DeepEqual(a, b) {
+		t.Errorf("Received %v (type %v), expected %v (type %v) to not be equal but they were", a, reflect.TypeOf(a), b, reflect.TypeOf(b))
 	}
 }
 
