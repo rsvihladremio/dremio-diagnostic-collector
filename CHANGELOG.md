@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.3] - 2023-05-23
+
+### Fixed
+- Fixes #90 - logs duplicated under incorrect path
+
 ## [0.2.2] - 2023-05-15
 
 ### Added
