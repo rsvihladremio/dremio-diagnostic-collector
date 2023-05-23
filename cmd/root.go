@@ -31,8 +31,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var dremioConfDir string
-var dremioLogDir string
 var coordinatorContainer string
 var executorsContainer string
 var coordinatorStr string
