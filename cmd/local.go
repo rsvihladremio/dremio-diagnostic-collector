@@ -46,63 +46,14 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/threading"
 )
 
+//constants
+
+// package variables
 var (
-	//simplelog                       //  *simplelog.Logger
-	unableToReadConfigError        error
-	kubernetesConfTypes            = []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
-	supportedExtensions            = []string{"yaml", "json", "toml", "hcl", "env", "props"}
-	confFiles                      []string
-	configIsFound                  bool
-	foundConfig                    string
-	outputDir                      string
-	logDir                         string
-	verbose                        int
-	numberThreads                  int
-	nodeName                       string
-	gcLogsDir                      string
-	dremioLogsDir                  string
-	dremioEndpoint                 string
-	dremioUsername                 string
-	dremioPATToken                 string
-	dremioStorageType              string
-	awsAccessKeyID                 string
-	awsSecretAccessKey             string
-	awsS3Path                      string
-	awsDefaultRegion               string
-	azureSASURL                    string
-	dremioLogsNumDays              int
-	dremioGCFilePattern            string
-	dremioRocksDBDir               string
-	isKubernetes                   bool
-	kubernetesNamespace            string
-	skipExportSystemTables         bool
-	skipCollectDiskUsage           bool
-	skipDownloadJobProfiles        bool
-	skipCollectQueriesJSON         bool
-	skipCollectKubernetesInfo      bool
-	skipCollectDremioConfiguration bool
-	skipCollectKVStoreReport       bool
-	skipCollectServerLogs          bool
-	skipCollectMetaRefreshLog      bool
-	skipCollectReflectionLog       bool
-	skipCollectAccelerationLog     bool
-	skipCollectAccessLog           bool
-	skipCollectGCLogs              bool
-	skipCollectWLM                 bool
-	skipHeapDump                   bool
-	skipJFR                        bool
-	dremioJFRTimeSeconds           int
-	skipJStack                     bool
-	dremioJStackFreqSeconds        int
-	dremioJStackTimeSeconds        int
-	jobProfilesNumDays             int
-	jobProfilesNumSlowExec         int
-	jobProfilesNumHighQueryCost    int
-	jobProfilesNumSlowPlanning     int
-	jobProfilesNumRecentErrors     int
-	acceptCollectionConsent        bool
-	systemtables                   = [...]string{
-		"\\\"tables\\\"",
+	//kubernetesConfTypes = []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
+	supportedExtensions = []string{"yaml", "json", "toml", "hcl", "env", "props"}
+	systemtables        = [...]string{
+		//	"\\\"tables\\\"",
 		"boot",
 		"fragments",
 		"jobs",
@@ -127,6 +78,58 @@ var (
 		"cache.objects",
 		"cache.storage_plugins",
 	}
+
+	unableToReadConfigError error
+	confFiles               []string
+	configIsFound           bool
+	foundConfig             string
+)
+
+// flags that are configurable by env or configuration
+var (
+	verbose                    int
+	numberThreads              int
+	gcLogsDir                  string
+	dremioLogDir               string
+	dremioConfDir              string
+	dremioEndpoint             string
+	dremioUsername             string
+	dremioPATToken             string
+	dremioRocksDBDir           string
+	numberJobProfilesToCollect int
+	collectAccelerationLogs    bool
+	collectAccessLogs          bool
+	captureHeapDump            bool
+	acceptCollectionConsent    bool
+)
+
+// advanced variables setable by configuration or environement variable
+var (
+	outputDir                   string
+	dremioJFRTimeSeconds        int
+	dremioJStackFreqSeconds     int
+	dremioJStackTimeSeconds     int
+	dremioLogsNumDays           int
+	dremioGCFilePattern         string
+	dremioQueriesJSONNumDays    int
+	jobProfilesNumSlowExec      int
+	jobProfilesNumHighQueryCost int
+	jobProfilesNumSlowPlanning  int
+	jobProfilesNumRecentErrors  int
+	collectNodeMetrics          bool
+	collectJFR                  bool
+	collectJStack               bool
+	collectKVStoreReport        bool
+	collectServerLogs           bool
+	collectMetaRefreshLogs      bool
+	collectQueriesJSON          bool
+	collectDremioConfiguration  bool
+	collectReflectionLogs       bool
+	collectSystemTablesExport   bool
+	collectDiskUsage            bool
+	collectGCLogs               bool
+	collectWLM                  bool
+	nodeName                    string
 )
 
 func configurationOutDir() string {
@@ -170,79 +173,93 @@ func outputConsent() string {
 	Data Collection and Use
 
 	We would like to collect the following files from your device:
-	`)
-	if !skipExportSystemTables {
-		simplelog.Info("collecting system tables")
-		builder.WriteString(fmt.Sprintf("* the following system tables: %v\n", strings.Join(systemtables[:], ",")))
+
+`)
+
+	if collectNodeMetrics {
+		simplelog.Info("collecting node metrics")
+		builder.WriteString("\t* cpu, io and memory metrics\n")
 	}
-	if !skipCollectDiskUsage {
+
+	if collectDiskUsage {
 		simplelog.Info("collecting disk usage")
-		builder.WriteString("* df -h output\n")
+		builder.WriteString("\t* df -h output\n")
 	}
 
-	if !skipDownloadJobProfiles {
-		simplelog.Info("collecting job profiles")
-		builder.WriteString(fmt.Sprintf("* %v job profiles randomly selected\n", jobProfilesNumHighQueryCost+jobProfilesNumRecentErrors+jobProfilesNumSlowExec+jobProfilesNumSlowPlanning))
-	}
-
-	if !skipCollectQueriesJSON {
-		simplelog.Info("collecting queries.json")
-		builder.WriteString("* queries.json files\n")
-	}
-
-	if !skipCollectKubernetesInfo {
-		simplelog.Info("collecting kubernetes configuration")
-		builder.WriteString(fmt.Sprintf("* collecting the following kubernetes types related to Dremio: %v\n", strings.Join(kubernetesConfTypes, ",")))
-	}
-
-	if !skipCollectDremioConfiguration {
+	if collectDremioConfiguration {
 		simplelog.Info("collecting dremio configuration")
-		builder.WriteString("* dremio-env, dremio.conf, logback.xml, and logback-access.xml\n")
+		builder.WriteString("\t* dremio-env, dremio.conf, logback.xml, and logback-access.xml\n")
 	}
-	if !skipCollectKVStoreReport {
+
+	if collectSystemTablesExport {
+		simplelog.Info("collecting system tables")
+		builder.WriteString(fmt.Sprintf("\t* the following system tables: %v\n", strings.Join(systemtables[:], ",")))
+	}
+
+	if collectKVStoreReport {
 		simplelog.Info("collecting kv store report")
-		builder.WriteString("* usage statistics on the internal Key Value Store (KVStore)\n")
-		builder.WriteString("* list of all sources, their type and name\n")
+		builder.WriteString("\t* usage statistics on the internal Key Value Store (KVStore)\n")
+		builder.WriteString("\t* list of all sources, their type and name\n")
 	}
-	if !skipCollectServerLogs {
+
+	if collectServerLogs {
 		simplelog.Info("collecting metadata server logs")
-		builder.WriteString("* server.log including any archived versions, and server.out\n")
+		builder.WriteString("\t* server.log including any archived versions, and server.out\n")
 	}
-	if !skipCollectMetaRefreshLog {
+
+	if collectQueriesJSON {
+		simplelog.Info("collecting queries.json")
+		builder.WriteString("\t* queries.json including archived versions\n")
+	}
+
+	if collectMetaRefreshLogs {
 		simplelog.Info("collecting metadata refresh logs")
-		builder.WriteString("* dremio-env, dremio.conf, logback.xml, and logback-access.xml\n")
+		builder.WriteString("\t* metadata_refresh.log including any archived versions\n")
 	}
-	if !skipCollectReflectionLog {
-		simplelog.Info("collecting reflection logs")
-		builder.WriteString("* reflection.log including archived versions\n")
+
+	if collectReflectionLogs {
+		simplelog.Info("\tcollecting reflection logs")
+		builder.WriteString("\t* reflection.log including archived versions\n")
 	}
-	if !skipCollectAccelerationLog {
+
+	if collectAccelerationLogs {
 		simplelog.Info("collecting acceleration logs")
-		builder.WriteString("* acceleration.log including archived versions\n")
+		builder.WriteString("\t* acceleration.log including archived versions\n")
 	}
-	if !skipCollectAccessLog {
+
+	if numberJobProfilesToCollect > 0 {
+		simplelog.Infof("collecting %v job profiles", numberJobProfilesToCollect)
+		builder.WriteString(fmt.Sprintf("\t* %v job profiles randomly selected\n", numberJobProfilesToCollect))
+	}
+
+	if collectAccessLogs {
 		simplelog.Info("collecting access logs")
-		builder.WriteString("* access.log including archived versions\n")
+		builder.WriteString("\t* access.log including archived versions\n")
 	}
-	if !skipCollectGCLogs {
+
+	if collectGCLogs {
 		simplelog.Info("collecting gc logs")
-		builder.WriteString("* all gc.log files produced by dremio\n")
+		builder.WriteString("\t* all gc.log files produced by dremio\n")
 	}
-	if !skipCollectWLM {
+
+	if collectWLM {
 		simplelog.Info("collecting Workload Manager information")
-		builder.WriteString("* Work Load Manager queue names and rule names\n")
+		builder.WriteString("\t* Work Load Manager queue names and rule names\n")
 	}
-	if !skipHeapDump {
+
+	if captureHeapDump {
 		simplelog.Info("collecting Java Heap Dump")
-		builder.WriteString("* a Java heap dump which contains a copy of all data in the JVM heap\n")
+		builder.WriteString("\t*A Java heap dump which contains a copy of all data in the JVM heap\n")
 	}
-	if !skipJStack {
+
+	if collectJStack {
 		simplelog.Info("collecting JStacks")
-		builder.WriteString("* Java thread dumps collected via jstack\n")
+		builder.WriteString("\t* Java thread dumps collected via jstack\n")
 	}
-	if !skipJFR {
+
+	if collectJFR {
 		simplelog.Info("collecting JFR")
-		builder.WriteString("* Java Flight Record diagnostic information\n")
+		builder.WriteString("\t* Java Flight Recorder diagnostic information\n")
 	}
 	builder.WriteString(`
 
@@ -254,10 +271,6 @@ We will use these files to:
 2. Improve our products and services.
 3. Carry out other purposes that we will disclose to you at the time we collect the files.
 
-Consent
-
-By clicking "I Agree", you grant us permission to access, collect, store, and use the files listed above from your device for the purposes outlined.
-
 Withdrawal of Consent
 
 You have the right to withdraw your consent at any time. If you wish to do so, please contact us at support@dremio.com. Upon receipt of your withdrawal request, we will stop collecting new files and will delete any files we have already collected, unless we are required by law to retain them.
@@ -266,8 +279,11 @@ Changes to this Consent Form
 
 We reserve the right to update this consent form from time to time.
 
+Consent
+
 By running ddc with the --accept-collection-consent flag, you acknowledge that you have read, understood, and agree to the data collection practices described in this consent form.
-	`)
+
+`)
 	return builder.String()
 }
 
@@ -318,27 +334,34 @@ func collect(numberThreads int) {
 		os.Exit(1)
 	}
 	t := threading.NewThreadPool(numberThreads)
-	t.FireJob(collectJvmConfig)
-	t.FireJob(collectDremioConfig)
-	t.FireJob(collectNodeMetrics)
-	t.FireJob(collectJfr)
-	t.FireJob(collectJstacks)
-	t.FireJob(collectKvReport)
-	t.FireJob(collectWlm)
-	t.FireJob(collectHeapDump)
-	t.FireJob(collectDremioSystemTables)
-	t.FireJob(collectQueriesJSON)
-	t.FireJob(collectJobProfiles)
-	t.FireJob(collectDremioServerLog)
-	t.FireJob(collectGcLogs)
-	t.FireJob(collectMetadataRefreshLog)
-	t.FireJob(collectReflectionLog)
-	t.FireJob(collectAccelerationLog)
-	t.FireJob(collectDremioAccessLog)
+
+	t.FireJob(runCollectDremioConfig)
+	t.FireJob(runCollectNodeMetrics)
+
+	// log collection
+	t.FireJob(runCollectQueriesJSON)
+	t.FireJob(runCollectDremioServerLog)
+	t.FireJob(runCollectGcLogs)
+	t.FireJob(runCollectMetadataRefreshLogs)
+	t.FireJob(runCollectReflectionLogs)
+	t.FireJob(runCollectAccelerationLogs)
+	t.FireJob(runCollectDremioAccessLogs)
+	//java related diags
+	t.FireJob(runCollectJvmConfig)
+	t.FireJob(runCollectJFR)
+	t.FireJob(runCollectJStacks)
+	t.FireJob(runCollectHeapDump)
+
+	// rest call collections
+	t.FireJob(runCollectKvReport)
+	t.FireJob(runCollectWLM)
+	t.FireJob(runCollectDremioSystemTables)
+	t.FireJob(runCollectJobProfiles)
+
 	t.Wait()
 }
 
-func collectDremioConfig() error {
+func runCollectDremioConfig() error {
 	simplelog.Info("The following alias was defined for running shell commands - $(type shell)")
 
 	simplelog.Info("Collecting OS Information from $BASENAME ...")
@@ -459,7 +482,7 @@ func collectDremioConfig() error {
 
 	simplelog.Infof("... Collecting Configuration Information from %v COMPLETED", nodeName)
 
-	if skipCollectDiskUsage {
+	if collectDiskUsage {
 		simplelog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
 	} else {
 		simplelog.Infof("Collecting Disk Usage from %v ...", nodeName)
@@ -502,7 +525,7 @@ func collectDremioConfig() error {
 	return nil
 }
 
-func collectJvmConfig() error {
+func runCollectJvmConfig() error {
 	gcMatchFunc := func(filename string) bool {
 		return strings.HasPrefix(filename, "gc") && strings.HasSuffix(filename, ".log")
 	}
@@ -581,12 +604,24 @@ func copyFile(srcPath, dstPath string) error {
 	return nil
 }
 
-func collectNodeMetrics() error {
+func runCollectNodeMetrics() error {
+	if !collectNodeMetrics {
+		simplelog.Info("Skipping Collecting Node Metrics...")
+		return nil
+	}
+
+	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
 	nodeMetricsFile := path.Clean(path.Join(outputDir, "node-info", nodeName, "metrics.txt"))
 	w, err := os.Create(path.Clean(nodeMetricsFile))
 	if err != nil {
-		return fmt.Errorf("unable to create file %v due to error %v", nodeMetricsFile, err)
+		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
 	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			simplelog.Errorf("Failure writing file %v as we are unable to close it due to error '%v'", nodeMetricsFile, err)
+		}
+	}()
+
 	iterations := 60
 	interval := time.Second
 
@@ -653,8 +688,8 @@ func getTotalTime(c cpu.TimesStat) float64 {
 		c.Softirq + c.Steal + c.Guest + c.GuestNice
 }
 
-func collectJfr() error {
-	if !skipJFR {
+func runCollectJFR() error {
+	if !collectJFR {
 		dremioPID, err := getDremioPID()
 		if err != nil {
 			return fmt.Errorf("unable to get dremio PID %v", err)
@@ -690,13 +725,13 @@ func collectJfr() error {
 	return nil
 }
 
-func collectJstacks() error {
-	if skipJStack {
+func runCollectJStacks() error {
+	if !collectJStack {
 		simplelog.Info("skipping Collection of java thread dump")
 	} else {
 		threadDumpFreq := dremioJStackFreqSeconds
 		iterations := dremioJStackTimeSeconds
-		simplelog.Infof("Running Java thread dumps every %v second(s) for a total of $ITERATIONS iterations ...", threadDumpFreq)
+		simplelog.Infof("Running Java thread dumps every %v second(s) for a total of %v iterations ...", threadDumpFreq, iterations)
 		dremioPID, err := getDremioPID()
 		if err != nil {
 			return fmt.Errorf("unable to get dremio PID %v", err)
@@ -719,7 +754,7 @@ func collectJstacks() error {
 	return nil
 }
 
-func collectKvReport() error {
+func runCollectKvReport() error {
 	err := validateAPICredentials()
 	if err != nil {
 		return err
@@ -747,7 +782,7 @@ func collectKvReport() error {
 	return nil
 }
 
-func collectWlm() error {
+func runCollectWLM() error {
 	err := validateAPICredentials()
 	if err != nil {
 		return err
@@ -781,7 +816,7 @@ func collectWlm() error {
 	return nil
 }
 
-func collectHeapDump() error {
+func runCollectHeapDump() error {
 	dremioPID, err := getDremioPID()
 	if err != nil {
 		return fmt.Errorf("unable to get dremio pid %v", err)
@@ -813,18 +848,17 @@ func collectHeapDump() error {
 	return nil
 }
 
-func collectQueriesJSON() error {
-	if skipCollectQueriesJSON && skipDownloadJobProfiles {
-		simplelog.Info("Skipping Collect Queries JSON ...")
-		return nil
-	}
-
-	if skipDownloadJobProfiles && !skipDownloadJobProfiles {
-		simplelog.Warning("NOT Skipping collection of Queries JSON, because --skip-download-job-profiles and job profile download requires queries.json ...")
+func runCollectQueriesJSON() error {
+	if !collectQueriesJSON {
+		if numberJobProfilesToCollect == 0 {
+			simplelog.Info("Skipping Collect Queries JSON ...")
+			return nil
+		}
+		simplelog.Warning("NOT Skipping collection of Queries JSON, because --number-job-profiles is greater than 0 and job profile download requires queries.json ...")
 	}
 
 	simplelog.Info("Collecting Queries JSON for Job Profiles ...")
-	err := exportArchivedLogs(dremioLogsDir, "queries.json", "queries", jobProfilesNumDays)
+	err := exportArchivedLogs(dremioLogDir, "queries.json", "queries", dremioQueriesJSONNumDays)
 	if err != nil {
 		return fmt.Errorf("failed to export archived logs: %v", err)
 	}
@@ -835,49 +869,53 @@ func collectQueriesJSON() error {
 	return nil
 }
 
-func collectJobProfiles() error {
-	err := validateAPICredentials()
-	if err != nil {
-		return err
-	}
-	files, err := os.ReadDir(queriesOutDir())
-	if err != nil {
-		return err
-	}
-	queriesjsons := []string{}
-	for _, file := range files {
-		queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
-	}
-
-	queriesrows := queriesjson.CollectQueriesJSON(queriesjsons)
-	profilesToCollect := map[string]string{}
-
-	slowplanqueriesrows := queriesjson.GetSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
-	queriesjson.AddRowsToSet(slowplanqueriesrows, profilesToCollect)
-
-	slowexecqueriesrows := queriesjson.GetSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
-	queriesjson.AddRowsToSet(slowexecqueriesrows, profilesToCollect)
-
-	highcostqueriesrows := queriesjson.GetHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
-	queriesjson.AddRowsToSet(highcostqueriesrows, profilesToCollect)
-
-	errorqueriesrows := queriesjson.GetRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
-	queriesjson.AddRowsToSet(errorqueriesrows, profilesToCollect)
-
-	simplelog.Infof("jobProfilesNumSlowPlanning: %v", jobProfilesNumSlowPlanning)
-	simplelog.Infof("jobProfilesNumSlowExec: %v", jobProfilesNumSlowExec)
-	simplelog.Infof("jobProfilesNumHighQueryCost: %v", jobProfilesNumHighQueryCost)
-	simplelog.Infof("jobProfilesNumRecentErrors: %v", jobProfilesNumRecentErrors)
-
-	simplelog.Infof("Downloading %v job profiles...", len(profilesToCollect))
-	for key := range profilesToCollect {
-		err := downloadJobProfile(key)
+func runCollectJobProfiles() error {
+	if numberJobProfilesToCollect == 0 {
+		simplelog.Info("Skipping Collect of Job Profiles...")
+	} else {
+		simplelog.Info("Collecting Job Profiles...")
+		err := validateAPICredentials()
 		if err != nil {
-			simplelog.Error(err.Error()) // Print instead of Error
+			return err
 		}
-	}
-	simplelog.Infof("Finished downloading %v job profiles", len(profilesToCollect))
+		files, err := os.ReadDir(queriesOutDir())
+		if err != nil {
+			return err
+		}
+		queriesjsons := []string{}
+		for _, file := range files {
+			queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
+		}
 
+		queriesrows := queriesjson.CollectQueriesJSON(queriesjsons)
+		profilesToCollect := map[string]string{}
+
+		slowplanqueriesrows := queriesjson.GetSlowPlanningJobs(queriesrows, jobProfilesNumSlowPlanning)
+		queriesjson.AddRowsToSet(slowplanqueriesrows, profilesToCollect)
+
+		slowexecqueriesrows := queriesjson.GetSlowExecJobs(queriesrows, jobProfilesNumSlowExec)
+		queriesjson.AddRowsToSet(slowexecqueriesrows, profilesToCollect)
+
+		highcostqueriesrows := queriesjson.GetHighCostJobs(queriesrows, jobProfilesNumHighQueryCost)
+		queriesjson.AddRowsToSet(highcostqueriesrows, profilesToCollect)
+
+		errorqueriesrows := queriesjson.GetRecentErrorJobs(queriesrows, jobProfilesNumRecentErrors)
+		queriesjson.AddRowsToSet(errorqueriesrows, profilesToCollect)
+
+		simplelog.Infof("jobProfilesNumSlowPlanning: %v", jobProfilesNumSlowPlanning)
+		simplelog.Infof("jobProfilesNumSlowExec: %v", jobProfilesNumSlowExec)
+		simplelog.Infof("jobProfilesNumHighQueryCost: %v", jobProfilesNumHighQueryCost)
+		simplelog.Infof("jobProfilesNumRecentErrors: %v", jobProfilesNumRecentErrors)
+
+		simplelog.Infof("Downloading %v job profiles...", len(profilesToCollect))
+		for key := range profilesToCollect {
+			err := downloadJobProfile(key)
+			if err != nil {
+				simplelog.Error(err.Error()) // Print instead of Error
+			}
+		}
+		simplelog.Infof("Finished downloading %v job profiles", len(profilesToCollect))
+	}
 	return nil
 }
 
@@ -904,44 +942,49 @@ func downloadJobProfile(jobid string) error {
 	return nil
 }
 
-func collectDremioSystemTables() error {
-	err := validateAPICredentials()
-	if err != nil {
-		return err
-	}
-	// TODO: Row limit and sleem MS need to be configured
-	rowlimit := 100000
-	sleepms := 100
-
-	for _, systable := range systemtables {
-		filename := "sys." + systable + ".json"
-		body, err := downloadSysTable(systable, rowlimit, sleepms)
+func runCollectDremioSystemTables() error {
+	if !collectSystemTablesExport {
+		simplelog.Info("Skipping Collect of Export System Tables...")
+	} else {
+		simplelog.Info("Collecting results from Export System Tables...")
+		err := validateAPICredentials()
 		if err != nil {
 			return err
 		}
-		dat := make(map[string]interface{})
-		err = json.Unmarshal(body, &dat)
-		if err != nil {
-			return fmt.Errorf("unable to unmarshall JSON response - %w", err)
-		}
-		if err == nil {
-			rowcount := dat["returnedRowCount"].(float64)
-			if int(rowcount) == rowlimit {
-				simplelog.Warning("Returned row count for sys." + systable + " has been limited to " + strconv.Itoa(rowlimit))
+		// TODO: Row limit and sleem MS need to be configured
+		rowlimit := 100000
+		sleepms := 100
+
+		for _, systable := range systemtables {
+			filename := "sys." + systable + ".json"
+			body, err := downloadSysTable(systable, rowlimit, sleepms)
+			if err != nil {
+				return err
 			}
+			dat := make(map[string]interface{})
+			err = json.Unmarshal(body, &dat)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshall JSON response - %w", err)
+			}
+			if err == nil {
+				rowcount := dat["returnedRowCount"].(float64)
+				if int(rowcount) == rowlimit {
+					simplelog.Warning("Returned row count for sys." + systable + " has been limited to " + strconv.Itoa(rowlimit))
+				}
+			}
+			sb := string(body)
+			systemTableFile := path.Join(systemTablesOutDir(), filename)
+			file, err := os.Create(path.Clean(systemTableFile))
+			if err != nil {
+				return fmt.Errorf("unable to create file %v due to error %v", filename, err)
+			}
+			defer errCheck(file.Close)
+			_, err = fmt.Fprint(file, sb)
+			if err != nil {
+				return fmt.Errorf("unable to create file %s due to error %v", filename, err)
+			}
+			simplelog.Info("SUCCESS - Created " + filename)
 		}
-		sb := string(body)
-		systemTableFile := path.Join(systemTablesOutDir(), filename)
-		file, err := os.Create(path.Clean(systemTableFile))
-		if err != nil {
-			return fmt.Errorf("unable to create file %v due to error %v", filename, err)
-		}
-		defer errCheck(file.Close)
-		_, err = fmt.Fprint(file, sb)
-		if err != nil {
-			return fmt.Errorf("unable to create file %s due to error %v", filename, err)
-		}
-		simplelog.Info("SUCCESS - Created " + filename)
 	}
 	return nil
 }
@@ -982,24 +1025,28 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 	return nil, fmt.Errorf("unable to retrieve job results for sys." + systable)
 }
 
-func collectDremioServerLog() error {
-	simplelog.Info("... collecting server.log")
-	if err := exportArchivedLogs(dremioLogsDir, "server.log", "server", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("trying to archive server logs we got error: %v", err)
+func runCollectDremioServerLog() error {
+	if !collectServerLogs {
+		simplelog.Info("Skipping Collect Server Logs  ...")
+	} else {
+		simplelog.Info("... collecting server.log")
+		if err := exportArchivedLogs(dremioLogDir, "server.log", "server", dremioLogsNumDays); err != nil {
+			return fmt.Errorf("trying to archive server logs we got error: %v", err)
+		}
+		simplelog.Info("... collecting server.out")
+		src := path.Join(dremioLogDir, "server.out")
+		dest := path.Join(logsOutDir(), "server.out")
+		if err := copyFile(path.Clean(src), path.Clean(dest)); err != nil {
+			return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
+		}
+		simplelog.Warning("Server logs from executors and scale-out coordinators must be collected separately!")
+		simplelog.Info("... collecting server logs COMPLETED")
 	}
-	simplelog.Info("... collecting server.out")
-	src := path.Join(dremioLogsDir, "server.out")
-	dest := path.Join(logsOutDir(), "server.out")
-	if err := copyFile(path.Clean(src), path.Clean(dest)); err != nil {
-		return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
-	}
-	simplelog.Warning("Server logs from executors and scale-out coordinators must be collected separately!")
-	simplelog.Info("... collecting server logs COMPLETED")
 	return nil
 }
 
-func collectGcLogs() error {
-	if skipCollectGCLogs {
+func runCollectGcLogs() error {
+	if !collectGCLogs {
 		simplelog.Info("Skipping Collect Garbage Collection Logs  ...")
 	} else {
 		simplelog.Info("Collecting GC logs ...")
@@ -1009,7 +1056,14 @@ func collectGcLogs() error {
 		}
 
 		for _, file := range files {
-			if !file.IsDir() && strings.HasPrefix(file.Name(), "gc.log") {
+			if file.IsDir() {
+				continue
+			}
+			matched, err := filepath.Match(dremioGCFilePattern, file.Name())
+			if err != nil {
+				simplelog.Errorf("error matching file pattern %v with error '%v'", dremioGCFilePattern, err)
+			}
+			if matched {
 				srcPath := filepath.Join(gcLogsDir, file.Name())
 				destPath := filepath.Join(logsOutDir(), file.Name())
 				if err := copyFile(path.Clean(srcPath), path.Clean(destPath)); err != nil {
@@ -1024,12 +1078,12 @@ func collectGcLogs() error {
 	return nil
 }
 
-func collectMetadataRefreshLog() error {
-	if skipCollectMetaRefreshLog {
+func runCollectMetadataRefreshLogs() error {
+	if !collectMetaRefreshLogs {
 		simplelog.Info("Skipping Collect Metadata Refresh Logs  ...")
 	} else {
 		simplelog.Info("Collecting metadata refresh logs from Coordinator(s) ...")
-		if err := exportArchivedLogs(dremioLogsDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to collect metadata refresh logs due to error %v", err)
 		}
 		simplelog.Warning("Metadata refresh logs from scale-out coordinators must be collected separately!")
@@ -1038,12 +1092,12 @@ func collectMetadataRefreshLog() error {
 	return nil
 }
 
-func collectReflectionLog() error {
-	if skipCollectReflectionLog {
+func runCollectReflectionLogs() error {
+	if !collectReflectionLogs {
 		simplelog.Info("Skipping Collect Reflection Logs  ...")
 	} else {
 		simplelog.Info("Collecting reflection logs from Coordinator(s) ...")
-		if err := exportArchivedLogs(dremioLogsDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to collect reflection logs due to error %v", err)
 		}
 		simplelog.Info("... collecting reflection logs from Coordinator(s) COMPLETED")
@@ -1051,13 +1105,13 @@ func collectReflectionLog() error {
 	return nil
 }
 
-func collectDremioAccessLog() error {
-	if skipCollectAccessLog {
+func runCollectDremioAccessLogs() error {
+	if !collectAccessLogs {
 		simplelog.Info("Skipping Collect Access Logs  ...")
 	} else {
 		simplelog.Info("Collecting access logs from Coordinator(s) ...")
 		simplelog.Warning("Access logs from scale-out coordinators must be collected separately!")
-		if err := exportArchivedLogs(dremioLogsDir, "access.log", "access", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogDir, "access.log", "access", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to archive access.logs due to error %v", err)
 		}
 		simplelog.Info("... collecting access logs from Coordinator(s) COMPLETED")
@@ -1065,13 +1119,13 @@ func collectDremioAccessLog() error {
 	return nil
 }
 
-func collectAccelerationLog() error {
-	if !skipCollectAccelerationLog {
+func runCollectAccelerationLogs() error {
+	if !collectAccelerationLogs {
 		simplelog.Info("Skipping Collect Acceleration Logs  ...")
 	} else {
 		simplelog.Info("Collecting acceleration logs from Coordinator(s) ...")
 		simplelog.Warning("Acceleration logs from scale-out coordinators must be collected separately!")
-		if err := exportArchivedLogs(dremioLogsDir, "acceleration.log", "acceleration", dremioLogsNumDays); err != nil {
+		if err := exportArchivedLogs(dremioLogDir, "acceleration.log", "acceleration", dremioLogsNumDays); err != nil {
 			return fmt.Errorf("unable to archive acceleration.logs due to error %v", err)
 		}
 		simplelog.Info("... collecting acceleragtion logs from Coordinator(s) COMPLETED")
@@ -1148,6 +1202,148 @@ var localCollectCmd = &cobra.Command{
 	Use:   "local-collect",
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if !cmd.Flags().Changed("verbose") {
+			verbose = 2 // Default INFO
+		}
+		simplelog.InitLogger(verbose)
+		//now read in viper configuration values. This will get defaults if no values are available in the configuration files or no environment variable is set
+
+		viper.SetDefault("tmp-output-dir", getOutputDir(time.Now()))
+		outputDir = viper.GetString("tmp-output-dir")
+
+		// set node name
+		hostName, err := os.Hostname()
+		if err != nil {
+			hostName = fmt.Sprintf("unknown-%v", uuid.New())
+		}
+		viper.SetDefault("node-name", hostName)
+		nodeName = viper.GetString("node-name")
+
+		//system diag
+
+		viper.SetDefault("collect-metrics", true)
+		collectNodeMetrics = viper.GetBool("collect-metrics")
+
+		viper.SetDefault("collect-disk-usage", true)
+		collectDiskUsage = viper.GetBool("collect-disk-usage")
+
+		// log collect
+		viper.SetDefault("dremio-logs-num-days", 7)
+		dremioLogsNumDays = viper.GetInt("dremio-logs-num-days")
+
+		viper.SetDefault("dremio-queries-json-num-days", 28)
+		dremioQueriesJSONNumDays = viper.GetInt("dremio-queries-json-num-days")
+
+		viper.SetDefault("dremio-gc-file-pattern", "gc*.log")
+		dremioGCFilePattern = viper.GetString("dremio-gc-file-pattern")
+
+		viper.SetDefault("collect-queries-json", true)
+		collectQueriesJSON = viper.GetBool("collect-queries-json")
+
+		viper.SetDefault("collect-server-logs", true)
+		collectServerLogs = viper.GetBool("collect-server-logs")
+
+		viper.SetDefault("collect-meta-refresh-log", true)
+		collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
+
+		viper.SetDefault("collect-reflection-log", true)
+		collectReflectionLogs = viper.GetBool("collect-reflection-log")
+
+		viper.SetDefault("skip-collect-gc-logs", true)
+		collectReflectionLogs = viper.GetBool("skip-collect-gc-logs")
+
+		// jfr config
+		viper.SetDefault("collect-jfr", true)
+		collectJFR = viper.GetBool("collect-jfr")
+		defaultCaptureSeconds := 60
+		viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
+		dremioJFRTimeSeconds = viper.GetInt("dremio-jfr-time-seconds")
+		// jstack config
+		viper.SetDefault("collect-jstack", true)
+		collectJStack = viper.GetBool("collect-jstack")
+		viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
+		dremioJStackTimeSeconds = viper.GetInt("dremio-jstack-time-seconds")
+		viper.SetDefault("dremio-jstack-freq-seconds", 1)
+		dremioJStackFreqSeconds = viper.GetInt("dremio-jstack-freq-seconds")
+
+		// collect rest apis
+		personalAccessTokenPresent := dremioPATToken != ""
+		if !personalAccessTokenPresent {
+			simplelog.Warningf("disabling all Workload Manager, System Table, KV Store, and Job Profile collection since the --dremio-pat-token is not set")
+		}
+
+		viper.SetDefault("collect-wlm", personalAccessTokenPresent)
+		collectWLM = viper.GetBool("collect-wlm")
+
+		viper.SetDefault("collect-system-tables-export", personalAccessTokenPresent)
+		collectSystemTablesExport = viper.GetBool("collect-system-tables-export")
+
+		viper.SetDefault("collect-kvstore-report", personalAccessTokenPresent)
+		collectKVStoreReport = viper.GetBool("collect-kvstore-report")
+
+		// don't bother doing any of the calculation if personal access token is not present in fact zero out everything
+		if !personalAccessTokenPresent {
+			numberJobProfilesToCollect = 0
+			jobProfilesNumHighQueryCost = 0
+			jobProfilesNumSlowExec = 0
+			jobProfilesNumRecentErrors = 0
+			jobProfilesNumSlowPlanning = 0
+		} else {
+			// check if job profile is set
+			var defaultJobProfilesNumSlowExec int
+			var defaultJobProfilesNumRecentErrors int
+			var defaultJobProfilesNumSlowPlanning int
+			var defaultJobProfilesNumHighQueryCost int
+			if numberJobProfilesToCollect > 0 {
+				if numberJobProfilesToCollect < 4 {
+					//so few that it is not worth being clever
+					defaultJobProfilesNumSlowExec = numberJobProfilesToCollect
+				} else {
+					defaultJobProfilesNumSlowExec = int(float64(numberJobProfilesToCollect) * 0.4)
+					defaultJobProfilesNumRecentErrors = int(float64(defaultJobProfilesNumRecentErrors) * 0.2)
+					defaultJobProfilesNumSlowPlanning = int(float64(defaultJobProfilesNumSlowPlanning) * 0.2)
+					defaultJobProfilesNumHighQueryCost = int(float64(defaultJobProfilesNumHighQueryCost) * 0.2)
+					//grab the remainder and drop on top of defaultJobProfilesNumSlowExec
+					totalAllocated := defaultJobProfilesNumSlowExec + defaultJobProfilesNumRecentErrors + defaultJobProfilesNumSlowPlanning + defaultJobProfilesNumHighQueryCost
+					diff := numberJobProfilesToCollect - totalAllocated
+					defaultJobProfilesNumSlowExec += diff
+				}
+				simplelog.Infof("setting default values for slow execution profiles: %v, recent error profiles %v, slow planning profiles %v, high query cost profiles %v",
+					defaultJobProfilesNumSlowExec,
+					defaultJobProfilesNumRecentErrors,
+					defaultJobProfilesNumSlowPlanning,
+					defaultJobProfilesNumHighQueryCost)
+			}
+
+			// job profile specific numbers
+			viper.SetDefault("job-profiles-num-high-query-cost", defaultJobProfilesNumHighQueryCost)
+			viper.SetDefault("job-profiles-num-slow-exec", defaultJobProfilesNumSlowExec)
+			viper.SetDefault("job-profiles-num-recent-errors", defaultJobProfilesNumSlowPlanning)
+			viper.SetDefault("job-profiles-num-slow-planning", defaultJobProfilesNumHighQueryCost)
+			jobProfilesNumHighQueryCost = viper.GetInt("job-profiles-num-high-query-cost")
+			if jobProfilesNumHighQueryCost != defaultJobProfilesNumHighQueryCost {
+				simplelog.Warningf("job-profiles-num-high-query-cost changed to %v by configuration", jobProfilesNumHighQueryCost)
+			}
+			jobProfilesNumSlowExec = viper.GetInt("job-profiles-num-slow-exec")
+			if jobProfilesNumSlowExec != defaultJobProfilesNumSlowExec {
+				simplelog.Warningf("job-profiles-num-slow-exec changed to %v by configuration", jobProfilesNumSlowExec)
+			}
+			jobProfilesNumRecentErrors = viper.GetInt("job-profiles-num-recent-errors")
+			if jobProfilesNumRecentErrors != defaultJobProfilesNumRecentErrors {
+				simplelog.Warningf("job-profiles-num-recent-errors changed to %v by configuration", jobProfilesNumRecentErrors)
+			}
+			jobProfilesNumSlowPlanning = viper.GetInt("job-profiles-num-slow-planning")
+			if jobProfilesNumSlowPlanning != defaultJobProfilesNumSlowPlanning {
+				simplelog.Warningf("job-profiles-num-slow-planning changed to %v by configuration", jobProfilesNumSlowPlanning)
+			}
+			totalAllocated := defaultJobProfilesNumSlowExec + defaultJobProfilesNumRecentErrors + defaultJobProfilesNumSlowPlanning + defaultJobProfilesNumHighQueryCost
+			if totalAllocated > 0 && totalAllocated != numberJobProfilesToCollect {
+				numberJobProfilesToCollect = totalAllocated
+				simplelog.Warningf("due to configuration parameters new total jobs profiles collected has been adjusted to %v", totalAllocated)
+			}
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		simplelog.Infof("searching for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
@@ -1156,12 +1352,12 @@ var localCollectCmd = &cobra.Command{
 		} else {
 			simplelog.Infof("INFO: found config file %v", foundConfig)
 		}
-		if acceptCollectionConsent {
+		if !acceptCollectionConsent {
 			fmt.Println(outputConsent())
 			os.Exit(1)
 		}
 		//check if required flags are set
-		requiredFlags := []string{"dremio-endpoint", "dremio-username", "dremio-pat-token", "dremio-storage-type"}
+		requiredFlags := []string{"dremio-endpoint", "dremio-username"}
 
 		failed := false
 		for _, flag := range requiredFlags {
@@ -1225,42 +1421,30 @@ func getDremioPID() (int, error) {
 func init() {
 	rootCmd.AddCommand(localCollectCmd)
 
-	// command line flags
+	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
 	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
 	if err := viper.BindPFlag("verbose", localCollectCmd.Flags().Lookup("verbose")); err != nil {
 		simplelog.Errorf("unable to bind configuration for verbose to error: %v", err)
 	}
-	simplelog.InitLogger(verbose)
-	//make default tmp directory
-	now := time.Now()
-	tmpDir := getOutputDir(now)
-	localCollectCmd.Flags().StringVarP(&outputDir, "tmp-output-dir", "o", tmpDir, "temporary output directory for log collection")
-	if err := viper.BindPFlag("tmp-output-dir", localCollectCmd.Flags().Lookup("tmp-output-dir")); err != nil {
-		simplelog.Errorf("unable to bind configuration for tmp-output-dir due to error: %v", err)
-		os.Exit(1)
+
+	localCollectCmd.Flags().BoolVar(&collectAccelerationLogs, "collect-acceleration-log", false, "Run the Collect Acceleration Log collector")
+	if err := viper.BindPFlag("collect-acceleration-log", localCollectCmd.Flags().Lookup("collect-acceleration-log")); err != nil {
+		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	// set node name
-	hostName, err := os.Hostname()
-	if err != nil {
-		hostName = fmt.Sprintf("unknown-%v", uuid.New())
-	}
-	localCollectCmd.Flags().StringVarP(&nodeName, "node-name", "n", hostName, "name to give to the node")
-	if err := viper.BindPFlag("node-name", localCollectCmd.Flags().Lookup("node-name")); err != nil {
-		simplelog.Errorf("unable to bind configuration for node-name due to error: %v", err)
+	localCollectCmd.Flags().BoolVar(&collectAccessLogs, "collect-access-log", false, "Run the Collect Access Log collector")
+	if err := viper.BindPFlag("collect-access-log", localCollectCmd.Flags().Lookup("collect-access-log")); err != nil {
+		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	localCollectCmd.Flags().StringVar(&logDir, "collect-log-dir", "", "logging output directory for the collector")
-	if err := viper.BindPFlag("collect-log-dir", localCollectCmd.Flags().Lookup("collect-log-dir")); err != nil {
-		simplelog.Errorf("unable to bind configuration for collect-log-dir to error: %v", err)
-	}
-
+	//TODO detect gc log dir
 	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "/var/log/dremio", "directory with gc logs on dremio")
 	if err := viper.BindPFlag("dremio-gclogs-dir", localCollectCmd.Flags().Lookup("dremio-gclogs-dir")); err != nil {
 		simplelog.Errorf("unable to bind configuration for dremio-gclogs-dir to error: %v", err)
 	}
 
-	localCollectCmd.Flags().StringVar(&dremioLogsDir, "dremio-log-dir", "/var/log/dremio", "directory with application logs on dremio")
+	//TODO detect log dir
+	localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "/var/log/dremio", "directory with application logs on dremio")
 	if err := viper.BindPFlag("dremio-log-dir", localCollectCmd.Flags().Lookup("dremio-log-dir")); err != nil {
 		simplelog.Errorf("unable to bind configuration for dremio-log-dir to error: %v", err)
 	}
@@ -1276,57 +1460,15 @@ func init() {
 	if err := viper.BindPFlag("dremio-endpoint", localCollectCmd.Flags().Lookup("dremio-endpoint")); err != nil {
 		simplelog.Errorf("unable to bind configuration for dremio-endpoint to error: %v", err)
 	}
-	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "<DREMIO_ADMIN_USER>", "Dremio username")
+
+	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "dremio", "Dremio username")
 	if err := viper.BindPFlag("dremio-username", localCollectCmd.Flags().Lookup("dremio-username")); err != nil {
 		simplelog.Errorf("unable to bind configuration for dremio-username to error: %v", err)
 	}
 
-	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "<DREMIO_PAT>", "Dremio Personal Access Token (PAT)")
+	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
 	if err := viper.BindPFlag("dremio-pat-token", localCollectCmd.Flags().Lookup("dremio-pat-token")); err != nil {
 		simplelog.Errorf("unable to bind configuration for dremio-pat-token to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&dremioStorageType, "dremio-storage-type", "adls", "Dremio storage type (adls, s3, azure, or hdfs)")
-	if err := viper.BindPFlag("dremio-storage-type", localCollectCmd.Flags().Lookup("dremio-storage-type")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-storage-type to error: %v", err)
-	}
-
-	// Add flags for AWS information
-	localCollectCmd.Flags().StringVar(&awsAccessKeyID, "aws-access-key-id", "NOTSET", "AWS Access Key ID")
-	if err := viper.BindPFlag("aws-access-key-id", localCollectCmd.Flags().Lookup("aws-access-key-id")); err != nil {
-		simplelog.Errorf("unable to bind configuration for aws-access-key-id to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&awsSecretAccessKey, "aws-secret-access-key", "NOTSET", "AWS Secret Access Key")
-	if err := viper.BindPFlag("aws-secret-access-key", localCollectCmd.Flags().Lookup("aws-secret-access-key")); err != nil {
-		simplelog.Errorf("unable to bind configuration for aws-access-access-key to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&awsS3Path, "aws-s3-path", "NOTSET", "S3 path for Dremio data")
-	if err := viper.BindPFlag("aws-s3-path", localCollectCmd.Flags().Lookup("aws-s3-path")); err != nil {
-		simplelog.Errorf("unable to bind configuration for aws-s3-path to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&awsDefaultRegion, "aws-default-region", "us-west-1", "Default region for AWS")
-	if err := viper.BindPFlag("aws-default-region", localCollectCmd.Flags().Lookup("aws-default-region")); err != nil {
-		simplelog.Errorf("unable to bind configuration for aws-default-region to error: %v", err)
-	}
-
-	// Add flags for Azure information
-	localCollectCmd.Flags().StringVar(&azureSASURL, "azure-sas-url", "<AZURE_SAS_URL>", "Azure SAS URL for Dremio data")
-	if err := viper.BindPFlag("azure-sas-url", localCollectCmd.Flags().Lookup("azure-sas-url")); err != nil {
-		simplelog.Errorf("unable to bind configuration for azure-sas-url to error: %v", err)
-	}
-
-	// Add flags for Dremio diagnostic collection options
-
-	localCollectCmd.Flags().IntVar(&dremioLogsNumDays, "dremio-logs-num-days", 3, "Number of days of Dremio logs to collect for the Logs collector")
-	if err := viper.BindPFlag("dremio-logs-num-days", localCollectCmd.Flags().Lookup("dremio-logs-num-days")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-logs-num-days to error: %v", err)
-	}
-	localCollectCmd.Flags().StringVar(&dremioGCFilePattern, "dremio-gc-file-pattern", "gc*.log", "File pattern to match for Dremio GC logs")
-	if err := viper.BindPFlag("dremio-gc-file-pattern", localCollectCmd.Flags().Lookup("dremio-gc-file-pattern")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-gc-file-pattern to error: %v", err)
 	}
 
 	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "/opt/dremio/data/db", "Path to Dremio RocksDB directory")
@@ -1334,142 +1476,18 @@ func init() {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	// Add flags for Kubernetes information
-	localCollectCmd.Flags().BoolVar(&isKubernetes, "is-kubernetes", false, "Set to true if running in a Kubernetes environment")
-	if err := viper.BindPFlag("is-kubernetes", localCollectCmd.Flags().Lookup("is-kubernetes")); err != nil {
+	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
+	if err := viper.BindPFlag("collect-dremio-configuration", localCollectCmd.Flags().Lookup("collect-dremio-configuration")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	localCollectCmd.Flags().StringVar(&kubernetesNamespace, "kubernetes-namespace", "default", "Kubernetes namespace")
-	if err := viper.BindPFlag("kubernetes-namespace", localCollectCmd.Flags().Lookup("kubernetes-namespace")); err != nil {
+	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "collect-job-profiles", 25000, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
+	if err := viper.BindPFlag("collect-job-profiles", localCollectCmd.Flags().Lookup("collect-job-profiles")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	// Add flags for skipping collectors
-
-	localCollectCmd.Flags().BoolVar(&skipExportSystemTables, "skip-export-system-tables", false, "Skip the Export System Tables collector")
-	if err := viper.BindPFlag("skip-export-system-tables", localCollectCmd.Flags().Lookup("skip-export-system-tables")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectDiskUsage, "skip-collect-disk-usage", false, "Skip the Collect Disk Usage collector")
-	if err := viper.BindPFlag("skip-collect-disk-usage", localCollectCmd.Flags().Lookup("skip-collect-disk-usage")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipDownloadJobProfiles, "skip-download-job-profiles", false, "Skip the Download Job Profiles collector")
-	if err := viper.BindPFlag("skip-download-job-profiles", localCollectCmd.Flags().Lookup("skip-download-job-profiles")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectQueriesJSON, "skip-collect-queries-json", false, "Skip the Collect Queries JSON collector")
-	if err := viper.BindPFlag("skip-collect-queries-json", localCollectCmd.Flags().Lookup("skip-collect-queries-json")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectKubernetesInfo, "skip-collect-kubernetes-info", true, "Skip the Collect Kubernetes Info collector")
-	if err := viper.BindPFlag("skip-collect-kubernetes-info", localCollectCmd.Flags().Lookup("skip-collect-kubernetes-info")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectDremioConfiguration, "skip-collect-dremio-configuration", false, "Skip the Collect Dremio Configuration collector")
-	if err := viper.BindPFlag("skip-collect-dremio-configuration", localCollectCmd.Flags().Lookup("skip-collect-dremio-configuration")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectKVStoreReport, "skip-collect-kvstore-report", false, "Skip the Collect KVStore Report collector")
-	if err := viper.BindPFlag("skip-collect-kvstore-report", localCollectCmd.Flags().Lookup("skip-collect-kvstore-report")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectServerLogs, "skip-collect-server-logs", false, "Skip the Collect Server Logs collector")
-	if err := viper.BindPFlag("skip-collect-server-logs", localCollectCmd.Flags().Lookup("skip-collect-server-logs")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectMetaRefreshLog, "skip-collect-meta-refresh-log", false, "Skip the Collect Meta Refresh Log collector")
-	if err := viper.BindPFlag("skip-collect-meta-refresh-log", localCollectCmd.Flags().Lookup("skip-collect-meta-refresh-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectReflectionLog, "skip-collect-reflection-log", false, "Skip the Collect Reflection Log collector")
-	if err := viper.BindPFlag("skip-collect-reflection-log", localCollectCmd.Flags().Lookup("skip-collect-reflection-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectAccelerationLog, "skip-collect-acceleration-log", true, "Skip the Collect Acceleration Log collector")
-	if err := viper.BindPFlag("skip-collect-acceleration-log", localCollectCmd.Flags().Lookup("skip-collect-acceleration-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectAccessLog, "skip-collect-access-log", false, "Skip the Collect Access Log collector")
-	if err := viper.BindPFlag("skip-collect-access-log", localCollectCmd.Flags().Lookup("skip-collect-access-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectGCLogs, "skip-collect-gc-logs", false, "Skip the Collect GC Logs collector")
-	if err := viper.BindPFlag("skip-collect-gc-logs", localCollectCmd.Flags().Lookup("skip-collect-gc-logs")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipCollectWLM, "skip-collect-wlm", false, "Skip the Collect WLM collector")
-	if err := viper.BindPFlag("skip-collect-wlm", localCollectCmd.Flags().Lookup("skip-collect-wlm")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipHeapDump, "skip-heap-dump", true, "Skip the Heap Dump collector")
-	if err := viper.BindPFlag("skip-heap-dump", localCollectCmd.Flags().Lookup("skip-heap-dump")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipJFR, "skip-jfr", true, "Skip the JFR (Java Flight Recorder) collection")
-	if err := viper.BindPFlag("skip-jfr", localCollectCmd.Flags().Lookup("skip-jfr")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	// Add flags for other options
-	localCollectCmd.Flags().IntVar(&dremioJFRTimeSeconds, "dremio-jfr-time-seconds", 300, "Duration in seconds to run the JFR collector")
-	if err := viper.BindPFlag("dremio-jfr-time-seconds", localCollectCmd.Flags().Lookup("dremio-jfr-time-seconds")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().BoolVar(&skipJStack, "skip-jstack", true, "Skip the JStack collection")
-	if err := viper.BindPFlag("skip-jstack", localCollectCmd.Flags().Lookup("skip-jstack")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&dremioJStackTimeSeconds, "dremio-jstack-time-seconds", 300, "Duration in seconds to run the JStack collector")
-	if err := viper.BindPFlag("dremio-jstack-time-seconds", localCollectCmd.Flags().Lookup("dremio-jstack-time-seconds")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&dremioJStackFreqSeconds, "dremio-jstack-freq-seconds", 1, "Frequency in seconds to run the JStack collector")
-	if err := viper.BindPFlag("dremio-jstack-freq-seconds", localCollectCmd.Flags().Lookup("dremio-jstack-freq-seconds")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&jobProfilesNumDays, "job-profiles-num-days", 28, "Number of days of job profile history to collect")
-	if err := viper.BindPFlag("job-profiles-num-days", localCollectCmd.Flags().Lookup("job-profiles-num-days")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&jobProfilesNumSlowExec, "job-profiles-num-slow-exec", 10000, "Number of slowest job profiles to collect by execution time")
-	if err := viper.BindPFlag("job-profiles-num-slow-exec", localCollectCmd.Flags().Lookup("job-profiles-num-slow-exec")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&jobProfilesNumHighQueryCost, "job-profiles-num-high-query-cost", 5000, "Number of job profiles to collect with the highest query cost")
-	if err := viper.BindPFlag("job-profiles-num-high-query-cost", localCollectCmd.Flags().Lookup("job-profiles-num-high-query-cost")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&jobProfilesNumSlowPlanning, "job-profiles-num-slow-planning", 5000, "Number of slowest job profiles to collect by planning time")
-	if err := viper.BindPFlag("job-profiles-num-slow-planning", localCollectCmd.Flags().Lookup("job-profiles-num-slow-planning")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&jobProfilesNumRecentErrors, "job-profiles-num-recent-errors", 5000, "Number of most recent job profiles to collect with errors")
-	if err := viper.BindPFlag("job-profiles-num-recent-errors", localCollectCmd.Flags().Lookup("job-profiles-num-recent-errors")); err != nil {
+	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
+	if err := viper.BindPFlag("capture-heap-dump", localCollectCmd.Flags().Lookup("capture-heap-dump")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
@@ -1478,40 +1496,6 @@ func init() {
 	if err := viper.BindPFlag("accept-collection-consent", localCollectCmd.Flags().Lookup("accept-collection-consent")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
-
-	//Viper will use the values from the configuration file, environment variables,
-	//and command line flags in the following order of precedence (highest to lowest):
-	//command line flags, environment variables, and then the configuration file.
-	//This means that the command line flags will override the environment variables and configuration file values if they are set.
-	baseConfig := "ddc-config"
-	viper.SetConfigName(baseConfig) // Name of config file (without extension)
-
-	//find the location of the ddc executable
-	execPath, err := os.Executable()
-	if err != nil {
-		simplelog.Errorf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
-		execPath = "."
-	}
-	// use that as the default location of the configuration
-	configDir := filepath.Dir(execPath)
-	viper.AddConfigPath(configDir)
-
-	for _, e := range supportedExtensions {
-		confFiles = append(confFiles, fmt.Sprintf("%v.%v", baseConfig, e))
-	}
-
-	//searching for all known
-	for _, ext := range supportedExtensions {
-		viper.SetConfigType(ext)
-		unableToReadConfigError := viper.ReadInConfig()
-		if unableToReadConfigError == nil {
-			configIsFound = true
-			foundConfig = fmt.Sprintf("%v.%v", baseConfig, ext)
-			break
-		}
-	}
-
-	viper.AutomaticEnv() // Automatically read environment variables
 
 }
 

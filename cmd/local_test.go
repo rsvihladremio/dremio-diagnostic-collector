@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Could not construct pool: %s", err)
 	}
-
+	pool.MaxWait = time.Minute * 5
 	// uses pool to try to connect to Docker
 	err = pool.Client.Ping()
 	if err != nil {
@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 	if exit > 0 {
 		log.Fatalf("unable to make dremio source due to exit code %d", exit)
 	}
-	err = resource.Expire(120)
+	err = resource.Expire(60 * 5)
 	if err != nil {
 		log.Fatalf("Could not set expiry on resource : %s", err)
 	}
@@ -216,14 +216,14 @@ func TestCreateAllDirs(t *testing.T) {
 }
 
 func TestCollectWlm(t *testing.T) {
-	err := collectWlm()
+	err := runCollectWLM()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCollectKVReport(t *testing.T) {
-	err := collectKvReport()
+	err := runCollectKvReport()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -286,7 +286,7 @@ func TestValidateAPICredentials(t *testing.T) {
 }
 
 func TestValidateCollectJobProfiles(t *testing.T) {
-	err := collectJobProfiles()
+	err := runCollectJobProfiles()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
