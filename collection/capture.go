@@ -122,7 +122,7 @@ func Capture(conf HostCaptureConfiguration) (files []helpers.CollectedFile, fail
 			}
 		}
 		gcLogDir := filepath.Dir(gcLogSearchString)
-		collected, failed, skipped := copyFiles(conf, "log", gcLogDir, gcLogsToCollect)
+		collected, failed, skipped := copyFiles(conf, "logs", gcLogDir, gcLogsToCollect)
 		files = append(files, collected...)
 		failedFiles = append(failedFiles, failed...)
 		skippedFiles = append(skippedFiles, skipped...)
