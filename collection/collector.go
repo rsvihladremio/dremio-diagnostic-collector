@@ -58,6 +58,7 @@ type Args struct {
 }
 
 type HostCaptureConfiguration struct {
+	NodeCaptureOutput         string
 	Logger                    *log.Logger
 	IsCoordinator             bool
 	Collector                 Collector
@@ -125,8 +126,9 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				ExcludeFiles:              excludefiles,
 				CopyStrategy:              s,
 				DDCfs:                     ddcfs,
+				NodeCaptureOutput:         "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf)
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, outputLoc)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -161,7 +163,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				CopyStrategy:              s,
 				DDCfs:                     ddcfs,
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf)
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, outputLoc)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
