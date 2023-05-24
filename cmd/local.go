@@ -887,6 +887,11 @@ func runCollectJobProfiles() error {
 			queriesjsons = append(queriesjsons, path.Join(queriesOutDir(), file.Name()))
 		}
 
+		if len(queriesjsons) == 0 {
+			simplelog.Warning("no queries.json files found. This is probably an executor, so we are skipping collection of Job Profiles")
+			return nil
+		}
+
 		queriesrows := queriesjson.CollectQueriesJSON(queriesjsons)
 		profilesToCollect := map[string]string{}
 
