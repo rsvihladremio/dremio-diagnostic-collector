@@ -1,5 +1,26 @@
 # Changelog
 
+# Changelog
+
+## [0.3.0-beta2]
+
+### Changed
+
+* will no longer collect job profiles when queries.json is not present
+  on a node and will log a warning when job collection is enabled.
+
+### Fixed
+
+* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/80 now releases that are not linux contain an extra binary and example ddc.yaml file editing the file will change the parameters that run remotely on the server
+* fixed  https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/86 local capture metrics were not working
+* old thread pool was buggy, wrote new one by hand, works well
+* removed a lot of code around capture and collection as it is no longer needed
+* logging to two sources, and now includes logs in the final tarball
+* local-collect will archive what is had now fixed https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/84
+* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/77 removing k8s from local-collect
+* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/78 consent formatting
+* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/79 consent was backwards now works as expected
+
 
 ## [0.3.0-beta1] - 2023-05-15
 
@@ -105,6 +126,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.0-beta2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2
 [0.3.0-beta1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
 [0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.0...v0.2.1
