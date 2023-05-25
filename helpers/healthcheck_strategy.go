@@ -179,3 +179,7 @@ func (s *CopyStrategyHC) createHCFiles() (file string, err error) {
 	return compFile, nil
 
 }
+
+func (s *CopyStrategyHC) GetTmpDir() string {
+	return s.TmpDir
+}

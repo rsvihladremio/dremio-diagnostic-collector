@@ -16,12 +16,21 @@
 package collection
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
 
@@ -30,11 +39,14 @@ var DirPerms fs.FileMode = 0750
 type CopyStrategy interface {
 	CreatePath(fileType, source, nodeType string) (path string, err error)
 	ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error
+	GetTmpDir() string
 }
 
 type Collector interface {
 	CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error)
+	CopyToHost(hostString string, isCoordinator bool, source, destination string) (out string, err error)
 	CopyFromHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error)
+	CopyToHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error)
 	FindHosts(searchTerm string) (podName []string, err error)
 	HostExecute(hostString string, isCoordinator bool, args ...string) (stdOut string, err error)
 }
@@ -91,7 +103,21 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	ddcfs := collectionArgs.DDCfs
 	limit := collectionArgs.SizeLimit
 	excludefiles := collectionArgs.ExcludeFiles
-
+	operationSystem := runtime.GOOS
+	arch := runtime.GOARCH
+	var ddcLoc string
+	var err error
+	ddcLoc, err = os.Executable()
+	if err != nil {
+		return fmt.Errorf("unable to to find ddc cannot copy it to hosts due to error '%v'", err)
+	}
+	if operationSystem == "linux" && arch == "amd64" {
+		simplelog.Infof("using linux ddc")
+	} else {
+		// we need to use the exec in the folder next to ddc should be /linux and should contain a ddc exec ddc.yaml
+		ddcDir := path.Join(path.Dir(ddcLoc), "linux")
+		ddcLoc = path.Join(ddcDir, "ddc")
+	}
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
 		return err
@@ -110,11 +136,11 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
-				Collector:     c,
-				IsCoordinator: true,
-				Logger:        logger,
-				Host:          host,
-				//OutputLocation:            outputDir,
+				Collector:                 c,
+				IsCoordinator:             true,
+				Logger:                    logger,
+				Host:                      host,
+				OutputLocation:            outputLoc,
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -128,7 +154,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				DDCfs:                     ddcfs,
 				NodeCaptureOutput:         "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, outputLoc)
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, s.GetTmpDir())
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -162,8 +188,9 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				ExcludeFiles:              excludefiles,
 				CopyStrategy:              s,
 				DDCfs:                     ddcfs,
+				NodeCaptureOutput:         "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, outputLoc)
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, outputLoc)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -196,8 +223,90 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		return err
 	}
 
+	if tarballs, err := FindTarGzFiles(s.GetTmpDir()); err != nil {
+		return err
+	} else {
+		for _, t := range tarballs {
+			if err := ExtractTarGz(t, s.GetTmpDir()); err != nil {
+				return err
+			}
+			if err := os.Remove(t); err != nil {
+				return err
+			}
+		}
+	}
 	// archives the collected files
 	// creates the summary file too
 	return s.ArchiveDiag(o, outputLoc, files)
 
+}
+
+func ExtractTarGz(gzFilePath, dest string) error {
+	reader, err := os.Open(gzFilePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	gzReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return err
+	}
+	defer gzReader.Close()
+
+	tarReader := tar.NewReader(gzReader)
+
+	for {
+		header, err := tarReader.Next()
+
+		switch {
+		case err == io.EOF:
+			return nil
+		case err != nil:
+			return err
+		case header == nil:
+			continue
+		}
+
+		target := filepath.Join(dest, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if _, err := os.Stat(target); err != nil {
+				if err := os.MkdirAll(target, 0755); err != nil {
+					return err
+				}
+			}
+		case tar.TypeReg:
+			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			if _, err := io.Copy(file, tarReader); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func FindTarGzFiles(rootDir string) ([]string, error) {
+	var files []string
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".tar.gz") {
+			files = append(files, path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
 }

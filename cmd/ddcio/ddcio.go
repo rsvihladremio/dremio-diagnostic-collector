@@ -16,8 +16,10 @@
 package ddcio
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
@@ -57,6 +59,20 @@ func CopyFile(srcPath, dstPath string) error {
 	err = dstFile.Sync()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Shell executes a shell command with shell expansion and appends its output to the provided io.Writer.
+func Shell(writer io.Writer, commandLine string) error {
+	cmd := exec.Command("bash", "-c", commandLine)
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("command execution failed: %w", err)
 	}
 
 	return nil

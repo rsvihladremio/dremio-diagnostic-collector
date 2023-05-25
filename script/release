@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # this is also set in script/build and is a copy paste
 GIT_SHA=`git rev-parse --short HEAD`
 VERSION=$1
-LDFLAGS="-X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.GitSha=$GIT_SHA -X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.Version=$VERSION"
+LDFLAGS="-X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.GitSha=$GIT_SHA -X github.com/rsvihladremio/dremio-diagnostic-collector/cmd/versions.Version=$VERSION"
 
 echo "Cleaning bin folder…"
 date "+%H:%M:%S"
@@ -19,23 +19,27 @@ date "+%H:%M:%S"
 echo "Building linux-amd64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-linux-amd64.zip ./bin/ddc
+cp ./default-ddc.yaml ./bin/ddc/ddc.yaml
+zip ./bin/ddc-linux-amd64.zip ./bin/ddc ./bin/ddc.yaml
+mkdir ./bin/ddc/linux
+mv ./bin/ddc ./bin/linux/ddc
+mv ./bin/ddc.yaml ./bin/linux/ddc.yaml
 echo "Building linux-arm64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-linux-arm64.zip ./bin/ddc
+zip ./bin/ddc-linux-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
 echo "Building darwin-os-x-amd64…"
 date "+%H:%M:%S"
 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-darwin-amd64.zip ./bin/ddc
+zip ./bin/ddc-darwin-amd64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
 echo "Building darwin-os-x-arm64…"
 date "+%H:%M:%S"
 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-darwin-arm64.zip ./bin/ddc
+zip ./bin/ddc-darwin-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
 echo "Building windows-amd64…"
 date "+%H:%M:%S"
 GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc.exe
-zip ./bin/ddc-windows-amd64.zip ./bin/ddc.exe
+zip ./bin/ddc-windows-amd64.zip ./bin/ddc.exe ./bin/linux/ddc ./bin/linux/ddc.yaml
 
 
 gh release create $VERSION --title $VERSION -F changelog.md ./bin/ddc-windows-amd64.zip ./bin/ddc-darwin-arm64.zip ./bin/ddc-darwin-amd64.zip ./bin/ddc-linux-arm64.zip ./bin/ddc-linux-amd64.zip 

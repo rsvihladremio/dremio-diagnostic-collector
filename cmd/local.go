@@ -16,6 +16,7 @@
 package cmd
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -25,7 +26,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -43,6 +43,7 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/ddcio"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/threading"
 )
 
@@ -83,53 +84,6 @@ var (
 	confFiles               []string
 	configIsFound           bool
 	foundConfig             string
-)
-
-// flags that are configurable by env or configuration
-var (
-	verbose                    int
-	numberThreads              int
-	gcLogsDir                  string
-	dremioLogDir               string
-	dremioConfDir              string
-	dremioEndpoint             string
-	dremioUsername             string
-	dremioPATToken             string
-	dremioRocksDBDir           string
-	numberJobProfilesToCollect int
-	collectAccelerationLogs    bool
-	collectAccessLogs          bool
-	captureHeapDump            bool
-	acceptCollectionConsent    bool
-)
-
-// advanced variables setable by configuration or environement variable
-var (
-	outputDir                   string
-	dremioJFRTimeSeconds        int
-	dremioJStackFreqSeconds     int
-	dremioJStackTimeSeconds     int
-	dremioLogsNumDays           int
-	dremioGCFilePattern         string
-	dremioQueriesJSONNumDays    int
-	jobProfilesNumSlowExec      int
-	jobProfilesNumHighQueryCost int
-	jobProfilesNumSlowPlanning  int
-	jobProfilesNumRecentErrors  int
-	collectNodeMetrics          bool
-	collectJFR                  bool
-	collectJStack               bool
-	collectKVStoreReport        bool
-	collectServerLogs           bool
-	collectMetaRefreshLogs      bool
-	collectQueriesJSON          bool
-	collectDremioConfiguration  bool
-	collectReflectionLogs       bool
-	collectSystemTablesExport   bool
-	collectDiskUsage            bool
-	collectGCLogs               bool
-	collectWLM                  bool
-	nodeName                    string
 )
 
 func configurationOutDir() string {
@@ -458,7 +412,7 @@ func runCollectDiskUsage() error {
 			simplelog.Warningf("unable to close the os_info.txt file due to error: %v", err)
 		}
 	}()
-	err = Shell(diskWriter, "df -h")
+	err = ddcio.Shell(diskWriter, "df -h")
 	if err != nil {
 		simplelog.Warningf("unable to read df -h due to error %v", err)
 	}
@@ -473,7 +427,7 @@ func runCollectDiskUsage() error {
 				simplelog.Warningf("unable to close rocksdb usage writer the file maybe incomplete %v", err)
 			}
 		}()
-		err = Shell(rocksDbDiskUsageWriter, "du -sh /opt/dremio/data/db/*")
+		err = ddcio.Shell(rocksDbDiskUsageWriter, "du -sh /opt/dremio/data/db/*")
 		if err != nil {
 			simplelog.Warningf("unable to write du -sh to rocksdb_disk_allocation.txt due to error %v", err)
 		}
@@ -507,7 +461,7 @@ func runCollectOSConfig() error {
 		simplelog.Warningf("unable to write release file header for os_info.txt due to error %v", err)
 	}
 
-	err = Shell(w, "cat /etc/*-release")
+	err = ddcio.Shell(w, "cat /etc/*-release")
 	if err != nil {
 		simplelog.Warningf("unable to write release files for os_info.txt due to error %v", err)
 	}
@@ -517,7 +471,7 @@ func runCollectOSConfig() error {
 		simplelog.Warningf("unable to write uname header for os_info.txt due to error %v", err)
 	}
 
-	err = Shell(w, "uname -r")
+	err = ddcio.Shell(w, "uname -r")
 	if err != nil {
 		simplelog.Warningf("unable to write uname -r for os_info.txt due to error %v", err)
 	}
@@ -525,7 +479,7 @@ func runCollectOSConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to write lsb_release -r header for os_info.txt due to error %v", err)
 	}
-	err = Shell(w, "lsb_release -a")
+	err = ddcio.Shell(w, "lsb_release -a")
 	if err != nil {
 		simplelog.Warningf("unable to write lsb_release -a for os_info.txt due to error %v", err)
 	}
@@ -533,7 +487,7 @@ func runCollectOSConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to write hostnamectl for os_info.txt due to error %v", err)
 	}
-	err = Shell(w, "hostnamectl")
+	err = ddcio.Shell(w, "hostnamectl")
 	if err != nil {
 		simplelog.Warningf("unable to write hostnamectl for os_info.txt due to error %v", err)
 	}
@@ -541,7 +495,7 @@ func runCollectOSConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to write /proc/meminfo header for os_info.txt due to error %v", err)
 	}
-	err = Shell(w, "cat /proc/meminfo")
+	err = ddcio.Shell(w, "cat /proc/meminfo")
 	if err != nil {
 		simplelog.Warningf("unable to write /proc/meminfo for os_info.txt due to error %v", err)
 	}
@@ -549,7 +503,7 @@ func runCollectOSConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to write lscpu header for os_info.txt due to error %v", err)
 	}
-	err = Shell(w, "lscpu")
+	err = ddcio.Shell(w, "lscpu")
 	if err != nil {
 		simplelog.Warningf("unable to write lscpu for os_info.txt due to error %v", err)
 	}
@@ -578,7 +532,7 @@ func runCollectDremioConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to copy logback-access.xml due to error %v", err)
 	}
-	//# shell "cat /opt/dremio/conf/core-site.xml" > $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/core-site.xml
+	//# ddcio.Shell "cat /opt/dremio/conf/core-site.xml" > $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/core-site.xml
 
 	//python3 $DREMIO_HEALTHCHECK_SCRIPT_DIR/helper/secrets_cleanser_config.py $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/dremio.conf
 
@@ -606,7 +560,7 @@ func runCollectJvmConfig() error {
 	if err != nil {
 		return fmt.Errorf("unable to get dremio PID %v", err)
 	}
-	err = Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
+	err = ddcio.Shell(jvmSettingsFileWriter, fmt.Sprintf("jcmd %v VM.flags", dremioPID))
 	if err != nil {
 		simplelog.Warningf("unable to write jvm_settings.txt file due to error %v", err)
 	}
@@ -737,12 +691,12 @@ func runCollectJFR() error {
 		return fmt.Errorf("unable to get dremio PID %v", err)
 	}
 	var w bytes.Buffer
-	if err := Shell(&w, fmt.Sprintf("jcmd %v VM.unlock_commercial_features", dremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v VM.unlock_commercial_features", dremioPID)); err != nil {
 		simplelog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
 	}
 	simplelog.Debugf("node: %v - jfr unlock commerictial output - %v", nodeName, w.String())
 	w = bytes.Buffer{}
-	if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir(), nodeName)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.start name=\"DREMIO_JFR\" settings=profile maxage=%vs  filename=%v/%v.jfr dumponexit=true", dremioPID, dremioJFRTimeSeconds, jfrOutDir(), nodeName)); err != nil {
 		return fmt.Errorf("unable to run JFR due to error %v", err)
 	}
 	simplelog.Debugf("node: %v - jfr start output - %v", nodeName, w.String())
@@ -750,17 +704,17 @@ func runCollectJFR() error {
 	// do not "optimize". the recording first needs to be stopped for all processes before collecting the data.
 	simplelog.Info("... stopping JFR $BASEPOD")
 	w = bytes.Buffer{}
-	if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", dremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", dremioPID)); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
 	simplelog.Debugf("node: %v - jfr dump output %v", nodeName, w.String())
 	w = bytes.Buffer{}
-	if err := Shell(&w, fmt.Sprintf("jcmd %v JFR.stop name=\"DREMIO_JFR\"", dremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.stop name=\"DREMIO_JFR\"", dremioPID)); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
 	simplelog.Debugf("node: %v - jfr stop output %v", nodeName, w.String())
 	w = bytes.Buffer{}
-	if err := Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
 
@@ -778,7 +732,7 @@ func runCollectJStacks() error {
 	}
 	for i := 0; i < iterations; i++ {
 		var w bytes.Buffer
-		if err := Shell(&w, fmt.Sprintf("jcmd %v Thread.print -l", dremioPID)); err != nil {
+		if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v Thread.print -l", dremioPID)); err != nil {
 			simplelog.Warningf("unable to capture jstack of pid %v due to error %v", dremioPID, err)
 		}
 		date := time.Now().Format("2006-01-02_15_04_05")
@@ -871,7 +825,7 @@ func runCollectHeapDump() error {
 		simplelog.Warningf("unable to remove hprof file with error %v", err)
 	}
 	var w bytes.Buffer
-	if err := Shell(&w, fmt.Sprintf("jmap -dump:format=b,file=%v %v", hprofFile, dremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jmap -dump:format=b,file=%v %v", hprofFile, dremioPID)); err != nil {
 		return fmt.Errorf("unable to capture heap dump %v", err)
 	}
 	simplelog.Infof("heap dump output %v", w.String())
@@ -1221,7 +1175,7 @@ func findGCLogLocation() (gcLogLoc string, err error) {
 		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
 	}
 	var startupFlags bytes.Buffer
-	err = Shell(&startupFlags, fmt.Sprintf("ps -f %v", pid))
+	err = ddcio.Shell(&startupFlags, fmt.Sprintf("ps -f %v", pid))
 	if err != nil {
 		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
 	}
@@ -1470,7 +1424,95 @@ var localCollectCmd = &cobra.Command{
 		// Run application
 		simplelog.Info("Starting collection...")
 		collect(numberThreads)
+		simplelog.Info("collection complete. Archiving...")
+		if err := compressAndDelete(outputDir, outputDir+".tar.gz"); err != nil {
+			simplelog.Errorf("unable to compress archive exiting due to error %v", err)
+			os.Exit(1)
+		}
+		simplelog.Infof("Archive %v complete", outputDir+"tar.gz")
 	},
+}
+
+// compressAndDelete compresses the specified directory into a tar.gz file,
+// then deletes the original directory and its contents.
+// dir is the path to the directory that should be compressed.
+// tarFile is the path to the resulting tar.gz file.
+// Note: this function will delete the original directory after archiving it.
+func compressAndDelete(dir string, tarFile string) error {
+	// Create tar.gz file
+	file, err := os.Create(tarFile)
+	if err != nil {
+		return fmt.Errorf("uanble to create tarball %v due to error %v", tarFile, err)
+	}
+	// defering just in case but closing at the bottom
+	defer file.Close()
+
+	gw := gzip.NewWriter(file)
+	// defering just in case but closing at the bottom
+	defer gw.Close()
+
+	tw := tar.NewWriter(gw)
+	// defering just in case but closing at the bottom
+	defer tw.Close()
+
+	// Walk through every file in the directory
+	filepath.Walk(dir, func(file string, info os.FileInfo, err error) error {
+		// Return on any error
+		if err != nil {
+			return fmt.Errorf("unable to walk dir due to error %v", err)
+		}
+
+		// Create a new dir/file header
+		header, err := tar.FileInfoHeader(info, info.Name())
+		if err != nil {
+			return fmt.Errorf("unable to make tar header %v due to error %v", info.Name(), err)
+		}
+
+		// Update the name to correctly reflect the desired destination when untaring
+		header.Name = filepath.Join("./", filepath.Base(dir), file[len(dir):])
+
+		// Write the header
+		if err := tw.WriteHeader(header); err != nil {
+			return fmt.Errorf("unable to write header named %v due to error %v", header.Name, err)
+		}
+
+		// If it's a dir, then ignore body
+		if info.IsDir() {
+			return nil
+		}
+
+		// Open files for taring
+		f, err := os.Open(file)
+		if err != nil {
+			return fmt.Errorf("unable to open file %v due to error %v", file, err)
+		}
+
+		// Copy file data into tar writer
+		if _, err := io.Copy(tw, f); err != nil {
+			return fmt.Errorf("unable to copy file %v to tar due to error %v", file, err)
+		}
+
+		// Close file after copying its content
+		if err := f.Close(); err != nil {
+			simplelog.Warningf("unable to close file %v after copy it's contents to a tar due to error %v", file, err)
+		}
+
+		return nil
+	})
+
+	// Delete the original directory
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("unable to delete dir %v due to error %v", dir, err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("unable to close file due to error %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("unable to close tarball due to error %v", err)
+	}
+	return nil
 }
 
 func getThreads(cpus int) int {
@@ -1483,23 +1525,9 @@ func getOutputDir(now time.Time) string {
 	return filepath.Join(os.TempDir(), "ddc", nowStr)
 }
 
-// Shell executes a shell command with shell expansion and appends its output to the provided io.Writer.
-func Shell(writer io.Writer, commandLine string) error {
-	cmd := exec.Command("bash", "-c", commandLine)
-	cmd.Stdout = writer
-	cmd.Stderr = writer
-
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("command execution failed: %w", err)
-	}
-
-	return nil
-}
-
 func getDremioPID() (int, error) {
 	var dremioPIDOutput bytes.Buffer
-	if err := Shell(&dremioPIDOutput, "jps | grep DremioDaemon | awk '{print $1}'"); err != nil {
+	if err := ddcio.Shell(&dremioPIDOutput, "jps | grep DremioDaemon | awk '{print $1}'"); err != nil {
 		simplelog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
 	}
 	dremioIDString := strings.TrimSpace(dremioPIDOutput.String())
@@ -1512,6 +1540,11 @@ func getDremioPID() (int, error) {
 
 func init() {
 	rootCmd.AddCommand(localCollectCmd)
+	// consent form
+	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
+	if err := viper.BindPFlag("accept-collection-consent", localCollectCmd.Flags().Lookup("accept-collection-consent")); err != nil {
+		simplelog.Errorf("unable to bind flag due to error %v", err)
+	}
 
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
 	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
@@ -1573,19 +1606,13 @@ func init() {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
-	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "collect-job-profiles", 25000, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
-	if err := viper.BindPFlag("collect-job-profiles", localCollectCmd.Flags().Lookup("collect-job-profiles")); err != nil {
+	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 25000, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
+	if err := viper.BindPFlag("number-job-profiles", localCollectCmd.Flags().Lookup("number-job-profiles")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 
 	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
 	if err := viper.BindPFlag("capture-heap-dump", localCollectCmd.Flags().Lookup("capture-heap-dump")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	// consent form
-	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
-	if err := viper.BindPFlag("accept-collection-consent", localCollectCmd.Flags().Lookup("accept-collection-consent")); err != nil {
 		simplelog.Errorf("unable to bind flag due to error %v", err)
 	}
 

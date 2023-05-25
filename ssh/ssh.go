@@ -47,6 +47,14 @@ func (c *CmdSSHActions) CopyFromHostSudo(hostName string, _ bool, _, source, des
 	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, source), destination)
 }
 
+func (c *CmdSSHActions) CopyToHost(hostName string, _ bool, source, destination string) (string, error) {
+	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, destination))
+}
+
+func (c *CmdSSHActions) CopyToHostSudo(hostName string, _ bool, _, source, destination string) (string, error) {
+	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, destination))
+}
+
 func (c *CmdSSHActions) HostExecute(hostName string, _ bool, args ...string) (string, error) {
 	sshArgs := []string{"ssh", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no"}
 	sshArgs = append(sshArgs, fmt.Sprintf("%v@%v", c.sshUser, hostName))

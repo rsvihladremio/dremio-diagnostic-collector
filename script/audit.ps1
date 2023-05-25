@@ -1,9 +1,0 @@
-# script/audit: runs gosec against the mod file to find security issues
-#                   
-
-Set-Location "$PSScriptRoot\.."
-
-# G204 unfortunately cuts directly against the tooling as it is designed to retrieve variable data and pass it onto
-# a CLI when we have an embedded mode we can think about removing the cli items but until then, this is very fundamentally
-# what the tooling is built to do.
-gosec -exclude=G204 ./...
