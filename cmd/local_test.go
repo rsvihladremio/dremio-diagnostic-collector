@@ -317,7 +317,7 @@ jvm_args: -Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler -
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
-	expected := "/opt/dremio/data/log/gc.log"
+	expected := "/opt/dremio/data/log"
 	if gcLogLocation != expected {
 		t.Errorf("expected '%v' but was '%v'", expected, gcLogLocation)
 	}
