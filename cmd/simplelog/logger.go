@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 )
 
 var LOGGER *Logger
+var ddcLog *os.File
 
 type Logger struct {
 	debugLogger   *log.Logger
@@ -46,25 +48,42 @@ func InitLogger(level int) {
 	LOGGER = NewLogger(level)
 }
 
-func NewLogger(level int) *Logger {
-	debugOut, infoOut, warningOut := io.Discard, io.Discard, io.Discard
+func Close() error {
+	if err := ddcLog.Close(); err != nil {
+		return fmt.Errorf("unable to close ddc.log with error %v", err)
+	}
+	return nil
+}
 
+func NewLogger(level int) *Logger {
+	debugOut, infoOut, warningOut, errorOut := io.Discard, io.Discard, io.Discard, io.Discard
+	ddcLoc, err := os.Executable()
+	if err != nil {
+		log.Fatalf("unable to to find ddc cannot copy it to hosts due to error '%v'", err)
+	}
+	ddcLog, err = os.OpenFile(path.Join(path.Dir(ddcLoc), "ddc.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Fatal(err)
+	}
 	switch level {
 	case LevelDebug:
-		debugOut = os.Stdout
+		debugOut = io.MultiWriter(os.Stdout, ddcLog)
 		fallthrough
 	case LevelInfo:
-		infoOut = os.Stdout
+		infoOut = io.MultiWriter(os.Stdout, ddcLog)
 		fallthrough
 	case LevelWarning:
-		warningOut = os.Stdout
+		warningOut = io.MultiWriter(os.Stdout, ddcLog)
+		fallthrough
+	case LevelError:
+		errorOut = io.MultiWriter(os.Stdout, ddcLog)
 	}
 
 	return &Logger{
 		debugLogger:   log.New(debugOut, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile),
 		infoLogger:    log.New(infoOut, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
 		warningLogger: log.New(warningOut, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile),
-		errorLogger:   log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
+		errorLogger:   log.New(errorOut, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
 	}
 }
 

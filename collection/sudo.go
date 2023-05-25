@@ -59,3 +59,25 @@ func ComposeCopy(conf HostCaptureConfiguration, source, destination string) (std
 	}
 	return stdOut, err
 }
+
+// Adds the sudo part into the CopyFromHost call
+func ComposeCopyTo(conf HostCaptureConfiguration, source, destination string) (stdOut string, err error) {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	logger := conf.Logger
+	sudoUser := conf.SudoUser
+
+	if sudoUser == "" {
+		stdOut, err = c.CopyToHost(host, isCoordinator, source, destination)
+		if err != nil {
+			logger.Printf("ERROR: host %v failed to run command with error %v", host, err)
+		}
+	} else {
+		stdOut, err = c.CopyToHostSudo(host, isCoordinator, sudoUser, source, destination)
+		if err != nil {
+			logger.Printf("ERROR: host %v failed to run sudo command with error %v", host, err)
+		}
+	}
+	return stdOut, err
+}
