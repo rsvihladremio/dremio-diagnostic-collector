@@ -19,9 +19,9 @@ date "+%H:%M:%S"
 echo "Building linux-amd64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-cp ./default-ddc.yaml ./bin/ddc/ddc.yaml
+cp ./default-ddc.yaml ./bin/ddc.yaml
 zip ./bin/ddc-linux-amd64.zip ./bin/ddc ./bin/ddc.yaml
-mkdir ./bin/ddc/linux
+mkdir -p ./bin/linux
 mv ./bin/ddc ./bin/linux/ddc
 mv ./bin/ddc.yaml ./bin/linux/ddc.yaml
 echo "Building linux-arm64…"
