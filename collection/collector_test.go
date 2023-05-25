@@ -18,6 +18,7 @@ package collection
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -49,6 +50,9 @@ func NewMockStrategy(ddcfs helpers.Filesystem) *MockStrategy {
 		TmpDir:       tmpDir,
 		Fs:           ddcfs,
 	}
+}
+func (s *MockStrategy) GetTmpDir() string {
+	return path.Join(s.TmpDir, s.BaseDir)
 }
 
 func (s *MockStrategy) CreatePath(fileType, source, nodeType string) (path string, err error) {
@@ -102,6 +106,42 @@ func (m *MockCapCollector) FindHosts(searchTerm string) (response []string, err 
 }
 
 func (m *MockCapCollector) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (response string, err error) {
+	copyCall := MockCapCopy{
+		HostString:    hostString,
+		IsCoordinator: isCoordinator,
+		Source:        source,
+		Destination:   destination,
+	}
+	if copyCall.Source == "/var/log/dremio" {
+		response = "INFO: logs copied from /var/log/dremio1"
+	} else if copyCall.Source == "/var/log/missing" {
+		response = "WARN: No logs found at /var/log/missing"
+	} else {
+		response = "no files found"
+		err = fmt.Errorf("ERROR: no files found for %v", copyCall.Source)
+	}
+	return response, err
+}
+
+func (m *MockCapCollector) CopyToHost(hostString string, isCoordinator bool, source, destination string) (response string, err error) {
+	copyCall := MockCapCopy{
+		HostString:    hostString,
+		IsCoordinator: isCoordinator,
+		Source:        source,
+		Destination:   destination,
+	}
+	if copyCall.Source == "/var/log/dremio" {
+		response = "INFO: logs copied from /var/log/dremio1"
+	} else if copyCall.Source == "/var/log/missing" {
+		response = "WARN: No logs found at /var/log/missing"
+	} else {
+		response = "no files found"
+		err = fmt.Errorf("ERROR: no files found for %v", copyCall.Source)
+	}
+	return response, err
+}
+
+func (m *MockCapCollector) CopyToHostSudo(hostString string, isCoordinator bool, _, source, destination string) (response string, err error) {
 	copyCall := MockCapCopy{
 		HostString:    hostString,
 		IsCoordinator: isCoordinator,

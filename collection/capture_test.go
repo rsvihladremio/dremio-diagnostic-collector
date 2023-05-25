@@ -27,6 +27,35 @@ type MockCollector struct {
 	CallCounter int
 }
 
+func (m *MockCollector) CopyToHost(hostString string, isCoordinator bool, source, destination string) (out string, err error) {
+	args := make(map[string]interface{})
+	args["hostString"] = hostString
+	args["isCoordinator"] = isCoordinator
+	args["source"] = source
+	args["destination"] = destination
+	m.Calls = append(m.Calls, args)
+	response := m.Returns[m.CallCounter]
+	m.CallCounter++
+	if response[1] == nil {
+		return response[0].(string), nil
+
+	}
+	return response[0].(string), response[1].(error)
+}
+func (m *MockCollector) CopyToHostSudo(hostString string, isCoordinator bool, _, source, destination string) (out string, err error) {
+	args := make(map[string]interface{})
+	args["hostString"] = hostString
+	args["isCoordinator"] = isCoordinator
+	args["source"] = source
+	args["destination"] = destination
+	m.Calls = append(m.Calls, args)
+	response := m.Returns[m.CallCounter]
+	m.CallCounter++
+	if response[1] == nil {
+		return response[0].(string), nil
+	}
+	return response[0].(string), response[1].(error)
+}
 func (m *MockCollector) CopyFromHost(hostString string, isCoordinator bool, source, destination string) (out string, err error) {
 	args := make(map[string]interface{})
 	args["hostString"] = hostString

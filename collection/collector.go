@@ -140,7 +140,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				IsCoordinator:             true,
 				Logger:                    logger,
 				Host:                      host,
-				OutputLocation:            outputLoc,
+				OutputLocation:            s.GetTmpDir(),
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -173,11 +173,11 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 			defer wg.Done()
 			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
-				Collector:     c,
-				IsCoordinator: false,
-				Logger:        logger,
-				Host:          host,
-				//OutputLocation:            outputDir,
+				Collector:                 c,
+				IsCoordinator:             false,
+				Logger:                    logger,
+				Host:                      host,
+				OutputLocation:            s.GetTmpDir(),
 				DremioConfDir:             dremioConfDir,
 				DremioLogDir:              dremioLogDir,
 				GCLogOverride:             dremioGcDir,
@@ -190,7 +190,7 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 				DDCfs:                     ddcfs,
 				NodeCaptureOutput:         "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, outputLoc)
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, s.GetTmpDir())
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -223,16 +223,22 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		return err
 	}
 
-	if tarballs, err := FindTarGzFiles(s.GetTmpDir()); err != nil {
+	tarballs, err := FindTarGzFiles(path.Dir(s.GetTmpDir()))
+	if err != nil {
 		return err
-	} else {
+	}
+	if len(tarballs) > 0 {
+		simplelog.Infof("extracting the following tarballs %v", strings.Join(tarballs, ", "))
 		for _, t := range tarballs {
+			simplelog.Infof("extracting %v to %v", t, s.GetTmpDir())
 			if err := ExtractTarGz(t, s.GetTmpDir()); err != nil {
-				return err
+				simplelog.Errorf("unable to extract tarball %v due to error %v", t, err)
 			}
+			simplelog.Infof("extracted %v", t)
 			if err := os.Remove(t); err != nil {
-				return err
+				simplelog.Errorf("unable to delete tarball %v due to error %v", t, err)
 			}
+			simplelog.Infof("removed %v", t)
 		}
 	}
 	// archives the collected files
@@ -241,8 +247,17 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 
 }
 
+// Sanitize archive file pathing from "G305: Zip Slip vulnerability"
+func SanitizeArchivePath(d, t string) (v string, err error) {
+	v = filepath.Join(d, t)
+	if strings.HasPrefix(v, filepath.Clean(d)) {
+		return v, nil
+	}
+	return "", fmt.Errorf("%s: %s", "content filepath is tainted", t)
+}
+
 func ExtractTarGz(gzFilePath, dest string) error {
-	reader, err := os.Open(gzFilePath)
+	reader, err := os.Open(path.Clean(gzFilePath))
 	if err != nil {
 		return err
 	}
@@ -267,30 +282,41 @@ func ExtractTarGz(gzFilePath, dest string) error {
 		case header == nil:
 			continue
 		}
-
-		target := filepath.Join(dest, header.Name)
+		target, err := SanitizeArchivePath(dest, header.Name)
+		if err != nil {
+			return err
+		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
+				if err := os.MkdirAll(path.Clean(target), 0750); err != nil {
 					return err
 				}
 			}
 		case tar.TypeReg:
-			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			file, err := os.OpenFile(path.Clean(target), os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
-				return err
+				simplelog.Errorf("skipping file %v due to error %v", file, err)
+				continue
 			}
 			defer file.Close()
-			if _, err := io.Copy(file, tarReader); err != nil {
-				return err
+			for {
+				_, err := io.CopyN(file, tarReader, 1024)
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					return err
+				}
 			}
+			simplelog.Infof("extracted file %v", file)
 		}
 	}
 }
 
 func FindTarGzFiles(rootDir string) ([]string, error) {
+	simplelog.Infof("looking in %v for tar.gz files", rootDir)
 	var files []string
 	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

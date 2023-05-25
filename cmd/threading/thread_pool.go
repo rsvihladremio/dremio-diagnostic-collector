@@ -16,45 +16,75 @@
 package threading
 
 import (
+	"sync"
+
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 type ThreadPool struct {
-	semaphore chan bool
-	thread    int
+	wg            *sync.WaitGroup
+	numberThreads int
+	counter       int
+	jobs          []Job
+}
+
+type Job struct {
+	exec func()
+	id   int
 }
 
 // NewThreadPool creates a thread pool based on channels which will run no more than the parameter numberThreads
 // of threads concurrently
 func NewThreadPool(numberThreads int) *ThreadPool {
-	semaphore := make(chan bool, numberThreads)
+	wg := new(sync.WaitGroup)
+
 	return &ThreadPool{
-		semaphore: semaphore,
+		wg:            wg,
+		numberThreads: numberThreads,
+		jobs:          []Job{},
+		counter:       0,
 	}
 }
 
 // FireJob launches a func() up to the number of threads allowed by the thread pool
 func (t *ThreadPool) FireJob(job func() error) {
-	go func() {
+	t.counter++
+	j := func() {
 		//aquire a lock by sending a value to the channel (can be any value)
-		t.semaphore <- true
-		simplelog.Debugf("starting thread #%v", t.thread)
-		t.thread++
 		defer func() {
-			<-t.semaphore // Release semaphore slot.
+			t.wg.Done()
 		}()
 		//execute the job
 		err := job()
 		if err != nil {
-			simplelog.Debugf("failed the job %v", err)
+			simplelog.Infof("failed the job %v", err)
 		}
-	}()
+	}
+
+	t.jobs = append(t.jobs, Job{
+		exec: j,
+		id:   t.counter,
+	})
 }
 
 // Wait waits for goroutines to finish by acquiring all slots.
 func (t *ThreadPool) Wait() {
-	for i := 0; i < cap(t.semaphore); i++ {
-		simplelog.Debugf("Thread #%v completed", i)
-		t.semaphore <- true
+	simplelog.Infof("%v jobs to process", len(t.jobs))
+	for i, job := range t.jobs {
+		j := job
+		simplelog.Infof("Starting thread #%v ", j.id)
+		t.wg.Add(1)
+		go func() {
+			j.exec()
+			simplelog.Infof("Thread #%v completed", j.id)
+		}()
+
+		if i > 0 && i%t.numberThreads == 0 {
+			simplelog.Infof("waiting on threads")
+			t.wg.Wait()
+		}
 	}
+
+	//all the rest
+	t.wg.Wait()
 }

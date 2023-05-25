@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 // archiveDiagDirectory will detect the extension asked for and use the correct archival library
@@ -45,7 +46,9 @@ func ArchiveDiagDirectory(outputFile, outputDir string, _ []CollectedFile) error
 	if err != nil {
 		return fmt.Errorf("uanble to create file list of files to archive due to error %v", err)
 	}
-
+	for _, f := range files {
+		simplelog.Debugf("archving %v", f)
+	}
 	ext := filepath.Ext(outputFile)
 	if ext == ".zip" {
 		if err := ZipDiag(outputFile, outputDir, files); err != nil {
@@ -73,7 +76,6 @@ func ArchiveDiagDirectory(outputFile, outputDir string, _ []CollectedFile) error
 }
 
 func ArchiveDiagFromList(outputFile, outputDir string, fileList []CollectedFile) error {
-
 	ext := filepath.Ext(outputFile)
 	if ext == ".zip" {
 		if err := ZipDiag(outputFile, outputDir, fileList); err != nil {

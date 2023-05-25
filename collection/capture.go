@@ -138,7 +138,7 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (fil
 // findFiles runs a simple ls -1 command to find all the top level files and nothing more
 // this does mean you will have some errors.
 // it will also attempt to find the gclogs based on startup flags if there is no gclog override specified
-func findFiles(conf HostCaptureConfiguration, searchDir string, filter bool) ([]string, error) {
+func findFiles(conf HostCaptureConfiguration, searchDir string, _ bool) ([]string, error) {
 	var out string
 	var err error
 

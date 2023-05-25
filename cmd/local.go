@@ -289,11 +289,7 @@ func collect(numberThreads int) {
 	}
 	t := threading.NewThreadPool(numberThreads)
 
-	if collectDiskUsage {
-		simplelog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
-	} else {
-		t.FireJob(runCollectDremioConfig)
-	}
+	//put all things that take time up front
 
 	// os diagnostic collection
 	if !collectNodeMetrics {
@@ -302,7 +298,35 @@ func collect(numberThreads int) {
 		t.FireJob(runCollectNodeMetrics)
 	}
 
-	t.FireJob(runCollectDiskUsage)
+	if !collectJFR {
+		simplelog.Info("skipping Collection of Java Flight Recorder Information")
+	} else {
+		t.FireJob(runCollectJFR)
+	}
+
+	if !collectJStack {
+		simplelog.Info("skipping Collection of java thread dumps")
+	} else {
+		t.FireJob(runCollectJStacks)
+	}
+
+	if !captureHeapDump {
+		simplelog.Info("skipping Capture of Java Heap Dump")
+	} else {
+		t.FireJob(runCollectHeapDump)
+	}
+
+	if collectDiskUsage {
+		simplelog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
+	} else {
+		t.FireJob(runCollectDiskUsage)
+	}
+
+	if collectDremioConfiguration {
+		simplelog.Infof("Skipping Dremio config from %v ...", nodeName)
+	} else {
+		t.FireJob(runCollectDremioConfig)
+	}
 	t.FireJob(runCollectOSConfig)
 
 	// log collection
@@ -349,26 +373,7 @@ func collect(numberThreads int) {
 		t.FireJob(runCollectDremioAccessLogs)
 	}
 
-	//java related diags
 	t.FireJob(runCollectJvmConfig)
-
-	if !collectJFR {
-		simplelog.Info("skipping Collection of Java Flight Recorder Information")
-	} else {
-		t.FireJob(runCollectJFR)
-	}
-
-	if !collectJStack {
-		simplelog.Info("skipping Collection of java thread dumps")
-	} else {
-		t.FireJob(runCollectJStacks)
-	}
-
-	if !captureHeapDump {
-		simplelog.Info("skipping Capture of Java Heap Dump")
-	} else {
-		t.FireJob(runCollectHeapDump)
-	}
 
 	// rest call collections
 
@@ -1424,95 +1429,81 @@ var localCollectCmd = &cobra.Command{
 		// Run application
 		simplelog.Info("Starting collection...")
 		collect(numberThreads)
-		simplelog.Info("collection complete. Archiving...")
-		if err := compressAndDelete(outputDir, outputDir+".tar.gz"); err != nil {
+		ddcLoc, err := os.Executable()
+		if err != nil {
+			simplelog.Warningf("unable to find ddc itself..so can't copy it's log due to error %v", err)
+		} else {
+			ddcDir := path.Dir(ddcLoc)
+			if err := copyFile(filepath.Join(ddcDir, "ddc.log"), path.Join(outputDir, fmt.Sprintf("ddc-%v.log", nodeName))); err != nil {
+				simplelog.Warningf("uanble to copy log to archive due to error %v", err)
+			}
+		}
+		tarballName := outputDir + nodeName + ".tar.gz"
+		simplelog.Infof("collection complete. Archiving %v to %v...", outputDir, tarballName)
+		if err := TarGzDir(outputDir, tarballName); err != nil {
 			simplelog.Errorf("unable to compress archive exiting due to error %v", err)
 			os.Exit(1)
 		}
-		simplelog.Infof("Archive %v complete", outputDir+"tar.gz")
+		simplelog.Infof("Archive %v complete", tarballName)
 	},
 }
 
-// compressAndDelete compresses the specified directory into a tar.gz file,
-// then deletes the original directory and its contents.
-// dir is the path to the directory that should be compressed.
-// tarFile is the path to the resulting tar.gz file.
-// Note: this function will delete the original directory after archiving it.
-func compressAndDelete(dir string, tarFile string) error {
-	// Create tar.gz file
-	file, err := os.Create(tarFile)
+func TarGzDir(srcDir, dest string) error {
+	tarGzFile, err := os.Create(path.Clean(dest))
 	if err != nil {
-		return fmt.Errorf("uanble to create tarball %v due to error %v", tarFile, err)
+		return err
 	}
-	// defering just in case but closing at the bottom
-	defer file.Close()
+	defer tarGzFile.Close()
 
-	gw := gzip.NewWriter(file)
-	// defering just in case but closing at the bottom
-	defer gw.Close()
+	gzWriter := gzip.NewWriter(tarGzFile)
+	defer gzWriter.Close()
 
-	tw := tar.NewWriter(gw)
-	// defering just in case but closing at the bottom
-	defer tw.Close()
+	tarWriter := tar.NewWriter(gzWriter)
+	defer tarWriter.Close()
 
-	// Walk through every file in the directory
-	filepath.Walk(dir, func(file string, info os.FileInfo, err error) error {
-		// Return on any error
+	// Make sure the srcDir is an absolute path and ends with '/'
+	srcDir = filepath.Clean(srcDir) + string(filepath.Separator)
+
+	return filepath.Walk(srcDir, func(filePath string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("unable to walk dir due to error %v", err)
+			return err
 		}
 
-		// Create a new dir/file header
-		header, err := tar.FileInfoHeader(info, info.Name())
+		// Get the relative path of the file
+		relativePath, err := filepath.Rel(srcDir, filePath)
 		if err != nil {
-			return fmt.Errorf("unable to make tar header %v due to error %v", info.Name(), err)
+			return err
 		}
 
-		// Update the name to correctly reflect the desired destination when untaring
-		header.Name = filepath.Join("./", filepath.Base(dir), file[len(dir):])
-
-		// Write the header
-		if err := tw.WriteHeader(header); err != nil {
-			return fmt.Errorf("unable to write header named %v due to error %v", header.Name, err)
+		// Make sure the relative path starts with './'
+		if !strings.HasPrefix(relativePath, ".") {
+			relativePath = "./" + relativePath
 		}
 
-		// If it's a dir, then ignore body
-		if info.IsDir() {
-			return nil
-		}
-
-		// Open files for taring
-		f, err := os.Open(file)
+		header, err := tar.FileInfoHeader(fileInfo, relativePath)
 		if err != nil {
-			return fmt.Errorf("unable to open file %v due to error %v", file, err)
+			return err
 		}
 
-		// Copy file data into tar writer
-		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("unable to copy file %v to tar due to error %v", file, err)
+		header.Name = relativePath
+
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return err
 		}
 
-		// Close file after copying its content
-		if err := f.Close(); err != nil {
-			simplelog.Warningf("unable to close file %v after copy it's contents to a tar due to error %v", file, err)
+		if !fileInfo.IsDir() {
+			file, err := os.Open(path.Clean(filePath))
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			_, err = io.Copy(tarWriter, file)
+			return err
 		}
 
 		return nil
 	})
-
-	// Delete the original directory
-	if err := os.RemoveAll(dir); err != nil {
-		return fmt.Errorf("unable to delete dir %v due to error %v", dir, err)
-	}
-
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("unable to close file due to error %v", err)
-	}
-
-	if err := tw.Close(); err != nil {
-		return fmt.Errorf("unable to close tarball due to error %v", err)
-	}
-	return nil
 }
 
 func getThreads(cpus int) int {

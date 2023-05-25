@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -181,5 +182,5 @@ func (s *CopyStrategyHC) createHCFiles() (file string, err error) {
 }
 
 func (s *CopyStrategyHC) GetTmpDir() string {
-	return s.TmpDir
+	return path.Join(s.TmpDir, s.BaseDir)
 }
