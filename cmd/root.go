@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/versions"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
@@ -40,17 +42,61 @@ var sshUser string
 var outputLoc string
 var kubectlPath string
 var isK8s bool
-var durationDiagnosticTooling int
-var jfrduration int
 var sudoUser string
 var GitSha = "unknown"
-var Version = "dev"
 var namespace string
+
+// flags that are configurable by env or configuration
+var (
+	verbose                    int
+	numberThreads              int
+	gcLogsDir                  string
+	dremioLogDir               string
+	dremioConfDir              string
+	dremioEndpoint             string
+	dremioUsername             string
+	dremioPATToken             string
+	dremioRocksDBDir           string
+	numberJobProfilesToCollect int
+	collectAccelerationLogs    bool
+	collectAccessLogs          bool
+	captureHeapDump            bool
+	acceptCollectionConsent    bool
+)
+
+// advanced variables setable by configuration or environement variable
+var (
+	outputDir                   string
+	dremioJFRTimeSeconds        int
+	dremioJStackFreqSeconds     int
+	dremioJStackTimeSeconds     int
+	dremioLogsNumDays           int
+	dremioGCFilePattern         string
+	dremioQueriesJSONNumDays    int
+	jobProfilesNumSlowExec      int
+	jobProfilesNumHighQueryCost int
+	jobProfilesNumSlowPlanning  int
+	jobProfilesNumRecentErrors  int
+	collectNodeMetrics          bool
+	collectJFR                  bool
+	collectJStack               bool
+	collectKVStoreReport        bool
+	collectServerLogs           bool
+	collectMetaRefreshLogs      bool
+	collectQueriesJSON          bool
+	collectDremioConfiguration  bool
+	collectReflectionLogs       bool
+	collectSystemTablesExport   bool
+	collectDiskUsage            bool
+	collectGCLogs               bool
+	collectWLM                  bool
+	nodeName                    string
+)
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
 func getVersion() string {
-	return fmt.Sprintf("ddc %v-%v\n", Version, GitSha)
+	return fmt.Sprintf("ddc %v-%v\n", versions.GetDDCRuntimeVersion(), GitSha)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -82,33 +128,18 @@ func Execute() {
 			}
 			sshKeyLoc = sshDefault
 		}
-		// Update paths to ensure if run on windows that we still use a forward slash "/"
-		if dremioConfDir == "" {
-			if isK8s {
-				dremioConfDir = "/opt/dremio/conf/..data/"
-			} else {
-				dremioConfDir = "/etc/dremio/"
-			}
-		}
-		if dremioLogDir == "" {
-			if isK8s {
-				dremioLogDir = "/opt/dremio/data/log/"
-			} else {
-				dremioLogDir = "/var/log/dremio/"
-			}
-		}
+
 		logOutput := os.Stdout
 
 		collectionArgs := collection.Args{
-			CoordinatorStr:            coordinatorStr,
-			ExecutorsStr:              executorsStr,
-			OutputLoc:                 filepath.Clean(outputLoc),
-			DremioConfDir:             filepath.Clean(dremioConfDir),
-			DremioLogDir:              filepath.Clean(dremioLogDir),
-			DurationDiagnosticTooling: durationDiagnosticTooling,
-			JfrDuration:               jfrduration,
-			SudoUser:                  sudoUser,
-			DDCfs:                     helpers.NewRealFileSystem(),
+			CoordinatorStr: coordinatorStr,
+			ExecutorsStr:   executorsStr,
+			OutputLoc:      filepath.Clean(outputLoc),
+			DremioConfDir:  filepath.Clean(dremioConfDir),
+			DremioLogDir:   filepath.Clean(dremioLogDir),
+			JfrDuration:    dremioJFRTimeSeconds,
+			SudoUser:       sudoUser,
+			DDCfs:          helpers.NewRealFileSystem(),
 		}
 
 		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
@@ -201,9 +232,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
 	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
 	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
-	rootCmd.Flags().IntVarP(&jfrduration, "jfr", "j", 0, "enables collection of java flight recorder (jfr), time specified in seconds")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
-
+	simplelog.InitLogger(3)
 	// TODO implement embedded k8s and ssh support using go libs
 	//rootCmd.Flags().BoolVar(&isEmbeddedK8s, "embedded-k8s", false, "use embedded k8s client in place of kubectl binary")
 	//rootCmd.Flags().BoolVar(&isEmbeddedSSH, "embedded-ssh", false, "use embedded ssh go client in place of ssh and scp binary")

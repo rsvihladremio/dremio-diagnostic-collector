@@ -8,5 +8,10 @@ cd "$(dirname "$0")/.."
 # this is also set in script/release and is a copy paste
 GIT_SHA=`git rev-parse --short HEAD`
 VERSION=`git rev-parse --abbrev-ref HEAD`
-LDFLAGS="-X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.GitSha=$GIT_SHA -X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.Version=$VERSION"
+LDFLAGS="-X github.com/rsvihladremio/dremio-diagnostic-collector/cmd.GitSha=$GIT_SHA -X github.com/rsvihladremio/dremio-diagnostic-collector/cmd/versions.Version=$VERSION"
 go build -ldflags "$LDFLAGS" -o ./bin/ddc
+# TODO add detection for runtime so that the build directory matches the execution strategy. I don't want to put two ddc yamls in here that will just confuse people
+#cp ./default-ddc.yaml ./bin/ddc.yaml
+
+GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/linux/ddc
+cp ./default-ddc.yaml ./bin/linux/ddc.yaml
