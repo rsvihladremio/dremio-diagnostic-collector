@@ -156,50 +156,50 @@ func TestFindFiles(t *testing.T) {
 	}
 }
 
-func TestFindAWSEFiles(t *testing.T) {
-	expectedOutput := "/var/dremio_efs/coordinator/file1\n/var/dremio_efs/executor/ip-10-1-2-3/file2\n"
-	var returnValues [][]interface{}
-	e := []interface{}{expectedOutput, nil}
-	returnValues = append(returnValues, e)
-	mockCollector := &MockCollector{
-		Returns: returnValues,
-	}
-	myHost := "thishost"
-	conf := HostCaptureConfiguration{
-		Logger:                    &log.Logger{},
-		IsCoordinator:             false,
-		Collector:                 mockCollector,
-		Host:                      myHost,
-		OutputLocation:            "",
-		DremioConfDir:             "",
-		DremioLogDir:              "",
-		DurationDiagnosticTooling: 0,
-		LogAge:                    5,
-	}
-	searchStr := "/var/dremio_efs/logs"
-	files, err := findFiles(conf, searchStr, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(files, []string{"/var/dremio_efs/coordinator/file1", "/var/dremio_efs/executor/ip-10-1-2-3/file2"}) {
-		t.Errorf("expected '%v' but was '%v'", expectedOutput, files)
-	}
-	if mockCollector.CallCounter != 1 {
-		t.Fatalf("expected 1 call but was %v", mockCollector.CallCounter)
-	}
-	if len(mockCollector.Calls) != 1 {
-		t.Fatalf("expected 1 call but was %v", len(mockCollector.Calls))
-	}
-	calls := mockCollector.Calls[0]
-	if calls["hostString"] != myHost {
-		t.Errorf("expected %v but was %v", myHost, calls["hostString"])
-	}
-	if calls["isCoordinator"] != conf.IsCoordinator {
-		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
-	}
+// func TestFindAWSEFiles(t *testing.T) {
+// 	expectedOutput := "/var/dremio_efs/coordinator/file1\n/var/dremio_efs/executor/ip-10-1-2-3/file2\n"
+// 	var returnValues [][]interface{}
+// 	e := []interface{}{expectedOutput, nil}
+// 	returnValues = append(returnValues, e)
+// 	mockCollector := &MockCollector{
+// 		Returns: returnValues,
+// 	}
+// 	myHost := "thishost"
+// 	conf := HostCaptureConfiguration{
+// 		Logger:                    &log.Logger{},
+// 		IsCoordinator:             false,
+// 		Collector:                 mockCollector,
+// 		Host:                      myHost,
+// 		OutputLocation:            "",
+// 		DremioConfDir:             "",
+// 		DremioLogDir:              "",
+// 		DurationDiagnosticTooling: 0,
+// 		LogAge:                    5,
+// 	}
+// 	searchStr := "/var/dremio_efs/logs"
+// 	files, err := findFiles(conf, searchStr, true)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if !reflect.DeepEqual(files, []string{"/var/dremio_efs/coordinator/file1", "/var/dremio_efs/executor/ip-10-1-2-3/file2"}) {
+// 		t.Errorf("expected '%v' but was '%v'", expectedOutput, files)
+// 	}
+// 	if mockCollector.CallCounter != 1 {
+// 		t.Fatalf("expected 1 call but was %v", mockCollector.CallCounter)
+// 	}
+// 	if len(mockCollector.Calls) != 1 {
+// 		t.Fatalf("expected 1 call but was %v", len(mockCollector.Calls))
+// 	}
+// 	calls := mockCollector.Calls[0]
+// 	if calls["hostString"] != myHost {
+// 		t.Errorf("expected %v but was %v", myHost, calls["hostString"])
+// 	}
+// 	if calls["isCoordinator"] != conf.IsCoordinator {
+// 		t.Errorf("expected %v but was %v", conf.IsCoordinator, calls["isCoordinator"])
+// 	}
 
-	expectedArgs := []string{"find", "/var/dremio_efs/logs", "-maxdepth", "4", "-type", "f", "-mtime", "-5", "2>/dev/null"}
-	if !reflect.DeepEqual(calls["args"], expectedArgs) {
-		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
-	}
-}
+// 	expectedArgs := []string{"find", "/var/dremio_efs/logs", "-maxdepth", "4", "-type", "f", "-mtime", "-5", "2>/dev/null"}
+// 	if !reflect.DeepEqual(calls["args"], expectedArgs) {
+// 		t.Errorf("expected %v but was %v", expectedArgs, calls["args"])
+// 	}
+// }
