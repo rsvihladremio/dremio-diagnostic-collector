@@ -1223,14 +1223,23 @@ var localCollectCmd = &cobra.Command{
 		// Only bind flags that were actually set
 		cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 			if flag.Changed {
-
 				log.Printf("flag %v passed in binding it", flag.Name)
 				if err := viper.BindPFlag(flag.Name, flag); err != nil {
 					simplelog.Errorf("unable to bind flag %v so it will likely not be read due to error: %v", flag.Name, err)
 				}
 			}
 		})
-		verbose = viper.GetInt("verbose")
+		verboseString := viper.GetString("verbose")
+		verbose := strings.Count(verboseString, "v")
+		if verbose >= 3 {
+			fmt.Println("verbosity level DEBUG")
+		} else if verbose == 2 {
+			fmt.Println("verbosity level INFO")
+		} else if verbose == 1 {
+			fmt.Println("verbosity level WARNING")
+		} else {
+			fmt.Println("verbosity level ERROR")
+		}
 		simplelog.InitLogger(verbose)
 		defer func() {
 			if err := simplelog.Close(); err != nil {
@@ -1587,9 +1596,6 @@ func initConfig() {
 	}
 
 	viper.AutomaticEnv() // Automatically read environment variables
-
-	//verbose = viper.GetInt("verbose")
-
 }
 
 // ### Helper functions
