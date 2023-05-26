@@ -318,13 +318,13 @@ func collect(numberThreads int) {
 		t.FireJob(runCollectHeapDump)
 	}
 
-	if collectDiskUsage {
+	if !collectDiskUsage {
 		simplelog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
 	} else {
 		t.FireJob(runCollectDiskUsage)
 	}
 
-	if collectDremioConfiguration {
+	if !collectDremioConfiguration {
 		simplelog.Infof("Skipping Dremio config from %v ...", nodeName)
 	} else {
 		t.FireJob(runCollectDremioConfig)
@@ -347,16 +347,19 @@ func collect(numberThreads int) {
 	} else {
 		t.FireJob(runCollectDremioServerLog)
 	}
+
 	if !collectGCLogs {
 		simplelog.Info("Skipping Collect Garbage Collection Logs  ...")
 	} else {
 		t.FireJob(runCollectGcLogs)
 	}
+
 	if !collectMetaRefreshLogs {
 		simplelog.Info("Skipping Collect Metadata Refresh Logs  ...")
 	} else {
 		t.FireJob(runCollectMetadataRefreshLogs)
 	}
+
 	if !collectReflectionLogs {
 		simplelog.Info("Skipping Collect Reflection Logs  ...")
 	} else {
@@ -379,13 +382,13 @@ func collect(numberThreads int) {
 
 	// rest call collections
 
-	if collectKVStoreReport {
+	if !collectKVStoreReport {
 		simplelog.Info("skipping Capture of KV Store Report")
 	} else {
 		t.FireJob(runCollectKvReport)
 	}
 
-	if collectWLM {
+	if !collectWLM {
 		simplelog.Info("skipping Capture of Workload Manager Report")
 	} else {
 		t.FireJob(runCollectWLM)
@@ -1303,7 +1306,7 @@ var localCollectCmd = &cobra.Command{
 		collectSystemTablesExport = viper.GetBool("collect-system-tables-export") && personalAccessTokenPresent
 		collectKVStoreReport = viper.GetBool("collect-kvstore-report") && personalAccessTokenPresent
 		// don't bother doing any of the calculation if personal access token is not present in fact zero out everything
-		if dremioPATToken != "" {
+		if !personalAccessTokenPresent {
 			numberJobProfilesToCollect = 0
 			jobProfilesNumHighQueryCost = 0
 			jobProfilesNumSlowExec = 0
@@ -1548,6 +1551,9 @@ func initConfig() {
 	viper.SetDefault("skip-collect-gc-logs", true)
 	viper.SetDefault("collect-jfr", true)
 	viper.SetDefault("collect-jstack", true)
+	viper.SetDefault("collect-system-tables-export", true)
+	viper.SetDefault("collect-wlm", true)
+	viper.SetDefault("collect-kvstore-report", true)
 	defaultCaptureSeconds := 60
 	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
