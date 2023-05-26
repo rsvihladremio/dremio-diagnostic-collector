@@ -718,10 +718,6 @@ func runCollectJFR() error {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
 	simplelog.Debugf("node: %v - jfr stop output %v", nodeName, w.String())
-	w = bytes.Buffer{}
-	if err := ddcio.Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
-		return fmt.Errorf("unable to dump JFR due to error %v", err)
-	}
 
 	return nil
 }
@@ -937,7 +933,6 @@ func downloadJobProfile(jobid string) error {
 }
 
 func runCollectDremioSystemTables() error {
-
 	simplelog.Info("Collecting results from Export System Tables...")
 	err := validateAPICredentials()
 	if err != nil {
