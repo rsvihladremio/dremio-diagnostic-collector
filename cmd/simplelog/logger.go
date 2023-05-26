@@ -45,7 +45,11 @@ func init() {
 }
 
 func InitLogger(level int) {
-	LOGGER = NewLogger(level)
+	if level > 3 {
+		LOGGER = NewLogger(LevelDebug)
+	} else {
+		LOGGER = NewLogger(level)
+	}
 }
 
 func Close() error {
@@ -65,7 +69,11 @@ func NewLogger(level int) *Logger {
 	if err != nil {
 		log.Fatal(err)
 	}
-	switch level {
+	adjustedLevel := level
+	if adjustedLevel > 3 {
+		adjustedLevel = 3
+	}
+	switch adjustedLevel {
 	case LevelDebug:
 		debugOut = io.MultiWriter(os.Stdout, ddcLog)
 		fallthrough
