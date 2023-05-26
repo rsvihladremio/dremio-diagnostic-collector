@@ -81,7 +81,7 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (fil
 		simplelog.Infof("sucessfully copied ddc.yaml to host %v", host)
 	}
 	//execute local-collect
-	if out, err := ComposeExecute(conf, []string{pathToDDC, "local-collect", "--accept-collection-consent"}); err != nil {
+	if out, err := ComposeExecute(conf, []string{pathToDDC, "local-collect"}); err != nil {
 		simplelog.Warningf("on host %v catpure faileddue to error '%v' with output '%v'", host, err, out)
 		//return
 	} else {
