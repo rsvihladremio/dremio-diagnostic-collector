@@ -2,6 +2,23 @@
 
 # Changelog
 
+## [0.3.0-beta3]
+
+### Added
+* added logging for configuration as it has been picked up
+
+### Fixed
+* jstack was not pausing long enough between iterations
+* dont delete jfr after capturing it. fixes #100
+* removed old $ variables fixes #102
+* verbosity was broken, now works even if someone asks for more verbosity than we have
+* defaults were not set for WLM, export system tables and kvm store report
+* inverted check for wlm, kv store, dremio config, disk usage and job profile collections fixes #104 and #98
+* command line flags are only bound to viper if they are passed
+* command line flag variables are now parsed directly from viper, this allows configuration to override the flags fixed #103
+* if archive folder is not available just log an error and skip it
+* cli flags take precidence
+
 ## [0.3.0-beta2]
 
 ### Changed
@@ -126,6 +143,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.0-beta3]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta2...v0.3.0-beta3
 [0.3.0-beta2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2
 [0.3.0-beta1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
 [0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.1...v0.2.2
