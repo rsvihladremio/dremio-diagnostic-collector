@@ -2,7 +2,7 @@ verbose: vvvv
 collect-acceleration-log: false
 collect-access-log: false
 dremio-gclogs-dir: "" # if left blank detection is used to find the gc log dir
-dremio-log-dir: "/var/log/dremio" # where the dremio log is located
+dremio-log-dir: "/opt/dremio/data/logs" # where the dremio log is located
 number-threads: 2 #number of threads to use for collection
 dremio-endpoint: "http://localhost:9047" # dremio endpoint on each node to use for collecting Workload Manager, KV Report and Job Profiles
 dremio-username: "dremio" # dremio user to for collecting Workload Manager, KV Report and Job Profiles 
