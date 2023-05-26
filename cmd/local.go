@@ -449,7 +449,7 @@ func runCollectDiskUsage() error {
 }
 
 func runCollectOSConfig() error {
-	simplelog.Info("Collecting OS Information from $BASENAME ...")
+	simplelog.Infof("Collecting OS Information from %v ...", nodeName)
 	osInfoFile := path.Join(outputDir, "node-info", nodeName, "os_info.txt")
 	w, err := os.Create(path.Clean(osInfoFile))
 	if err != nil {
@@ -524,7 +524,6 @@ func runCollectOSConfig() error {
 
 func runCollectDremioConfig() error {
 	simplelog.Infof("Collecting Configuration Information from %v ...", nodeName)
-	//mkdir -p $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME
 
 	err := copyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
 	if err != nil {
@@ -542,10 +541,6 @@ func runCollectDremioConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to copy logback-access.xml due to error %v", err)
 	}
-	//# ddcio.Shell "cat /opt/dremio/conf/core-site.xml" > $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/core-site.xml
-
-	//python3 $DREMIO_HEALTHCHECK_SCRIPT_DIR/helper/secrets_cleanser_config.py $DREMIO_HEALTHCHECK_EXPORT_DIR/configuration/$BASENAME/dremio.conf
-
 	simplelog.Infof("... Collecting Configuration Information from %v COMPLETED", nodeName)
 
 	return nil
@@ -712,7 +707,7 @@ func runCollectJFR() error {
 	simplelog.Debugf("node: %v - jfr start output - %v", nodeName, w.String())
 	time.Sleep(time.Duration(dremioJFRTimeSeconds) * time.Second)
 	// do not "optimize". the recording first needs to be stopped for all processes before collecting the data.
-	simplelog.Info("... stopping JFR $BASEPOD")
+	simplelog.Infof("... stopping JFR %v", nodeName)
 	w = bytes.Buffer{}
 	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", dremioPID)); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
