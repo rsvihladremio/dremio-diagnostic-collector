@@ -718,10 +718,6 @@ func runCollectJFR() error {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
 	simplelog.Debugf("node: %v - jfr stop output %v", nodeName, w.String())
-	w = bytes.Buffer{}
-	if err := ddcio.Shell(&w, fmt.Sprintf("rm -f %v/%v.jfr", jfrOutDir(), nodeName)); err != nil {
-		return fmt.Errorf("unable to dump JFR due to error %v", err)
-	}
 
 	return nil
 }
@@ -747,7 +743,7 @@ func runCollectJStacks() error {
 		}
 		simplelog.Infof("Saved %v", threadDumpFileName)
 		simplelog.Infof("Waiting %v second(s) ...", threadDumpFreq)
-		time.Sleep(time.Duration(threadDumpFreq))
+		time.Sleep(time.Duration(threadDumpFreq) * time.Second)
 	}
 	return nil
 }
@@ -937,7 +933,6 @@ func downloadJobProfile(jobid string) error {
 }
 
 func runCollectDremioSystemTables() error {
-
 	simplelog.Info("Collecting results from Export System Tables...")
 	err := validateAPICredentials()
 	if err != nil {
@@ -1020,7 +1015,7 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 func runCollectDremioServerLog() error {
 	simplelog.Info("Collecting GC logs ...")
 	if err := exportArchivedLogs(dremioLogDir, "server.log", "server", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("trying to archive server logs we got error: %v", err)
+		simplelog.Errorf("trying to archive server logs we got error: %v", err)
 	}
 	simplelog.Info("... collecting server.out")
 	src := path.Join(dremioLogDir, "server.out")
@@ -1028,7 +1023,6 @@ func runCollectDremioServerLog() error {
 	if err := copyFile(path.Clean(src), path.Clean(dest)); err != nil {
 		return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
 	}
-	simplelog.Warning("Server logs from executors and scale-out coordinators must be collected separately!")
 	simplelog.Info("... collecting server logs COMPLETED")
 
 	return nil
@@ -1085,7 +1079,6 @@ func runCollectReflectionLogs() error {
 }
 
 func runCollectDremioAccessLogs() error {
-
 	simplelog.Info("Collecting access logs from Coordinator(s) ...")
 	simplelog.Warning("Access logs from scale-out coordinators must be collected separately!")
 	if err := exportArchivedLogs(dremioLogDir, "access.log", "access", dremioLogsNumDays); err != nil {
@@ -1097,7 +1090,6 @@ func runCollectDremioAccessLogs() error {
 }
 
 func runCollectAccelerationLogs() error {
-
 	simplelog.Info("Collecting acceleration logs from Coordinator(s) ...")
 	simplelog.Warning("Acceleration logs from scale-out coordinators must be collected separately!")
 	if err := exportArchivedLogs(dremioLogDir, "acceleration.log", "acceleration", dremioLogsNumDays); err != nil {
