@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -1218,9 +1219,80 @@ var localCollectCmd = &cobra.Command{
 	Use:   "local-collect",
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		simplelog.InitLogger(verbose)
+	Run: func(cmd *cobra.Command, args []string) {
+		// Only bind flags that were actually set
+		cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+			if flag.Changed {
 
+				log.Printf("flag %v passed in binding it", flag.Name)
+				if err := viper.BindPFlag(flag.Name, flag); err != nil {
+					simplelog.Errorf("unable to bind flag %v so it will likely not be read due to error: %v", flag.Name, err)
+				}
+			}
+		})
+		verbose = viper.GetInt("verbose")
+		simplelog.InitLogger(verbose)
+		defer func() {
+			if err := simplelog.Close(); err != nil {
+				log.Printf("unable to close log due to error %v", err)
+			}
+		}()
+		simplelog.Infof("searched for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
+		if !configIsFound {
+			simplelog.Warningf("was unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), unableToReadConfigError)
+		} else {
+			simplelog.Infof("found config file %v", foundConfig)
+		}
+		// override the flag values
+		acceptCollectionConsent = viper.GetBool("accept-collection-consent")
+		collectAccelerationLogs = viper.GetBool("collect-acceleration-log")
+		collectAccessLogs = viper.GetBool("collect-access-log")
+		gcLogsDir = viper.GetString("dremio-gclogs-dir")
+		dremioLogDir = viper.GetString("dremio-log-dir")
+		numberThreads = viper.GetInt("number-threads")
+		dremioEndpoint = viper.GetString("dremio-endpoint")
+		dremioUsername = viper.GetString("dremio-username")
+		dremioPATToken = viper.GetString("dremio-pat-token")
+		dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
+		collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
+		numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
+		captureHeapDump = viper.GetBool("capture-heap-dump")
+
+		// read the stuff that is only parsed in the configuration
+		nodeName = viper.GetString("node-name")
+		//system diag
+
+		collectNodeMetrics = viper.GetBool("collect-metrics")
+		collectDiskUsage = viper.GetBool("collect-disk-usage")
+
+		// log collect
+		outputDir = viper.GetString("tmp-output-dir")
+		dremioLogsNumDays = viper.GetInt("dremio-logs-num-days")
+		dremioQueriesJSONNumDays = viper.GetInt("dremio-queries-json-num-days")
+		dremioGCFilePattern = viper.GetString("dremio-gc-file-pattern")
+		collectQueriesJSON = viper.GetBool("collect-queries-json")
+		collectServerLogs = viper.GetBool("collect-server-logs")
+		collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
+		collectReflectionLogs = viper.GetBool("collect-reflection-log")
+		collectReflectionLogs = viper.GetBool("skip-collect-gc-logs")
+		gcLogsDir = viper.GetString("dremio-gclogs-dir")
+
+		// jfr config
+		collectJFR = viper.GetBool("collect-jfr")
+		dremioJFRTimeSeconds = viper.GetInt("dremio-jfr-time-seconds")
+		// jstack config
+		collectJStack = viper.GetBool("collect-jstack")
+		dremioJStackTimeSeconds = viper.GetInt("dremio-jstack-time-seconds")
+		dremioJStackFreqSeconds = viper.GetInt("dremio-jstack-freq-seconds")
+
+		// collect rest apis
+		personalAccessTokenPresent := dremioPATToken != ""
+		if !personalAccessTokenPresent {
+			simplelog.Warningf("disabling all Workload Manager, System Table, KV Store, and Job Profile collection since the --dremio-pat-token is not set")
+		}
+		collectWLM = viper.GetBool("collect-wlm") && personalAccessTokenPresent
+		collectSystemTablesExport = viper.GetBool("collect-system-tables-export") && personalAccessTokenPresent
+		collectKVStoreReport = viper.GetBool("collect-kvstore-report") && personalAccessTokenPresent
 		// don't bother doing any of the calculation if personal access token is not present in fact zero out everything
 		if dremioPATToken != "" {
 			numberJobProfilesToCollect = 0
@@ -1286,14 +1358,6 @@ var localCollectCmd = &cobra.Command{
 				numberJobProfilesToCollect = totalAllocated
 				simplelog.Warningf("due to configuration parameters new total jobs profiles collected has been adjusted to %v", totalAllocated)
 			}
-		}
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		simplelog.Infof("searching for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
-		if !configIsFound {
-			simplelog.Warningf("unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), unableToReadConfigError)
-		} else {
-			simplelog.Infof("INFO: found config file %v", foundConfig)
 		}
 		fmt.Printf("Current configuration: %+v\n", viper.AllSettings())
 
@@ -1524,66 +1588,8 @@ func initConfig() {
 
 	viper.AutomaticEnv() // Automatically read environment variables
 
-	// Only bind flags that were actually set
-	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		if flag.Changed {
-			if err := viper.BindPFlag(flag.Name, flag); err != nil {
-				simplelog.Errorf("unable to bind flag %v so it will likely not be read due to error: %v", flag.Name, err)
-			}
-		}
-	})
+	//verbose = viper.GetInt("verbose")
 
-	// override the flag values
-	acceptCollectionConsent = viper.GetBool("accept-collection-consent")
-	verbose = viper.GetInt("verbose")
-	collectAccelerationLogs = viper.GetBool("collect-acceleration-log")
-	collectAccessLogs = viper.GetBool("collect-access-log")
-	gcLogsDir = viper.GetString("dremio-gclogs-dir")
-	dremioLogDir = viper.GetString("dremio-log-dir")
-	numberThreads = viper.GetInt("number-threads")
-	dremioEndpoint = viper.GetString("dremio-endpoint")
-	dremioUsername = viper.GetString("dremio-username")
-	dremioPATToken = viper.GetString("dremio-pat-token")
-	dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
-	collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
-	numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
-	captureHeapDump = viper.GetBool("capture-heap-dump")
-
-	// read the stuff that is only parsed in the configuration
-	nodeName = viper.GetString("node-name")
-	//system diag
-
-	collectNodeMetrics = viper.GetBool("collect-metrics")
-	collectDiskUsage = viper.GetBool("collect-disk-usage")
-
-	// log collect
-	outputDir = viper.GetString("tmp-output-dir")
-	dremioLogsNumDays = viper.GetInt("dremio-logs-num-days")
-	dremioQueriesJSONNumDays = viper.GetInt("dremio-queries-json-num-days")
-	dremioGCFilePattern = viper.GetString("dremio-gc-file-pattern")
-	collectQueriesJSON = viper.GetBool("collect-queries-json")
-	collectServerLogs = viper.GetBool("collect-server-logs")
-	collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
-	collectReflectionLogs = viper.GetBool("collect-reflection-log")
-	collectReflectionLogs = viper.GetBool("skip-collect-gc-logs")
-	gcLogsDir = viper.GetString("dremio-gclogs-dir")
-
-	// jfr config
-	collectJFR = viper.GetBool("collect-jfr")
-	dremioJFRTimeSeconds = viper.GetInt("dremio-jfr-time-seconds")
-	// jstack config
-	collectJStack = viper.GetBool("collect-jstack")
-	dremioJStackTimeSeconds = viper.GetInt("dremio-jstack-time-seconds")
-	dremioJStackFreqSeconds = viper.GetInt("dremio-jstack-freq-seconds")
-
-	// collect rest apis
-	personalAccessTokenPresent := dremioPATToken != ""
-	if !personalAccessTokenPresent {
-		simplelog.Warningf("disabling all Workload Manager, System Table, KV Store, and Job Profile collection since the --dremio-pat-token is not set")
-	}
-	collectWLM = viper.GetBool("collect-wlm") && personalAccessTokenPresent
-	collectSystemTablesExport = viper.GetBool("collect-system-tables-export") && personalAccessTokenPresent
-	collectKVStoreReport = viper.GetBool("collect-kvstore-report") && personalAccessTokenPresent
 }
 
 // ### Helper functions
