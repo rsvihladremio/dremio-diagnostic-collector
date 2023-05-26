@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -38,6 +39,7 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
@@ -1154,8 +1156,9 @@ func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, 
 		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
 		files, err := os.ReadDir(filepath.Join(logDir, "archive"))
 		if err != nil {
-			simplelog.Error(err.Error())
-			os.Exit(1)
+			//no archives to read so we can skip this
+			simplelog.Errorf("unable to read archive folder due to error %v", err)
+			break
 		}
 
 		for _, f := range files {
@@ -1165,7 +1168,7 @@ func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, 
 				dst := logsOutDir()
 				err := copyFile(path.Clean(src), path.Clean(dst))
 				if err != nil {
-					return fmt.Errorf("unable to rename file")
+					simplelog.Errorf("unable to copy file due to error %v", err)
 				}
 			}
 		}
@@ -1216,106 +1219,70 @@ var localCollectCmd = &cobra.Command{
 	Use:   "local-collect",
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if !cmd.Flags().Changed("verbose") {
-			verbose = 2 // Default INFO
-		}
-		simplelog.InitLogger(verbose)
-		//now read in viper configuration values. This will get defaults if no values are available in the configuration files or no environment variable is set
+	Run: func(cmd *cobra.Command, args []string) {
+		// Only bind flags that were actually set
+		cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+			if flag.Changed {
 
-		baseConfig := "ddc"
-		viper.SetConfigName(baseConfig) // Name of config file (without extension)
-
-		//find the location of the ddc executable
-		execPath, err := os.Executable()
-		if err != nil {
-			simplelog.Errorf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
-			execPath = "."
-		}
-		// use that as the default location of the configuration
-		configDir := filepath.Dir(execPath)
-		viper.AddConfigPath(configDir)
-
-		for _, e := range supportedExtensions {
-			confFiles = append(confFiles, fmt.Sprintf("%v.%v", baseConfig, e))
-		}
-
-		//searching for all known
-		for _, ext := range supportedExtensions {
-			viper.SetConfigType(ext)
-			unableToReadConfigError := viper.ReadInConfig()
-			if unableToReadConfigError == nil {
-				configIsFound = true
-				foundConfig = fmt.Sprintf("%v.%v", baseConfig, ext)
-				break
+				log.Printf("flag %v passed in binding it", flag.Name)
+				if err := viper.BindPFlag(flag.Name, flag); err != nil {
+					simplelog.Errorf("unable to bind flag %v so it will likely not be read due to error: %v", flag.Name, err)
+				}
 			}
+		})
+		verbose = viper.GetInt("verbose")
+		simplelog.InitLogger(verbose)
+		defer func() {
+			if err := simplelog.Close(); err != nil {
+				log.Printf("unable to close log due to error %v", err)
+			}
+		}()
+		simplelog.Infof("searched for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
+		if !configIsFound {
+			simplelog.Warningf("was unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), unableToReadConfigError)
+		} else {
+			simplelog.Infof("found config file %v", foundConfig)
 		}
+		// override the flag values
+		acceptCollectionConsent = viper.GetBool("accept-collection-consent")
+		collectAccelerationLogs = viper.GetBool("collect-acceleration-log")
+		collectAccessLogs = viper.GetBool("collect-access-log")
+		gcLogsDir = viper.GetString("dremio-gclogs-dir")
+		dremioLogDir = viper.GetString("dremio-log-dir")
+		numberThreads = viper.GetInt("number-threads")
+		dremioEndpoint = viper.GetString("dremio-endpoint")
+		dremioUsername = viper.GetString("dremio-username")
+		dremioPATToken = viper.GetString("dremio-pat-token")
+		dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
+		collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
+		numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
+		captureHeapDump = viper.GetBool("capture-heap-dump")
 
-		viper.AutomaticEnv() // Automatically read environment variables
-
-		viper.SetDefault("tmp-output-dir", getOutputDir(time.Now()))
-		outputDir = viper.GetString("tmp-output-dir")
-
-		// set node name
-		hostName, err := os.Hostname()
-		if err != nil {
-			hostName = fmt.Sprintf("unknown-%v", uuid.New())
-		}
-		viper.SetDefault("node-name", hostName)
+		// read the stuff that is only parsed in the configuration
 		nodeName = viper.GetString("node-name")
-
 		//system diag
 
-		viper.SetDefault("collect-metrics", true)
 		collectNodeMetrics = viper.GetBool("collect-metrics")
-
-		viper.SetDefault("collect-disk-usage", true)
 		collectDiskUsage = viper.GetBool("collect-disk-usage")
 
 		// log collect
-		viper.SetDefault("dremio-logs-num-days", 7)
+		outputDir = viper.GetString("tmp-output-dir")
 		dremioLogsNumDays = viper.GetInt("dremio-logs-num-days")
-
-		viper.SetDefault("dremio-queries-json-num-days", 28)
 		dremioQueriesJSONNumDays = viper.GetInt("dremio-queries-json-num-days")
-
-		viper.SetDefault("dremio-gc-file-pattern", "gc*.log")
 		dremioGCFilePattern = viper.GetString("dremio-gc-file-pattern")
-
-		viper.SetDefault("collect-queries-json", true)
 		collectQueriesJSON = viper.GetBool("collect-queries-json")
-
-		viper.SetDefault("collect-server-logs", true)
 		collectServerLogs = viper.GetBool("collect-server-logs")
-
-		viper.SetDefault("collect-meta-refresh-log", true)
 		collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
-
-		viper.SetDefault("collect-reflection-log", true)
 		collectReflectionLogs = viper.GetBool("collect-reflection-log")
-
-		viper.SetDefault("skip-collect-gc-logs", true)
 		collectReflectionLogs = viper.GetBool("skip-collect-gc-logs")
-
-		parsedGCLogDir, err := findGCLogLocation()
-		if err != nil {
-			simplelog.Errorf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
-		}
-		viper.SetDefault("dremio-gclogs-dir", parsedGCLogDir)
 		gcLogsDir = viper.GetString("dremio-gclogs-dir")
 
 		// jfr config
-		viper.SetDefault("collect-jfr", true)
 		collectJFR = viper.GetBool("collect-jfr")
-		defaultCaptureSeconds := 60
-		viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
 		dremioJFRTimeSeconds = viper.GetInt("dremio-jfr-time-seconds")
 		// jstack config
-		viper.SetDefault("collect-jstack", true)
 		collectJStack = viper.GetBool("collect-jstack")
-		viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
 		dremioJStackTimeSeconds = viper.GetInt("dremio-jstack-time-seconds")
-		viper.SetDefault("dremio-jstack-freq-seconds", 1)
 		dremioJStackFreqSeconds = viper.GetInt("dremio-jstack-freq-seconds")
 
 		// collect rest apis
@@ -1323,18 +1290,11 @@ var localCollectCmd = &cobra.Command{
 		if !personalAccessTokenPresent {
 			simplelog.Warningf("disabling all Workload Manager, System Table, KV Store, and Job Profile collection since the --dremio-pat-token is not set")
 		}
-
-		viper.SetDefault("collect-wlm", personalAccessTokenPresent)
-		collectWLM = viper.GetBool("collect-wlm")
-
-		viper.SetDefault("collect-system-tables-export", personalAccessTokenPresent)
-		collectSystemTablesExport = viper.GetBool("collect-system-tables-export")
-
-		viper.SetDefault("collect-kvstore-report", personalAccessTokenPresent)
-		collectKVStoreReport = viper.GetBool("collect-kvstore-report")
-
+		collectWLM = viper.GetBool("collect-wlm") && personalAccessTokenPresent
+		collectSystemTablesExport = viper.GetBool("collect-system-tables-export") && personalAccessTokenPresent
+		collectKVStoreReport = viper.GetBool("collect-kvstore-report") && personalAccessTokenPresent
 		// don't bother doing any of the calculation if personal access token is not present in fact zero out everything
-		if !personalAccessTokenPresent {
+		if dremioPATToken != "" {
 			numberJobProfilesToCollect = 0
 			jobProfilesNumHighQueryCost = 0
 			jobProfilesNumSlowExec = 0
@@ -1368,24 +1328,29 @@ var localCollectCmd = &cobra.Command{
 			}
 
 			// job profile specific numbers
-			viper.SetDefault("job-profiles-num-high-query-cost", defaultJobProfilesNumHighQueryCost)
-			viper.SetDefault("job-profiles-num-slow-exec", defaultJobProfilesNumSlowExec)
-			viper.SetDefault("job-profiles-num-recent-errors", defaultJobProfilesNumSlowPlanning)
-			viper.SetDefault("job-profiles-num-slow-planning", defaultJobProfilesNumHighQueryCost)
 			jobProfilesNumHighQueryCost = viper.GetInt("job-profiles-num-high-query-cost")
-			if jobProfilesNumHighQueryCost != defaultJobProfilesNumHighQueryCost {
+			if jobProfilesNumHighQueryCost == 0 {
+				jobProfilesNumHighQueryCost = defaultJobProfilesNumHighQueryCost
+			} else if jobProfilesNumHighQueryCost != defaultJobProfilesNumHighQueryCost {
 				simplelog.Warningf("job-profiles-num-high-query-cost changed to %v by configuration", jobProfilesNumHighQueryCost)
 			}
 			jobProfilesNumSlowExec = viper.GetInt("job-profiles-num-slow-exec")
-			if jobProfilesNumSlowExec != defaultJobProfilesNumSlowExec {
+			if jobProfilesNumSlowExec == 0 {
+				jobProfilesNumSlowExec = defaultJobProfilesNumSlowExec
+			} else if jobProfilesNumSlowExec != defaultJobProfilesNumSlowExec {
 				simplelog.Warningf("job-profiles-num-slow-exec changed to %v by configuration", jobProfilesNumSlowExec)
 			}
+
 			jobProfilesNumRecentErrors = viper.GetInt("job-profiles-num-recent-errors")
-			if jobProfilesNumRecentErrors != defaultJobProfilesNumRecentErrors {
+			if jobProfilesNumRecentErrors == 0 {
+				jobProfilesNumRecentErrors = defaultJobProfilesNumRecentErrors
+			} else if jobProfilesNumRecentErrors != defaultJobProfilesNumRecentErrors {
 				simplelog.Warningf("job-profiles-num-recent-errors changed to %v by configuration", jobProfilesNumRecentErrors)
 			}
 			jobProfilesNumSlowPlanning = viper.GetInt("job-profiles-num-slow-planning")
-			if jobProfilesNumSlowPlanning != defaultJobProfilesNumSlowPlanning {
+			if jobProfilesNumSlowPlanning == 0 {
+				jobProfilesNumSlowPlanning = defaultJobProfilesNumSlowPlanning
+			} else if jobProfilesNumSlowPlanning != defaultJobProfilesNumSlowPlanning {
 				simplelog.Warningf("job-profiles-num-slow-planning changed to %v by configuration", jobProfilesNumSlowPlanning)
 			}
 			totalAllocated := defaultJobProfilesNumSlowExec + defaultJobProfilesNumRecentErrors + defaultJobProfilesNumSlowPlanning + defaultJobProfilesNumHighQueryCost
@@ -1394,15 +1359,8 @@ var localCollectCmd = &cobra.Command{
 				simplelog.Warningf("due to configuration parameters new total jobs profiles collected has been adjusted to %v", totalAllocated)
 			}
 		}
-	},
-	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Current configuration: %+v\n", viper.AllSettings())
 
-		simplelog.Infof("searching for the following optional configuration files in the current directory %v", strings.Join(confFiles, ", "))
-		if !configIsFound {
-			simplelog.Warningf("unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), unableToReadConfigError)
-		} else {
-			simplelog.Infof("INFO: found config file %v", foundConfig)
-		}
 		if !acceptCollectionConsent {
 			fmt.Println(outputConsent())
 			os.Exit(1)
@@ -1530,82 +1488,107 @@ func getDremioPID() (int, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(localCollectCmd)
+	cobra.OnInitialize(initConfig)
+
 	// consent form
 	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
-	if err := viper.BindPFlag("accept-collection-consent", localCollectCmd.Flags().Lookup("accept-collection-consent")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
 	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
-	if err := viper.BindPFlag("verbose", localCollectCmd.Flags().Lookup("verbose")); err != nil {
-		simplelog.Errorf("unable to bind configuration for verbose to error: %v", err)
-	}
-
 	localCollectCmd.Flags().BoolVar(&collectAccelerationLogs, "collect-acceleration-log", false, "Run the Collect Acceleration Log collector")
-	if err := viper.BindPFlag("collect-acceleration-log", localCollectCmd.Flags().Lookup("collect-acceleration-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
 	localCollectCmd.Flags().BoolVar(&collectAccessLogs, "collect-access-log", false, "Run the Collect Access Log collector")
-	if err := viper.BindPFlag("collect-access-log", localCollectCmd.Flags().Lookup("collect-access-log")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	//TODO detect gc log dir
 	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "", "by default will read from the Xloggc flag, otherwise you can override it here")
-	if err := viper.BindPFlag("dremio-gclogs-dir", localCollectCmd.Flags().Lookup("dremio-gclogs-dir")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-gclogs-dir to error: %v", err)
-	}
-
-	//TODO detect log dir
-	localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "/var/log/dremio", "directory with application logs on dremio")
-	if err := viper.BindPFlag("dremio-log-dir", localCollectCmd.Flags().Lookup("dremio-log-dir")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-log-dir to error: %v", err)
-	}
-
-	defaultThreads := getThreads(runtime.NumCPU())
-	localCollectCmd.Flags().IntVarP(&numberThreads, "number-threads", "t", defaultThreads, "control concurrency in the system")
-	if err := viper.BindPFlag("number-threads", localCollectCmd.Flags().Lookup("number-threads")); err != nil {
-		simplelog.Errorf("unable to bind configuration for number-threads to error: %v", err)
-	}
-
+	localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "", "directory with application logs on dremio")
+	localCollectCmd.Flags().IntVarP(&numberThreads, "number-threads", "t", 0, "control concurrency in the system")
 	// Add flags for Dremio connection information
-	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "http://localhost:9047", "Dremio REST API endpoint")
-	if err := viper.BindPFlag("dremio-endpoint", localCollectCmd.Flags().Lookup("dremio-endpoint")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-endpoint to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "dremio", "Dremio username")
-	if err := viper.BindPFlag("dremio-username", localCollectCmd.Flags().Lookup("dremio-username")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-username to error: %v", err)
-	}
-
+	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "", "Dremio REST API endpoint")
+	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "", "Dremio username")
 	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
-	if err := viper.BindPFlag("dremio-pat-token", localCollectCmd.Flags().Lookup("dremio-pat-token")); err != nil {
-		simplelog.Errorf("unable to bind configuration for dremio-pat-token to error: %v", err)
-	}
-
-	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "/opt/dremio/data/db", "Path to Dremio RocksDB directory")
-	if err := viper.BindPFlag("dremio-rocksdb-dir", localCollectCmd.Flags().Lookup("dremio-rocksdb-dir")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
+	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "", "Path to Dremio RocksDB directory")
 	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
-	if err := viper.BindPFlag("collect-dremio-configuration", localCollectCmd.Flags().Lookup("collect-dremio-configuration")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
-	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 25000, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
-	if err := viper.BindPFlag("number-job-profiles", localCollectCmd.Flags().Lookup("number-job-profiles")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
-	}
-
+	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
 	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
-	if err := viper.BindPFlag("capture-heap-dump", localCollectCmd.Flags().Lookup("capture-heap-dump")); err != nil {
-		simplelog.Errorf("unable to bind flag due to error %v", err)
+
+	rootCmd.AddCommand(localCollectCmd)
+}
+
+func initConfig() {
+
+	// set default config
+	viper.SetDefault("collect-acceleration-log", false)
+	viper.SetDefault("collect-access-log", false)
+	viper.SetDefault("dremio-log-dir", "/var/log/dremio")
+	defaultThreads := getThreads(runtime.NumCPU())
+	viper.SetDefault("number-threads", defaultThreads)
+	viper.SetDefault("dremio-log-dir", "dremio")
+	viper.SetDefault("dremio-pat-token", "")
+	viper.SetDefault("dremio-rocksdb-dir", "/opt/dremio/data/db")
+	viper.SetDefault("collect-dremio-configuration", true)
+	viper.SetDefault("capture-heap-dump", false)
+	viper.SetDefault("number-job-profiles", 25000)
+	viper.SetDefault("dremio-endpoint", "http://localhost:9047")
+	viper.SetDefault("tmp-output-dir", getOutputDir(time.Now()))
+	viper.SetDefault("collect-metrics", true)
+	viper.SetDefault("collect-disk-usage", true)
+	viper.SetDefault("dremio-logs-num-days", 7)
+	viper.SetDefault("dremio-queries-json-num-days", 28)
+	viper.SetDefault("dremio-gc-file-pattern", "gc*.log")
+	viper.SetDefault("collect-queries-json", true)
+	viper.SetDefault("collect-server-logs", true)
+	viper.SetDefault("collect-meta-refresh-log", true)
+	viper.SetDefault("collect-reflection-log", true)
+	viper.SetDefault("skip-collect-gc-logs", true)
+	viper.SetDefault("collect-jfr", true)
+	viper.SetDefault("collect-jstack", true)
+	defaultCaptureSeconds := 60
+	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
+	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
+	viper.SetDefault("dremio-jstack-freq-seconds", 1)
+
+	parsedGCLogDir, err := findGCLogLocation()
+	if err != nil {
+		simplelog.Errorf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
 	}
+	viper.SetDefault("dremio-gclogs-dir", parsedGCLogDir)
+	// set node name
+	hostName, err := os.Hostname()
+	if err != nil {
+		hostName = fmt.Sprintf("unknown-%v", uuid.New())
+	}
+	viper.SetDefault("node-name", hostName)
+
+	//now read in viper configuration values. This will get defaults if no values are available in the configuration files or no environment variable is set
+
+	baseConfig := "ddc"
+	viper.SetConfigName(baseConfig) // Name of config file (without extension)
+
+	//find the location of the ddc executable
+	execPath, err := os.Executable()
+	if err != nil {
+		simplelog.Errorf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
+		execPath = "."
+	}
+	// use that as the default location of the configuration
+	configDir := filepath.Dir(execPath)
+	viper.AddConfigPath(configDir)
+
+	for _, e := range supportedExtensions {
+		confFiles = append(confFiles, fmt.Sprintf("%v.%v", baseConfig, e))
+	}
+
+	//searching for all known
+	for _, ext := range supportedExtensions {
+		viper.SetConfigType(ext)
+		unableToReadConfigError := viper.ReadInConfig()
+		if unableToReadConfigError == nil {
+			configIsFound = true
+			foundConfig = fmt.Sprintf("%v.%v", baseConfig, ext)
+			break
+		}
+	}
+
+	viper.AutomaticEnv() // Automatically read environment variables
+
+	//verbose = viper.GetInt("verbose")
 
 }
 
