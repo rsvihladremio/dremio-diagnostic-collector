@@ -32,7 +32,7 @@ import (
 func cleanUp(dirs ...string) {
 	for _, d := range dirs {
 		simplelog.Infof("deleting %v", d)
-		if err := ddcio.DeleteDirContents(d); err != nil {
+		if err := os.RemoveAll(d); err != nil {
 			simplelog.Warningf("unable to delete the contents of folder %v due to error %v", d, err)
 		}
 	}
@@ -53,8 +53,11 @@ var _ = Describe("Logcollect", func() {
 		startLogDir = filepath.Join("testdata", "logDirWithAllLogs")
 		testGCLogsDir = filepath.Join("testdata", "gcLogDir")
 		destinationQueriesJSON = filepath.Join("testdata", "queriesOutDir")
-		logDir = filepath.Join("testdata", "logDir")
-		destinationDir = filepath.Join("testdata", "destinationDir")
+		var err error
+		logDir, err = os.MkdirTemp("", "SOURCE*")
+		Expect(err).To(BeNil())
+		destinationDir, err = os.MkdirTemp("", "DESTINATION*")
+		Expect(err).To(BeNil())
 		logCollector = *logcollect.NewLogCollector(
 			logDir,
 			destinationDir,
