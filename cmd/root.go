@@ -46,53 +46,6 @@ var sudoUser string
 var GitSha = "unknown"
 var namespace string
 
-// flags that are configurable by env or configuration
-var (
-	verbose                    int
-	numberThreads              int
-	gcLogsDir                  string
-	dremioLogDir               string
-	dremioConfDir              string
-	dremioEndpoint             string
-	dremioUsername             string
-	dremioPATToken             string
-	dremioRocksDBDir           string
-	numberJobProfilesToCollect int
-	collectAccelerationLogs    bool
-	collectAccessLogs          bool
-	captureHeapDump            bool
-	acceptCollectionConsent    bool
-)
-
-// advanced variables setable by configuration or environement variable
-var (
-	outputDir                   string
-	dremioJFRTimeSeconds        int
-	dremioJStackFreqSeconds     int
-	dremioJStackTimeSeconds     int
-	dremioLogsNumDays           int
-	dremioGCFilePattern         string
-	dremioQueriesJSONNumDays    int
-	jobProfilesNumSlowExec      int
-	jobProfilesNumHighQueryCost int
-	jobProfilesNumSlowPlanning  int
-	jobProfilesNumRecentErrors  int
-	collectNodeMetrics          bool
-	collectJFR                  bool
-	collectJStack               bool
-	collectKVStoreReport        bool
-	collectServerLogs           bool
-	collectMetaRefreshLogs      bool
-	collectQueriesJSON          bool
-	collectDremioConfiguration  bool
-	collectReflectionLogs       bool
-	collectSystemTablesExport   bool
-	collectDiskUsage            bool
-	collectGCLogs               bool
-	collectWLM                  bool
-	nodeName                    string
-)
-
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
 func getVersion() string {
