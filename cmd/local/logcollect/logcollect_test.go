@@ -95,7 +95,7 @@ var _ = Describe("Logcollect", func() {
 
 			//rename archive to yesterday
 			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -124,7 +124,7 @@ var _ = Describe("Logcollect", func() {
 			}
 			//rename archive to yesterday
 			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -144,9 +144,14 @@ var _ = Describe("Logcollect", func() {
 			Expect(err).ToNot(BeNil())
 		})
 
-		It("should collect all logs", func() {
+		It("should collect all logs with age", func() {
 			Expect(filepath.Join(destinationDir, "server.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "server.log")))
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationDir, "server.2022-04-30.log.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 
 	})
@@ -163,7 +168,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -233,7 +238,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "reflection." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				treeOut := tests.TreeToString(filepath.Join(testLogDir, "archive"))
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v with dir of %v", err, treeOut)
 				Expect(err).To(BeNil())
@@ -251,6 +256,11 @@ var _ = Describe("Logcollect", func() {
 		It("should collect all logs", func() {
 			Expect(filepath.Join(destinationDir, "reflection.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "reflection.log")), fmt.Sprintf("failed to find reflection.log in tree %v", tests.TreeToString(destinationDir)))
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationDir, "reflection.2022-04-30.log.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 	When("reflection.log archives are missing", func() {
@@ -302,7 +312,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			yesterdaysLog = "reflection." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -334,7 +344,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "acceleration." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -351,6 +361,11 @@ var _ = Describe("Logcollect", func() {
 		It("should collect all logs", func() {
 			Expect(filepath.Join(destinationDir, "acceleration.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "acceleration.log")), fmt.Sprintf("failed to find acceleration.log in tree %v", tests.TreeToString(destinationDir)))
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationDir, "acceleration.2022-04-30.log.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 	When("acceleration.log archives are missing", func() {
@@ -402,7 +417,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			yesterdaysLog = "acceleration." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -434,7 +449,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "access." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -451,6 +466,11 @@ var _ = Describe("Logcollect", func() {
 		It("should collect all logs", func() {
 			Expect(filepath.Join(destinationDir, "access.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "access.log")), fmt.Sprintf("failed to find access.log in tree %v", tests.TreeToString(destinationDir)))
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationDir, "access.2022-04-30.log.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 	When("access.log archives are missing", func() {
@@ -502,7 +522,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			yesterdaysLog = "access." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -534,7 +554,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "metadata_refresh." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -551,6 +571,11 @@ var _ = Describe("Logcollect", func() {
 		It("should collect all logs", func() {
 			Expect(filepath.Join(destinationDir, "metadata_refresh.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "metadata_refresh.log")), fmt.Sprintf("failed to find metadata_refresh.log in tree %v", tests.TreeToString(destinationDir)))
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationDir, "metadata_refresh.2022-04-30.log.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 	When("metadata_frefresh.log archives are missing", func() {
@@ -602,7 +627,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			yesterdaysLog = "metadata_refresh." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -633,7 +658,7 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 			yesterdaysLog = "queries." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".json.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -652,6 +677,11 @@ var _ = Describe("Logcollect", func() {
 		It("should collect all logs", func() {
 			Expect(filepath.Join(destinationQueriesJSON, "queries.json.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "queries.json")), fmt.Sprintf("failed to find queries.json in tree %v", tests.TreeToString(destinationQueriesJSON)))
 			Expect(filepath.Join(destinationQueriesJSON, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+
+		It("should ignore logs older than num days", func() {
+			_, err := os.Stat(filepath.Join(destinationQueriesJSON, "queries.2022-04-30.json.gz"))
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 
@@ -703,7 +733,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			yesterdaysLog = "queries." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".json.gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}

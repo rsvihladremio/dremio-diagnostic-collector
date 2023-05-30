@@ -186,7 +186,7 @@ func (l *Collector) exportArchivedLogs(srcLogDir string, unarchivedFile string, 
 		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
 		//now search files for a match
 		for _, f := range files {
-			if strings.HasPrefix(f.Name(), logPrefix) && strings.HasSuffix(f.Name(), ".gz") {
+			if strings.HasPrefix(f.Name(), fmt.Sprintf("%v.%v", logPrefix, processingDate)) && strings.HasSuffix(f.Name(), ".gz") {
 				simplelog.Info("Copying archive file for " + processingDate + ": " + f.Name())
 				src := filepath.Join(srcLogDir, "archive", f.Name())
 				dst := filepath.Join(outDir, f.Name())
