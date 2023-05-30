@@ -1,6 +1,6 @@
 module github.com/rsvihladremio/dremio-diagnostic-collector
 
-go 1.19
+go 1.20
 
 require github.com/spf13/cobra v1.7.0 // direct
 
