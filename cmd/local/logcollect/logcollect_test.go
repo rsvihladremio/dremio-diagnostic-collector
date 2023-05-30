@@ -421,4 +421,204 @@ var _ = Describe("Logcollect", func() {
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
 		})
 	})
+
+	When("all access logs are present", func() {
+		var err error
+		var destinationDir string
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			yesterdaysLog = "access.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectDremioAccessLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should not return an error", func() {
+			Expect(err).To(BeNil())
+		})
+
+		It("should collect all logs", func() {
+			Expect(filepath.Join(destinationDir, "access.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "access.log")), fmt.Sprintf("failed to find access.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+	When("access.log archives are missing", func() {
+		var err error
+		var destinationDir string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			// just deleting the archive folder entirely
+			if err := os.RemoveAll(filepath.Join(testLogDir, "archive")); err != nil {
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectDremioAccessLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect access log as a gzip", func() {
+			Expect(filepath.Join(destinationDir, "access.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "access.log")), fmt.Sprintf("failed to find access.log in tree %v", tests.TreeToString(destinationDir)))
+		})
+	})
+
+	When("access.log is missing", func() {
+		var err error
+		var destinationDir string
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			if err := os.Remove(filepath.Join(testLogDir, "access.log")); err != nil {
+				simplelog.Errorf("test should fail as we had an error removing the access.log: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			yesterdaysLog = "access.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectDremioAccessLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect archives", func() {
+			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+
+	When("all metadata_refresh logs are present", func() {
+		var err error
+		var destinationDir string
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			yesterdaysLog = "metadata_refresh.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectMetadataRefreshLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should not return an error", func() {
+			Expect(err).To(BeNil())
+		})
+
+		It("should collect all logs", func() {
+			Expect(filepath.Join(destinationDir, "metadata_refresh.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "metadata_refresh.log")), fmt.Sprintf("failed to find metadata_refresh.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+	When("access.log archives are missing", func() {
+		var err error
+		var destinationDir string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			// just deleting the archive folder entirely
+			if err := os.RemoveAll(filepath.Join(testLogDir, "archive")); err != nil {
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectMetadataRefreshLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect access log as a gzip", func() {
+			Expect(filepath.Join(destinationDir, "metadata_refresh.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "metadata_refresh.log")), fmt.Sprintf("failed to find metadata_refresh.log in tree %v", tests.TreeToString(destinationDir)))
+		})
+	})
+
+	When("access.log is missing", func() {
+		var err error
+		var destinationDir string
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			if err := os.Remove(filepath.Join(testLogDir, "metadata_refresh.log")); err != nil {
+				simplelog.Errorf("test should fail as we had an error removing the metadata_refresh.log: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			yesterdaysLog = "metadata_refresh.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectMetadataRefreshLogs()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect archives", func() {
+			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
 })
