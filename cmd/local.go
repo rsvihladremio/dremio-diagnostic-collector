@@ -56,7 +56,7 @@ var (
 	//kubernetesConfTypes = []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	supportedExtensions = []string{"yaml", "json", "toml", "hcl", "env", "props"}
 	systemtables        = [...]string{
-		//	"\\\"tables\\\"",
+		"\\\"tables\\\"",
 		"boot",
 		"fragments",
 		"jobs",
@@ -94,7 +94,7 @@ func configurationOutDir() string {
 func jfrOutDir() string          { return path.Join(outputDir, "jfr") }
 func threadDumpsOutDir() string  { return path.Join(outputDir, "jfr", "thread-dumps", nodeName) }
 func heapDumpsOutDir() string    { return path.Join(outputDir, "heap-dumps") }
-func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles", nodeName) }
+func jobProfilesOutDir() string  { return path.Join(outputDir, "job-profiles") }
 func kubernetesOutDir() string   { return path.Join(outputDir, "kubernetes") }
 func kvstoreOutDir() string      { return path.Join(outputDir, "kvstore") }
 func logsOutDir() string         { return path.Join(outputDir, "logs", nodeName) }
@@ -844,7 +844,7 @@ func runCollectHeapDump() error {
 }
 
 func runCollectQueriesJSON() error {
-	simplelog.Info("Collecting GC logs ...")
+	simplelog.Info("Collecting queries.json ...")
 	err := exportArchivedLogs(dremioLogDir, "queries.json", "queries", dremioQueriesJSONNumDays)
 	if err != nil {
 		return fmt.Errorf("failed to export archived logs: %v", err)
@@ -943,7 +943,7 @@ func runCollectDremioSystemTables() error {
 	sleepms := 100
 
 	for _, systable := range systemtables {
-		filename := "sys." + systable + ".json"
+		filename := "sys." + strings.Replace(systable, "\\\"", "", -1) + ".json"
 		body, err := downloadSysTable(systable, rowlimit, sleepms)
 		if err != nil {
 			return err
@@ -1134,7 +1134,13 @@ func gzipFile(src, dst string) error {
 
 func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
 	src := path.Join(logDir, unarchivedFile)
-	dest := path.Join(logsOutDir(), unarchivedFile)
+	var outDir string
+	if logPrefix == "queries" {
+		outDir = queriesOutDir()
+	} else {
+		outDir = logsOutDir()
+	}
+	dest := path.Join(outDir, unarchivedFile)
 	//instead of copying it we just archive it to a new location
 	if err := gzipFile(path.Clean(src), path.Clean(dest+".gz")); err != nil {
 		return fmt.Errorf("archiving of log file %v failed due to error %v", unarchivedFile, err)
@@ -1155,7 +1161,7 @@ func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, 
 			if strings.HasPrefix(f.Name(), logPrefix+"."+processingDate) && strings.HasSuffix(f.Name(), ".gz") {
 				simplelog.Info("Copying archive file for " + processingDate + ": " + f.Name())
 				src := filepath.Join(logDir, "archive", f.Name())
-				dst := logsOutDir()
+				dst := filepath.Join(outDir, f.Name())
 				err := copyFile(path.Clean(src), path.Clean(dst))
 				if err != nil {
 					simplelog.Errorf("unable to copy file due to error %v", err)
