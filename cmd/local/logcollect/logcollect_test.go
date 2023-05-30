@@ -32,7 +32,7 @@ import (
 func cleanUp(dirs ...string) {
 	for _, d := range dirs {
 		simplelog.Infof("deleting %v", d)
-		if err := os.RemoveAll(d); err != nil {
+		if err := ddcio.DeleteDirContents(d); err != nil {
 			simplelog.Warningf("unable to delete the contents of folder %v due to error %v", d, err)
 		}
 	}
@@ -54,6 +54,8 @@ var _ = Describe("Logcollect", func() {
 		testGCLogsDir = filepath.Join("testdata", "gcLogDir")
 		destinationQueriesJSON = filepath.Join("testdata", "queriesOutDir")
 		var err error
+		err = os.MkdirAll(destinationQueriesJSON, 0750)
+		Expect(err).To(BeNil())
 		logDir, err = os.MkdirTemp("", "SOURCE*")
 		Expect(err).To(BeNil())
 		destinationDir, err = os.MkdirTemp("", "DESTINATION*")
@@ -90,11 +92,10 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			time.Sleep(50 * time.Millisecond)
 
 			//rename archive to yesterday
-			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -121,10 +122,9 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			time.Sleep(50 * time.Millisecond)
 			//rename archive to yesterday
-			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -162,9 +162,8 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			time.Sleep(50 * time.Millisecond)
-			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -233,8 +232,8 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			yesterdaysLog = "reflection.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "reflection." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				treeOut := tests.TreeToString(filepath.Join(testLogDir, "archive"))
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v with dir of %v", err, treeOut)
 				Expect(err).To(BeNil())
@@ -302,8 +301,8 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 
-			yesterdaysLog = "reflection.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "reflection." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "reflection.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -334,8 +333,8 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			yesterdaysLog = "acceleration.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "acceleration." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -402,8 +401,8 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 
-			yesterdaysLog = "acceleration.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "acceleration." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "acceleration.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -434,8 +433,8 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			yesterdaysLog = "access.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "access." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -502,8 +501,8 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 
-			yesterdaysLog = "access.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "access." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "access.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -534,8 +533,8 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
-			yesterdaysLog = "metadata_refresh.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "metadata_refresh." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -554,7 +553,7 @@ var _ = Describe("Logcollect", func() {
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
 		})
 	})
-	When("access.log archives are missing", func() {
+	When("metadata_frefresh.log archives are missing", func() {
 		var err error
 		var destinationDir string
 		var testLogDir string
@@ -584,7 +583,7 @@ var _ = Describe("Logcollect", func() {
 		})
 	})
 
-	When("access.log is missing", func() {
+	When("metadata_refresh.log is missing", func() {
 		var err error
 		var destinationDir string
 		var yesterdaysLog string
@@ -602,8 +601,8 @@ var _ = Describe("Logcollect", func() {
 				Expect(err).To(BeNil())
 			}
 
-			yesterdaysLog = "metadata_refresh.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
-			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+			yesterdaysLog = "metadata_refresh." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "metadata_refresh.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
@@ -619,6 +618,108 @@ var _ = Describe("Logcollect", func() {
 
 		It("should collect archives", func() {
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+
+	When("all queries.json logs are present", func() {
+		var err error
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			_, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			yesterdaysLog = "queries." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".json.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			tests.Tree(testLogDir)
+			err = logCollector.RunCollectQueriesJSON()
+			tests.Tree(destinationQueriesJSON)
+		})
+		AfterEach(func() {
+			cleanUp(destinationQueriesJSON, testLogDir)
+		})
+
+		It("should not return an error", func() {
+			Expect(err).To(BeNil())
+		})
+
+		It("should collect all logs", func() {
+			Expect(filepath.Join(destinationQueriesJSON, "queries.json.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "queries.json")), fmt.Sprintf("failed to find queries.json in tree %v", tests.TreeToString(destinationQueriesJSON)))
+			Expect(filepath.Join(destinationQueriesJSON, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+
+	When("queries.json archives are missing", func() {
+		var err error
+		var testLogDir string
+		BeforeEach(func() {
+			_, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			// just deleting the archive folder entirely
+			if err := os.RemoveAll(filepath.Join(testLogDir, "archive")); err != nil {
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectQueriesJSON()
+		})
+		AfterEach(func() {
+			cleanUp(destinationQueriesJSON, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect access log as a gzip", func() {
+			tests.Tree(destinationQueriesJSON)
+			Expect(filepath.Join(destinationQueriesJSON, "queries.json.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "queries.json")), fmt.Sprintf("failed to find queries.json in tree %v", tests.TreeToString(destinationQueriesJSON)))
+		})
+	})
+
+	When("queries.json is missing", func() {
+		var err error
+		var yesterdaysLog string
+		var testLogDir string
+		BeforeEach(func() {
+			_, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			if err := os.Remove(filepath.Join(testLogDir, "queries.json")); err != nil {
+				simplelog.Errorf("test should fail as we had an error removing the queries.json: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			yesterdaysLog = "queries." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".json.gz"
+			if err := os.Rename(filepath.Join(testLogDir, "archive", "queries.2022-04-30.json.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectQueriesJSON()
+			tests.Tree(destinationQueriesJSON)
+		})
+		AfterEach(func() {
+			cleanUp(destinationQueriesJSON, testLogDir)
+		})
+
+		It("should return an error", func() {
+			Expect(err).ToNot(BeNil())
+		})
+
+		It("should collect queriesJSON archives", func() {
+			Expect(filepath.Join(destinationQueriesJSON, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
 		})
 	})
 
