@@ -76,7 +76,7 @@ var _ = Describe("Logcollect", func() {
 		}
 	})
 
-	When("all logs are present", func() {
+	When("all server.logs are present", func() {
 		var destinationDir string
 		var testLogDir string
 		var yesterdaysLog string
@@ -90,6 +90,7 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
+			time.Sleep(50 * time.Millisecond)
 
 			//rename archive to yesterday
 			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
@@ -120,6 +121,7 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
+			time.Sleep(50 * time.Millisecond)
 			//rename archive to yesterday
 			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
 			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
@@ -128,7 +130,7 @@ var _ = Describe("Logcollect", func() {
 			}
 
 			if err := os.Remove(filepath.Join(testLogDir, "server.out")); err != nil {
-				simplelog.Errorf("test should fail as we had an error removin the server.out: %v", err)
+				simplelog.Errorf("test should fail as we had an error removing the server.out: %v", err)
 				Expect(err).To(BeNil())
 			}
 			err = logCollector.RunCollectDremioServerLog()
@@ -160,6 +162,7 @@ var _ = Describe("Logcollect", func() {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
 				Expect(err).To(BeNil())
 			}
+			time.Sleep(50 * time.Millisecond)
 			yesterdaysLog = "server.log." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".gz"
 			if err := os.Rename(filepath.Join(testLogDir, "archive", "server.log.2022-04-30.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
 				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
