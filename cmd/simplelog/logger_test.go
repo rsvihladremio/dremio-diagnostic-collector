@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogger(t *testing.T) {

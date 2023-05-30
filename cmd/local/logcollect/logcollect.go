@@ -23,11 +23,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/ddcio"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
-type LogCollector struct {
+type Collector struct {
 	dremioGCFilePattern      string
 	dremioLogDir             string
 	logsOutDir               string
@@ -37,8 +37,8 @@ type LogCollector struct {
 	dremioQueriesJSONNumDays int
 }
 
-func NewLogCollector(dremioLogDir, logsOutDir, gcLogsDir, dremioGCFilePattern, queriesOutDir string, dremioQueriesJSONNumDays, dremioLogsNumDays int) *LogCollector {
-	return &LogCollector{
+func NewLogCollector(dremioLogDir, logsOutDir, gcLogsDir, dremioGCFilePattern, queriesOutDir string, dremioQueriesJSONNumDays, dremioLogsNumDays int) *Collector {
+	return &Collector{
 		dremioLogDir:             dremioLogDir,
 		logsOutDir:               logsOutDir,
 		dremioLogsNumDays:        dremioLogsNumDays,
@@ -49,7 +49,7 @@ func NewLogCollector(dremioLogDir, logsOutDir, gcLogsDir, dremioGCFilePattern, q
 	}
 }
 
-func (l *LogCollector) RunCollectDremioServerLog() error {
+func (l *Collector) RunCollectDremioServerLog() error {
 	simplelog.Info("Collecting GC logs ...")
 	if err := l.exportArchivedLogs(l.dremioLogDir, "server.log", "server", l.dremioLogsNumDays); err != nil {
 		simplelog.Errorf("trying to archive server logs we got error: %v", err)
@@ -65,7 +65,7 @@ func (l *LogCollector) RunCollectDremioServerLog() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectGcLogs() error {
+func (l *Collector) RunCollectGcLogs() error {
 	simplelog.Info("Collecting GC logs ...")
 	files, err := os.ReadDir(path.Clean(l.gcLogsDir))
 	if err != nil {
@@ -95,7 +95,7 @@ func (l *LogCollector) RunCollectGcLogs() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectMetadataRefreshLogs() error {
+func (l *Collector) RunCollectMetadataRefreshLogs() error {
 	simplelog.Info("Collecting metadata refresh logs from Coordinator(s) ...")
 	if err := l.exportArchivedLogs(l.dremioLogDir, "metadata_refresh.log", "metadata_refresh", l.dremioLogsNumDays); err != nil {
 		return fmt.Errorf("unable to collect metadata refresh logs due to error %v", err)
@@ -105,7 +105,7 @@ func (l *LogCollector) RunCollectMetadataRefreshLogs() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectReflectionLogs() error {
+func (l *Collector) RunCollectReflectionLogs() error {
 	simplelog.Info("Collecting reflection logs from Coordinator(s) ...")
 	if err := l.exportArchivedLogs(l.dremioLogDir, "reflection.log", "reflection", l.dremioLogsNumDays); err != nil {
 		return fmt.Errorf("unable to collect reflection logs due to error %v", err)
@@ -115,7 +115,7 @@ func (l *LogCollector) RunCollectReflectionLogs() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectDremioAccessLogs() error {
+func (l *Collector) RunCollectDremioAccessLogs() error {
 	simplelog.Info("Collecting access logs from Coordinator(s) ...")
 	simplelog.Warning("Access logs from scale-out coordinators must be collected separately!")
 	if err := l.exportArchivedLogs(l.dremioLogDir, "access.log", "access", l.dremioLogsNumDays); err != nil {
@@ -126,7 +126,7 @@ func (l *LogCollector) RunCollectDremioAccessLogs() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectAccelerationLogs() error {
+func (l *Collector) RunCollectAccelerationLogs() error {
 	simplelog.Info("Collecting acceleration logs from Coordinator(s) ...")
 	simplelog.Warning("Acceleration logs from scale-out coordinators must be collected separately!")
 	if err := l.exportArchivedLogs(l.dremioLogDir, "acceleration.log", "acceleration", l.dremioLogsNumDays); err != nil {
@@ -137,7 +137,7 @@ func (l *LogCollector) RunCollectAccelerationLogs() error {
 	return nil
 }
 
-func (l *LogCollector) RunCollectQueriesJSON() error {
+func (l *Collector) RunCollectQueriesJSON() error {
 	simplelog.Info("Collecting queries.json ...")
 	err := l.exportArchivedLogs(l.dremioLogDir, "queries.json", "queries", l.dremioQueriesJSONNumDays)
 	if err != nil {
@@ -150,7 +150,7 @@ func (l *LogCollector) RunCollectQueriesJSON() error {
 	return nil
 }
 
-func (l *LogCollector) exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
+func (l *Collector) exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
 	src := path.Join(logDir, unarchivedFile)
 	var outDir string
 	if logPrefix == "queries" {

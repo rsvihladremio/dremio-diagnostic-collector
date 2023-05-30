@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGet(t *testing.T) {

@@ -46,8 +46,8 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/ddcio"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/threading"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
 //constants

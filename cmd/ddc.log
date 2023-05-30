@@ -1,0 +1,34 @@
+INFO: 2023/05/30 13:54:40 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 13:54:40 local.go:1456: Requesting http://localhost:32809/apiv2/login
+INFO: 2023/05/30 13:54:40 local.go:1456: Requesting http://localhost:32809/api/v3/wlm/queue
+INFO: 2023/05/30 13:54:40 local.go:827: SUCCESS - Created queues.json
+INFO: 2023/05/30 13:54:40 local.go:1456: Requesting http://localhost:32809/api/v3/wlm/rule
+INFO: 2023/05/30 13:54:42 local.go:827: SUCCESS - Created rules.json
+INFO: 2023/05/30 13:54:42 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 13:54:42 local.go:1456: Requesting http://localhost:32809/apiv2/login
+INFO: 2023/05/30 13:54:42 local.go:1456: Requesting http://localhost:32809/apiv2/kvstore/report
+INFO: 2023/05/30 13:54:42 local.go:794: SUCCESS - Created kvstore-report.zip
+INFO: 2023/05/30 13:54:53 local.go:1456: Requesting http://localhost:32809/apiv2/support/1b8a1bfc-4c1c-f227-8edb-5a16ff5c8800/download
+INFO: 2023/05/30 13:54:55 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 13:54:55 local.go:1456: Requesting http://localhost:32809/apiv2/login
+INFO: 2023/05/30 13:54:55 local.go:867: Collecting Job Profiles...
+INFO: 2023/05/30 13:54:55 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 13:54:55 local.go:1456: Requesting http://localhost:32809/apiv2/login
+WARNING: 2023/05/30 13:54:55 local.go:882: no queries.json files found. This is probably an executor, so we are skipping collection of Job Profiles
+INFO: 2023/05/30 14:23:29 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 14:23:29 local.go:1456: Requesting http://localhost:32815/apiv2/login
+INFO: 2023/05/30 14:23:29 local.go:1456: Requesting http://localhost:32815/api/v3/wlm/queue
+INFO: 2023/05/30 14:23:30 local.go:827: SUCCESS - Created queues.json
+INFO: 2023/05/30 14:23:30 local.go:1456: Requesting http://localhost:32815/api/v3/wlm/rule
+INFO: 2023/05/30 14:23:31 local.go:827: SUCCESS - Created rules.json
+INFO: 2023/05/30 14:23:31 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 14:23:31 local.go:1456: Requesting http://localhost:32815/apiv2/login
+INFO: 2023/05/30 14:23:31 local.go:1456: Requesting http://localhost:32815/apiv2/kvstore/report
+INFO: 2023/05/30 14:23:31 local.go:794: SUCCESS - Created kvstore-report.zip
+INFO: 2023/05/30 14:23:42 local.go:1456: Requesting http://localhost:32815/apiv2/support/1b8a153b-6a98-f156-4f6b-a292ee50ed00/download
+INFO: 2023/05/30 14:23:44 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 14:23:44 local.go:1456: Requesting http://localhost:32815/apiv2/login
+INFO: 2023/05/30 14:23:44 local.go:867: Collecting Job Profiles...
+INFO: 2023/05/30 14:23:44 local.go:1448: Validating REST API user credentials...
+INFO: 2023/05/30 14:23:44 local.go:1456: Requesting http://localhost:32815/apiv2/login
+WARNING: 2023/05/30 14:23:44 local.go:882: no queries.json files found. This is probably an executor, so we are skipping collection of Job Profiles
