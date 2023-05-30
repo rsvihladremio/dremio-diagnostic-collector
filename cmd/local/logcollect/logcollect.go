@@ -77,23 +77,28 @@ func (l *Collector) RunCollectGcLogs() error {
 	if err != nil {
 		return fmt.Errorf("error reading directory: %w", err)
 	}
-
+	var errs []error
 	for _, file := range files {
 		if file.IsDir() {
 			continue
 		}
 		matched, err := filepath.Match(l.dremioGCFilePattern, file.Name())
 		if err != nil {
-			simplelog.Errorf("error matching file pattern %v with error '%v'", l.dremioGCFilePattern, err)
+			errs = append(errs, fmt.Errorf("error matching file pattern %v with error '%v'", l.dremioGCFilePattern, err))
 		}
 		if matched {
 			srcPath := filepath.Join(l.gcLogsDir, file.Name())
 			destPath := filepath.Join(l.logsOutDir, file.Name())
 			if err := ddcio.CopyFile(path.Clean(srcPath), path.Clean(destPath)); err != nil {
-				return fmt.Errorf("error copying file %s: %w", file.Name(), err)
+				errs = append(errs, fmt.Errorf("error copying file %s: %w", file.Name(), err))
 			}
 			simplelog.Debugf("Copied file %s to %s", srcPath, destPath)
 		}
+	}
+	if len(errs) > 1 {
+		return fmt.Errorf("serveral errors while copying dremio server logs: %v", errors.Join(errs...))
+	} else if (len(errs)) == 1 {
+		return errs[0]
 	}
 	simplelog.Warning("GC logs from executors and scale-out coordinators must be collected separately!")
 	simplelog.Info("... collecting GC logs COMPLETED")

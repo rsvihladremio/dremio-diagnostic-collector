@@ -62,7 +62,7 @@ var _ = Describe("Logcollect", func() {
 			logDir,
 			destinationDir,
 			testGCLogsDir,
-			"gc*.log",
+			"gc.*.log*",
 			destinationQueriesJSON,
 			dremioQueriesJSONDays,
 			dremioLogDays,
@@ -619,6 +619,28 @@ var _ = Describe("Logcollect", func() {
 
 		It("should collect archives", func() {
 			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+	})
+
+	When("gc logs are present and there are more than one", func() {
+		var err error
+		var destinationDir string
+		BeforeEach(func() {
+			destinationDir, _ = setupEnv()
+			err = logCollector.RunCollectGcLogs()
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir)
+		})
+		It("should collect all gc logs as gzips", func() {
+			tests.Tree(destinationDir)
+			tests.Tree(testGCLogsDir)
+			Expect(filepath.Join(destinationDir, "gc.0.log")).To(MatchFile(filepath.Join(testGCLogsDir, "gc.0.log")), fmt.Sprintf("failed to find gc.0.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, "gc.1.log")).To(MatchFile(filepath.Join(testGCLogsDir, "gc.1.log")), fmt.Sprintf("failed to find gc.1.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, "gc.2.log")).To(MatchFile(filepath.Join(testGCLogsDir, "gc.2.log")), fmt.Sprintf("failed to find gc.2.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, "gc.3.log")).To(MatchFile(filepath.Join(testGCLogsDir, "gc.3.log")), fmt.Sprintf("failed to find gc.3.log in tree %v", tests.TreeToString(destinationDir)))
+			Expect(filepath.Join(destinationDir, "gc.4.log.current")).To(MatchFile(filepath.Join(testGCLogsDir, "gc.4.log.current")), fmt.Sprintf("gc.4.log.current to find metadata_refresh.log in tree %v", tests.TreeToString(destinationDir)))
 		})
 	})
 })
