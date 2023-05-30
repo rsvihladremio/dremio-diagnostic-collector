@@ -42,6 +42,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/logcollect"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
@@ -50,6 +51,53 @@ import (
 )
 
 //constants
+
+// flags that are configurable by env or configuration
+var (
+	verbose                    int
+	numberThreads              int
+	gcLogsDir                  string
+	dremioLogDir               string
+	dremioConfDir              string
+	dremioEndpoint             string
+	dremioUsername             string
+	dremioPATToken             string
+	dremioRocksDBDir           string
+	numberJobProfilesToCollect int
+	collectAccelerationLogs    bool
+	collectAccessLogs          bool
+	captureHeapDump            bool
+	acceptCollectionConsent    bool
+)
+
+// advanced variables setable by configuration or environement variable
+var (
+	outputDir                   string
+	dremioJFRTimeSeconds        int
+	dremioJStackFreqSeconds     int
+	dremioJStackTimeSeconds     int
+	dremioLogsNumDays           int
+	dremioGCFilePattern         string
+	dremioQueriesJSONNumDays    int
+	jobProfilesNumSlowExec      int
+	jobProfilesNumHighQueryCost int
+	jobProfilesNumSlowPlanning  int
+	jobProfilesNumRecentErrors  int
+	collectNodeMetrics          bool
+	collectJFR                  bool
+	collectJStack               bool
+	collectKVStoreReport        bool
+	collectServerLogs           bool
+	collectMetaRefreshLogs      bool
+	collectQueriesJSON          bool
+	collectDremioConfiguration  bool
+	collectReflectionLogs       bool
+	collectSystemTablesExport   bool
+	collectDiskUsage            bool
+	collectGCLogs               bool
+	collectWLM                  bool
+	nodeName                    string
+)
 
 // package variables
 var (
@@ -333,49 +381,59 @@ func collect(numberThreads int) {
 
 	// log collection
 
+	logCollector := logcollect.NewLogCollector(
+		dremioLogDir,
+		logsOutDir(),
+		gcLogsDir,
+		dremioGCFilePattern,
+		queriesOutDir(),
+		dremioQueriesJSONNumDays,
+		dremioLogsNumDays,
+	)
+
 	if !collectQueriesJSON && numberJobProfilesToCollect == 0 {
 		simplelog.Info("Skipping Collect Queries JSON ...")
 	} else {
 		if !collectQueriesJSON {
 			simplelog.Warning("NOT Skipping collection of Queries JSON, because --number-job-profiles is greater than 0 and job profile download requires queries.json ...")
 		}
-		t.FireJob(runCollectQueriesJSON)
+		t.FireJob(logCollector.RunCollectQueriesJSON)
 	}
 
 	if !collectServerLogs {
 		simplelog.Info("Skipping Collect Server Logs  ...")
 	} else {
-		t.FireJob(runCollectDremioServerLog)
+		t.FireJob(logCollector.RunCollectDremioServerLog)
 	}
 
 	if !collectGCLogs {
 		simplelog.Info("Skipping Collect Garbage Collection Logs  ...")
 	} else {
-		t.FireJob(runCollectGcLogs)
+		t.FireJob(logCollector.RunCollectGcLogs)
 	}
 
 	if !collectMetaRefreshLogs {
 		simplelog.Info("Skipping Collect Metadata Refresh Logs  ...")
 	} else {
-		t.FireJob(runCollectMetadataRefreshLogs)
+		t.FireJob(logCollector.RunCollectMetadataRefreshLogs)
 	}
 
 	if !collectReflectionLogs {
 		simplelog.Info("Skipping Collect Reflection Logs  ...")
 	} else {
-		t.FireJob(runCollectReflectionLogs)
+		t.FireJob(logCollector.RunCollectReflectionLogs)
 	}
 
 	if !collectAccelerationLogs {
 		simplelog.Info("Skipping Collect Acceleration Logs  ...")
 	} else {
-		t.FireJob(runCollectAccelerationLogs)
+		t.FireJob(logCollector.RunCollectAccelerationLogs)
 	}
 
 	if !collectAccessLogs {
 		simplelog.Info("Skipping Collect Access Logs  ...")
 	} else {
-		t.FireJob(runCollectDremioAccessLogs)
+		t.FireJob(logCollector.RunCollectDremioAccessLogs)
 	}
 
 	t.FireJob(runCollectJvmConfig)
@@ -525,19 +583,19 @@ func runCollectOSConfig() error {
 func runCollectDremioConfig() error {
 	simplelog.Infof("Collecting Configuration Information from %v ...", nodeName)
 
-	err := copyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
+	err := ddcio.CopyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
 	if err != nil {
 		simplelog.Warningf("unable to copy dremio.conf due to error %v", err)
 	}
-	err = copyFile("/opt/dremio/conf/dremio-env", filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
+	err = ddcio.CopyFile("/opt/dremio/conf/dremio-env", filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
 	if err != nil {
 		simplelog.Warningf("unable to copy dremio.env due to error %v", err)
 	}
-	err = copyFile("/opt/dremio/conf/logback.xml", filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
+	err = ddcio.CopyFile("/opt/dremio/conf/logback.xml", filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
 	if err != nil {
 		simplelog.Warningf("unable to copy logback.xml due to error %v", err)
 	}
-	err = copyFile("/opt/dremio/conf/logback-access.xml", filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
+	err = ddcio.CopyFile("/opt/dremio/conf/logback-access.xml", filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
 	if err != nil {
 		simplelog.Warningf("unable to copy logback-access.xml due to error %v", err)
 	}
@@ -569,45 +627,6 @@ func runCollectJvmConfig() error {
 	if err != nil {
 		simplelog.Warningf("unable to write jvm_settings.txt file due to error %v", err)
 	}
-	return nil
-}
-
-func copyFile(srcPath, dstPath string) error {
-	// Open the source file
-	srcFile, err := os.Open(path.Clean(srcPath))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := srcFile.Close(); err != nil {
-			simplelog.Warningf("unable to close %v due to error %v", path.Clean(srcPath), err)
-		}
-	}()
-
-	// Create the destination file
-	dstFile, err := os.Create(path.Clean(dstPath))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := dstFile.Close(); err != nil {
-			simplelog.Errorf("unable to close file %v due to error %v", path.Clean(dstPath), err)
-			os.Exit(1)
-		}
-	}()
-
-	// Copy the contents of the source file to the destination file
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		return err
-	}
-
-	// Flush the written data to disk
-	err = dstFile.Sync()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -830,7 +849,7 @@ func runCollectHeapDump() error {
 		return fmt.Errorf("unable to capture heap dump %v", err)
 	}
 	simplelog.Infof("heap dump output %v", w.String())
-	if err := gzipFile(hprofFile, hprofGzFile); err != nil {
+	if err := ddcio.GzipFile(hprofFile, hprofGzFile); err != nil {
 		return fmt.Errorf("unable to gzip heap dump file")
 	}
 	if err := os.Remove(path.Clean(hprofFile)); err != nil {
@@ -840,19 +859,6 @@ func runCollectHeapDump() error {
 	if err := os.Rename(path.Clean(hprofGzFile), path.Clean(dest)); err != nil {
 		return fmt.Errorf("unable to move heap dump to %v due to error %v", dest, err)
 	}
-	return nil
-}
-
-func runCollectQueriesJSON() error {
-	simplelog.Info("Collecting queries.json ...")
-	err := exportArchivedLogs(dremioLogDir, "queries.json", "queries", dremioQueriesJSONNumDays)
-	if err != nil {
-		return fmt.Errorf("failed to export archived logs: %v", err)
-	}
-
-	simplelog.Warning("Queries.json from scale-out coordinators must be collected separately!")
-
-	simplelog.Info("... collecting Queries JSON for Job Profiles COMPLETED")
 	return nil
 }
 
@@ -1010,166 +1016,6 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 		return body, nil
 	}
 	return nil, fmt.Errorf("unable to retrieve job results for sys." + systable)
-}
-
-func runCollectDremioServerLog() error {
-	simplelog.Info("Collecting GC logs ...")
-	if err := exportArchivedLogs(dremioLogDir, "server.log", "server", dremioLogsNumDays); err != nil {
-		simplelog.Errorf("trying to archive server logs we got error: %v", err)
-	}
-	simplelog.Info("... collecting server.out")
-	src := path.Join(dremioLogDir, "server.out")
-	dest := path.Join(logsOutDir(), "server.out")
-	if err := copyFile(path.Clean(src), path.Clean(dest)); err != nil {
-		return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
-	}
-	simplelog.Info("... collecting server logs COMPLETED")
-
-	return nil
-}
-
-func runCollectGcLogs() error {
-	simplelog.Info("Collecting GC logs ...")
-	files, err := os.ReadDir(path.Clean(gcLogsDir))
-	if err != nil {
-		return fmt.Errorf("error reading directory: %w", err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		matched, err := filepath.Match(dremioGCFilePattern, file.Name())
-		if err != nil {
-			simplelog.Errorf("error matching file pattern %v with error '%v'", dremioGCFilePattern, err)
-		}
-		if matched {
-			srcPath := filepath.Join(gcLogsDir, file.Name())
-			destPath := filepath.Join(logsOutDir(), file.Name())
-			if err := copyFile(path.Clean(srcPath), path.Clean(destPath)); err != nil {
-				return fmt.Errorf("error copying file %s: %w", file.Name(), err)
-			}
-			simplelog.Debugf("Copied file %s to %s", srcPath, destPath)
-		}
-	}
-	simplelog.Warning("GC logs from executors and scale-out coordinators must be collected separately!")
-	simplelog.Info("... collecting GC logs COMPLETED")
-
-	return nil
-}
-
-func runCollectMetadataRefreshLogs() error {
-	simplelog.Info("Collecting metadata refresh logs from Coordinator(s) ...")
-	if err := exportArchivedLogs(dremioLogDir, "metadata_refresh.log", "metadata_refresh", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("unable to collect metadata refresh logs due to error %v", err)
-	}
-	simplelog.Warning("Metadata refresh logs from scale-out coordinators must be collected separately!")
-	simplelog.Info("... collecting meta data refresh logs from Coordinator(s) COMPLETED")
-	return nil
-}
-
-func runCollectReflectionLogs() error {
-	simplelog.Info("Collecting reflection logs from Coordinator(s) ...")
-	if err := exportArchivedLogs(dremioLogDir, "reflection.log", "reflection", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("unable to collect reflection logs due to error %v", err)
-	}
-	simplelog.Info("... collecting reflection logs from Coordinator(s) COMPLETED")
-
-	return nil
-}
-
-func runCollectDremioAccessLogs() error {
-	simplelog.Info("Collecting access logs from Coordinator(s) ...")
-	simplelog.Warning("Access logs from scale-out coordinators must be collected separately!")
-	if err := exportArchivedLogs(dremioLogDir, "access.log", "access", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("unable to archive access.logs due to error %v", err)
-	}
-	simplelog.Info("... collecting access logs from Coordinator(s) COMPLETED")
-
-	return nil
-}
-
-func runCollectAccelerationLogs() error {
-	simplelog.Info("Collecting acceleration logs from Coordinator(s) ...")
-	simplelog.Warning("Acceleration logs from scale-out coordinators must be collected separately!")
-	if err := exportArchivedLogs(dremioLogDir, "acceleration.log", "acceleration", dremioLogsNumDays); err != nil {
-		return fmt.Errorf("unable to archive acceleration.logs due to error %v", err)
-	}
-	simplelog.Info("... collecting acceleragtion logs from Coordinator(s) COMPLETED")
-
-	return nil
-}
-
-func gzipFile(src, dst string) error {
-	sourceFile, err := os.Open(path.Clean(src))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := sourceFile.Close(); err != nil {
-			simplelog.Errorf("unable to close source file %v due to error %v", sourceFile, err)
-		}
-	}()
-
-	destFile, err := os.Create(path.Clean(dst))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := destFile.Close(); err != nil {
-			simplelog.Errorf("unable to close gzip file %v due to error %v", dst, err)
-		}
-	}()
-
-	gzipWriter := gzip.NewWriter(destFile)
-	defer gzipWriter.Close()
-
-	_, err = io.Copy(gzipWriter, sourceFile)
-	if err != nil {
-		return fmt.Errorf("unable to create gzip due to error %v", err)
-	}
-
-	return nil
-}
-
-func exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
-	src := path.Join(logDir, unarchivedFile)
-	var outDir string
-	if logPrefix == "queries" {
-		outDir = queriesOutDir()
-	} else {
-		outDir = logsOutDir()
-	}
-	dest := path.Join(outDir, unarchivedFile)
-	//instead of copying it we just archive it to a new location
-	if err := gzipFile(path.Clean(src), path.Clean(dest+".gz")); err != nil {
-		return fmt.Errorf("archiving of log file %v failed due to error %v", unarchivedFile, err)
-	}
-
-	today := time.Now()
-
-	for i := 0; i <= archiveDays; i++ {
-		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
-		files, err := os.ReadDir(filepath.Join(logDir, "archive"))
-		if err != nil {
-			//no archives to read so we can skip this
-			simplelog.Errorf("unable to read archive folder due to error %v", err)
-			break
-		}
-
-		for _, f := range files {
-			if strings.HasPrefix(f.Name(), logPrefix+"."+processingDate) && strings.HasSuffix(f.Name(), ".gz") {
-				simplelog.Info("Copying archive file for " + processingDate + ": " + f.Name())
-				src := filepath.Join(logDir, "archive", f.Name())
-				dst := filepath.Join(outDir, f.Name())
-				err := copyFile(path.Clean(src), path.Clean(dst))
-				if err != nil {
-					simplelog.Errorf("unable to copy file due to error %v", err)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
@@ -1397,7 +1243,7 @@ var localCollectCmd = &cobra.Command{
 			simplelog.Warningf("unable to find ddc itself..so can't copy it's log due to error %v", err)
 		} else {
 			ddcDir := path.Dir(ddcLoc)
-			if err := copyFile(filepath.Join(ddcDir, "ddc.log"), path.Join(outputDir, fmt.Sprintf("ddc-%v.log", nodeName))); err != nil {
+			if err := ddcio.CopyFile(filepath.Join(ddcDir, "ddc.log"), path.Join(outputDir, fmt.Sprintf("ddc-%v.log", nodeName))); err != nil {
 				simplelog.Warningf("uanble to copy log to archive due to error %v", err)
 			}
 		}
