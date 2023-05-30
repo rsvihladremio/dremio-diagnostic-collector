@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 func TestSSHExec(t *testing.T) {

@@ -16,6 +16,7 @@
 package logcollect
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -51,17 +52,22 @@ func NewLogCollector(dremioLogDir, logsOutDir, gcLogsDir, dremioGCFilePattern, q
 
 func (l *Collector) RunCollectDremioServerLog() error {
 	simplelog.Info("Collecting GC logs ...")
+	var errs []error
 	if err := l.exportArchivedLogs(l.dremioLogDir, "server.log", "server", l.dremioLogsNumDays); err != nil {
-		simplelog.Errorf("trying to archive server logs we got error: %v", err)
+		errs = append(errs, fmt.Errorf("trying to archive server logs we got error: %v", err))
 	}
 	simplelog.Info("... collecting server.out")
 	src := path.Join(l.dremioLogDir, "server.out")
 	dest := path.Join(l.logsOutDir, "server.out")
 	if err := ddcio.CopyFile(path.Clean(src), path.Clean(dest)); err != nil {
-		return fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err)
+		errs = append(errs, fmt.Errorf("unable to copy %v to %v due to error %v", src, dest, err))
+	}
+	if len(errs) > 1 {
+		return fmt.Errorf("serveral errors while copying dremio server logs: %v", errors.Join(errs...))
+	} else if (len(errs)) == 1 {
+		return errs[0]
 	}
 	simplelog.Info("... collecting server logs COMPLETED")
-
 	return nil
 }
 
@@ -150,8 +156,9 @@ func (l *Collector) RunCollectQueriesJSON() error {
 	return nil
 }
 
-func (l *Collector) exportArchivedLogs(logDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
-	src := path.Join(logDir, unarchivedFile)
+func (l *Collector) exportArchivedLogs(srcLogDir string, unarchivedFile string, logPrefix string, archiveDays int) error {
+	var errs []error
+	src := path.Join(srcLogDir, unarchivedFile)
 	var outDir string
 	if logPrefix == "queries" {
 		outDir = l.queriesOutDir
@@ -161,31 +168,37 @@ func (l *Collector) exportArchivedLogs(logDir string, unarchivedFile string, log
 	dest := path.Join(outDir, unarchivedFile)
 	//instead of copying it we just archive it to a new location
 	if err := ddcio.GzipFile(path.Clean(src), path.Clean(dest+".gz")); err != nil {
-		return fmt.Errorf("archiving of log file %v failed due to error %v", unarchivedFile, err)
+		errs = append(errs, fmt.Errorf("archiving of log file %v failed due to error %v", unarchivedFile, err))
 	}
 
 	today := time.Now()
-
+	files, err := os.ReadDir(filepath.Join(srcLogDir, "archive"))
+	if err != nil {
+		//no archives to read go ahead and exist as there is nothing to do
+		return fmt.Errorf("unable to read archive folder due to error %v", err)
+	}
 	for i := 0; i <= archiveDays; i++ {
 		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
-		files, err := os.ReadDir(filepath.Join(logDir, "archive"))
-		if err != nil {
-			//no archives to read so we can skip this
-			simplelog.Errorf("unable to read archive folder due to error %v", err)
-			break
-		}
-
+		//now search files for a match
 		for _, f := range files {
-			if strings.HasPrefix(f.Name(), logPrefix+"."+processingDate) && strings.HasSuffix(f.Name(), ".gz") {
+			filePrefix := logPrefix + ".log." + processingDate
+			if strings.HasPrefix(f.Name(), filePrefix) && strings.HasSuffix(f.Name(), ".gz") {
 				simplelog.Info("Copying archive file for " + processingDate + ": " + f.Name())
-				src := filepath.Join(logDir, "archive", f.Name())
+				src := filepath.Join(srcLogDir, "archive", f.Name())
 				dst := filepath.Join(outDir, f.Name())
 				err := ddcio.CopyFile(path.Clean(src), path.Clean(dst))
 				if err != nil {
-					simplelog.Errorf("unable to copy file due to error %v", err)
+					//collect the error and then skip
+					errs = append(errs, fmt.Errorf("unable to copy file %v to %v due to error %v", src, dst, err))
+					continue
 				}
 			}
 		}
+	}
+	if len(errs) > 1 {
+		return fmt.Errorf("multiple errors archiving %v", errors.Join(errs...))
+	} else if len(errs) == 1 {
+		return errs[0]
 	}
 	return nil
 }

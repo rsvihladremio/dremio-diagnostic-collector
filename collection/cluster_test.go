@@ -25,7 +25,7 @@ import (
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 type ExpectedJSON struct {

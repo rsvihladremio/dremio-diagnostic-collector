@@ -17,7 +17,7 @@ package ddcio
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -51,37 +51,48 @@ func DeleteDirContents(dir string) error {
 	return err
 }
 
-func CopyDir(srcDir, destDir string) error {
-	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+// CopyDir recursively copies a source directory to a destination.
+// It does not copy file attributes, but does maintain directory structure.
+// If the destination directory does not exist, CopyDir creates it.
+// If a file with the same name exists at the destination, CopyDir overwrites it.
+func CopyDir(src, dst string) error {
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
 
-		relPath, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
+	si, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !si.IsDir() {
+		return fmt.Errorf("source is not a directory: %s", src)
+	}
 
-		destPath := filepath.Join(destDir, relPath)
+	err = os.MkdirAll(dst, si.Mode())
+	if err != nil {
+		return err
+	}
 
-		if info.IsDir() {
-			// Create the directory in the destination if it doesn't exist
-			err = os.MkdirAll(destPath, info.Mode())
-			if err != nil {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err = CopyDir(srcPath, dstPath); err != nil {
 				return err
 			}
 		} else {
-			// Copy the file to the destination
-			err = CopyFile(path, destPath)
-			if err != nil {
+			if err = CopyFile(srcPath, dstPath); err != nil {
 				return err
 			}
 		}
+	}
 
-		return nil
-	})
-
-	return err
+	return nil
 }
 
 func CopyFile(srcPath, dstPath string) error {
@@ -146,13 +157,13 @@ func CompareFiles(file1, file2 string) (bool, error) {
 // The calculated hash value is returned as a slice of bytes.
 // An error is returned if there is a problem opening or reading the file.
 func CalculateFileHash(file string) ([]byte, error) {
-	f, err := os.Open(file)
+	f, err := os.Open(filepath.Clean(file))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	hash := md5.New()
+	hash := sha256.New()
 	if _, err := io.Copy(hash, f); err != nil {
 		return nil, err
 	}

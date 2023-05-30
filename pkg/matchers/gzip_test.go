@@ -13,7 +13,7 @@ var _ = Describe("Gzip Matchers", func() {
 			expectedFile := "file1.txt"
 
 			// Expect the gzip file to contain the expected file
-			Expect(gzipFile).To(ContainFileInGzip(expectedFile))
+			Expect(gzipFile).To(ContainThisFileInTheGzip(expectedFile))
 		})
 
 		It("should not contain a different file", func() {
@@ -21,7 +21,7 @@ var _ = Describe("Gzip Matchers", func() {
 			expectedFile := "file3.txt"
 
 			// Expect the gzip file not to contain the different file
-			Expect(gzipFile).NotTo(ContainFileInGzip(expectedFile))
+			Expect(gzipFile).NotTo(ContainThisFileInTheGzip(expectedFile))
 		})
 	})
 })

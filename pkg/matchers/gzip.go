@@ -1,76 +1,61 @@
 package matchers
 
 import (
-	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/types"
 )
 
-// ContainFileInGzip checks if a file exists within a gzip archive.
-func ContainFileInGzip(expectedFile string) types.GomegaMatcher {
-	return &containFileInGzipMatcher{
-		expectedFile: expectedFile,
+func ContainThisFileInTheGzip(expectedFilePath string) types.GomegaMatcher {
+	return &gzipFileMatcher{
+		expectedFilePath: expectedFilePath,
 	}
 }
 
-type containFileInGzipMatcher struct {
-	expectedFile string
+type gzipFileMatcher struct {
+	expectedFilePath string
 }
 
-func (matcher *containFileInGzipMatcher) Match(actual interface{}) (success bool, err error) {
-	gzipFile, ok := actual.(string)
+func (m *gzipFileMatcher) Match(actual interface{}) (success bool, err error) {
+	actualFilePath, ok := actual.(string)
 	if !ok {
-		return false, fmt.Errorf("ContainFileInGzip matcher expects a string (gzip file path) as actual, but got %T", actual)
+		return false, fmt.Errorf("MatchGzipFileContents matcher expects a string (path to gzip file)")
 	}
 
-	// Open the gzip file
-	file, err := os.Open(gzipFile)
+	gzipFile, err := os.Open(filepath.Clean(actualFilePath))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to open gzip file: %v", err)
 	}
-	defer file.Close()
+	defer gzipFile.Close()
 
-	// Create a gzip reader
-	gzipReader, err := gzip.NewReader(file)
+	gzipReader, err := gzip.NewReader(gzipFile)
 	if err != nil {
-		return false, err
-	}
-	defer gzipReader.Close()
-
-	// Create a tar reader
-	tarReader := tar.NewReader(gzipReader)
-
-	// Iterate over each file in the gzip archive
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break // Reached the end of the archive
-		} else if err != nil {
-			return false, err
-		}
-
-		// Get the file name
-		fileName := header.Name
-
-		// Check if the file name matches the expected file
-		if strings.Contains(fileName, matcher.expectedFile) {
-			return true, nil
-		}
+		return false, fmt.Errorf("failed to create gzip reader: %v", err)
 	}
 
-	return false, nil
+	actualFileBytes, err := io.ReadAll(gzipReader)
+	if err != nil {
+		return false, fmt.Errorf("failed to read file from gzip archive: %v", err)
+	}
+
+	expectedFileBytes, err := os.ReadFile(filepath.Clean(m.expectedFilePath))
+	if err != nil {
+		return false, fmt.Errorf("failed to read expected file: %v", err)
+	}
+
+	return bytes.Equal(actualFileBytes, expectedFileBytes), nil
 }
 
-func (matcher *containFileInGzipMatcher) FailureMessage(actual interface{}) (message string) {
-	return format.Message(actual, fmt.Sprintf("to contain file %s", matcher.expectedFile))
+func (m *gzipFileMatcher) FailureMessage(actual interface{}) (message string) {
+	return format.Message(actual, "to match file contents of the file inside the gzip archive with", m.expectedFilePath)
 }
 
-func (matcher *containFileInGzipMatcher) NegatedFailureMessage(actual interface{}) (message string) {
-	return format.Message(actual, fmt.Sprintf("not to contain file %s", matcher.expectedFile))
+func (m *gzipFileMatcher) NegatedFailureMessage(actual interface{}) (message string) {
+	return format.Message(actual, "not to match file contents of the file inside the gzip archive with", m.expectedFilePath)
 }
