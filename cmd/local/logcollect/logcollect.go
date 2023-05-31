@@ -186,15 +186,21 @@ func (l *Collector) exportArchivedLogs(srcLogDir string, unarchivedFile string, 
 		processingDate := today.AddDate(0, 0, -i).Format("2006-01-02")
 		//now search files for a match
 		for _, f := range files {
-			if strings.HasPrefix(f.Name(), fmt.Sprintf("%v.%v", logPrefix, processingDate)) && strings.HasSuffix(f.Name(), ".gz") {
+			if strings.HasPrefix(f.Name(), fmt.Sprintf("%v.%v", logPrefix, processingDate)) {
 				simplelog.Info("Copying archive file for " + processingDate + ": " + f.Name())
 				src := filepath.Join(srcLogDir, "archive", f.Name())
 				dst := filepath.Join(outDir, f.Name())
-				err := ddcio.CopyFile(path.Clean(src), path.Clean(dst))
-				if err != nil {
-					//collect the error and then skip
-					errs = append(errs, fmt.Errorf("unable to copy file %v to %v due to error %v", src, dst, err))
-					continue
+				if strings.HasSuffix(f.Name(), ".gz") {
+					if err := ddcio.CopyFile(path.Clean(src), path.Clean(dst)); err != nil {
+						errs = append(errs, fmt.Errorf("unable to move file %v to %v due to error %v", src, dst, err))
+						continue
+					}
+				} else {
+					//instead of copying it we just archive it to a new location
+					if err := ddcio.GzipFile(path.Clean(src), path.Clean(dst+".gz")); err != nil {
+						errs = append(errs, fmt.Errorf("unable to archive file %v to %v due to error %v", src, dst, err))
+						continue
+					}
 				}
 			}
 		}
