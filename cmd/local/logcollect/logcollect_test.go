@@ -110,6 +110,57 @@ var _ = Describe("Logcollect", func() {
 		})
 	})
 
+	When("server.log has an ungzipped file in the archive", func() {
+		var destinationDir string
+		var testLogDir string
+		var yesterdaysLog string
+		var dayBeforeYesterday string
+		var err error
+		BeforeEach(func() {
+			destinationDir, testLogDir = setupEnv()
+			//setup logs
+			if err := ddcio.CopyDir(startLogDir, testLogDir); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			//rename archive to yesterday
+			yesterdaysLog = "server." + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + ".log.gz"
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "archive", "server.2022-04-30.log.gz"), filepath.Join(testLogDir, "archive", yesterdaysLog)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+
+			//copy server.log to day before yesterday
+			dayBeforeYesterday = "server." + time.Now().AddDate(0, 0, -2).Format("2006-01-02") + ".log"
+			if err := ddcio.CopyFile(filepath.Join(testLogDir, "server.log"), filepath.Join(testLogDir, "archive", dayBeforeYesterday)); err != nil {
+				simplelog.Errorf("test should fail as we had an error setting up the test directory: %v", err)
+				Expect(err).To(BeNil())
+			}
+			err = logCollector.RunCollectDremioServerLog()
+		})
+		AfterEach(func() {
+			cleanUp(destinationDir, testLogDir)
+		})
+		It("should have a collection with no errors", func() {
+			Expect(err).To(BeNil())
+		})
+
+		It("should should collect the server.log as a gzip", func() {
+			Expect(filepath.Join(destinationDir, "server.log.gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "server.log")))
+		})
+		It("should collect server.out", func() {
+			Expect(filepath.Join(destinationDir, "server.out")).To(MatchFile(filepath.Join(testLogDir, "server.out")))
+		})
+
+		It("should find the gzipped file and copy it as is", func() {
+			Expect(filepath.Join(destinationDir, yesterdaysLog)).To(MatchFile(filepath.Join(testLogDir, "archive", yesterdaysLog)))
+		})
+		It("should find the ungzipped file and archive it", func() {
+			Expect(filepath.Join(destinationDir, dayBeforeYesterday+".gz")).To(ContainThisFileInTheGzip(filepath.Join(testLogDir, "archive", dayBeforeYesterday)))
+		})
+	})
+
 	When("server.out is missing", func() {
 		var err error
 		var destinationDir string
