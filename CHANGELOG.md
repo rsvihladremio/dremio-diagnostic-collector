@@ -1,4 +1,15 @@
 # Changelog
+## [0.3.0-beta4]
+
+### Changed
+
+* job profiles now threads
+* new improved thread pool that executes more consistently instead of in bunches
+* support for more than just gzipped archive logs
+
+### Fixed
+
+* archiving of logs now works correctly and will grab several days of logs
 
 ## [0.3.0-beta3]
 
