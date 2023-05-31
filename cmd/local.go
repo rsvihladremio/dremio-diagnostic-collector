@@ -46,8 +46,8 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/threading"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/threading"
 )
 
 //constants
@@ -345,39 +345,39 @@ func collect(numberThreads int) {
 	if !collectNodeMetrics {
 		simplelog.Info("Skipping Collecting Node Metrics...")
 	} else {
-		t.FireJob(runCollectNodeMetrics)
+		t.AddJob(runCollectNodeMetrics)
 	}
 
 	if !collectJFR {
 		simplelog.Info("skipping Collection of Java Flight Recorder Information")
 	} else {
-		t.FireJob(runCollectJFR)
+		t.AddJob(runCollectJFR)
 	}
 
 	if !collectJStack {
 		simplelog.Info("skipping Collection of java thread dumps")
 	} else {
-		t.FireJob(runCollectJStacks)
+		t.AddJob(runCollectJStacks)
 	}
 
 	if !captureHeapDump {
 		simplelog.Info("skipping Capture of Java Heap Dump")
 	} else {
-		t.FireJob(runCollectHeapDump)
+		t.AddJob(runCollectHeapDump)
 	}
 
 	if !collectDiskUsage {
 		simplelog.Infof("Skipping Collect Disk Usage from %v ...", nodeName)
 	} else {
-		t.FireJob(runCollectDiskUsage)
+		t.AddJob(runCollectDiskUsage)
 	}
 
 	if !collectDremioConfiguration {
 		simplelog.Infof("Skipping Dremio config from %v ...", nodeName)
 	} else {
-		t.FireJob(runCollectDremioConfig)
+		t.AddJob(runCollectDremioConfig)
 	}
-	t.FireJob(runCollectOSConfig)
+	t.AddJob(runCollectOSConfig)
 
 	// log collection
 
@@ -397,74 +397,79 @@ func collect(numberThreads int) {
 		if !collectQueriesJSON {
 			simplelog.Warning("NOT Skipping collection of Queries JSON, because --number-job-profiles is greater than 0 and job profile download requires queries.json ...")
 		}
-		t.FireJob(logCollector.RunCollectQueriesJSON)
+		t.AddJob(logCollector.RunCollectQueriesJSON)
 	}
 
 	if !collectServerLogs {
 		simplelog.Info("Skipping Collect Server Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectDremioServerLog)
+		t.AddJob(logCollector.RunCollectDremioServerLog)
 	}
 
 	if !collectGCLogs {
 		simplelog.Info("Skipping Collect Garbage Collection Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectGcLogs)
+		t.AddJob(logCollector.RunCollectGcLogs)
 	}
 
 	if !collectMetaRefreshLogs {
 		simplelog.Info("Skipping Collect Metadata Refresh Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectMetadataRefreshLogs)
+		t.AddJob(logCollector.RunCollectMetadataRefreshLogs)
 	}
 
 	if !collectReflectionLogs {
 		simplelog.Info("Skipping Collect Reflection Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectReflectionLogs)
+		t.AddJob(logCollector.RunCollectReflectionLogs)
 	}
 
 	if !collectAccelerationLogs {
 		simplelog.Info("Skipping Collect Acceleration Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectAccelerationLogs)
+		t.AddJob(logCollector.RunCollectAccelerationLogs)
 	}
 
 	if !collectAccessLogs {
 		simplelog.Info("Skipping Collect Access Logs  ...")
 	} else {
-		t.FireJob(logCollector.RunCollectDremioAccessLogs)
+		t.AddJob(logCollector.RunCollectDremioAccessLogs)
 	}
 
-	t.FireJob(runCollectJvmConfig)
+	t.AddJob(runCollectJvmConfig)
 
 	// rest call collections
 
 	if !collectKVStoreReport {
 		simplelog.Info("skipping Capture of KV Store Report")
 	} else {
-		t.FireJob(runCollectKvReport)
+		t.AddJob(runCollectKvReport)
 	}
 
 	if !collectWLM {
 		simplelog.Info("skipping Capture of Workload Manager Report")
 	} else {
-		t.FireJob(runCollectWLM)
+		t.AddJob(runCollectWLM)
 	}
 
 	if !collectSystemTablesExport {
 		simplelog.Info("Skipping Collect of Export System Tables...")
 	} else {
-		t.FireJob(runCollectDremioSystemTables)
+		t.AddJob(runCollectDremioSystemTables)
 	}
 
+	if err := t.Wait(); err != nil {
+		simplelog.Errorf("thread pool has an error: %v", err)
+	}
+
+	//we wait on the thread pool to empty out as this is also multithreaded and takes the longest
 	if numberJobProfilesToCollect == 0 {
 		simplelog.Info("Skipping Collect of Job Profiles...")
 	} else {
-		t.FireJob(runCollectJobProfiles)
+		if err := runCollectJobProfiles(); err != nil {
+			simplelog.Errorf("during job profile collection there was an error: %v", err)
+		}
 	}
-
-	t.Wait()
 }
 
 func runCollectDiskUsage() error {
@@ -904,11 +909,19 @@ func runCollectJobProfiles() error {
 	simplelog.Infof("jobProfilesNumRecentErrors: %v", jobProfilesNumRecentErrors)
 
 	simplelog.Infof("Downloading %v job profiles...", len(profilesToCollect))
+	downloadThreadPool := threading.NewThreadPoolWithJobQueue(numberThreads, len(profilesToCollect))
 	for key := range profilesToCollect {
-		err := downloadJobProfile(key)
-		if err != nil {
-			simplelog.Error(err.Error()) // Print instead of Error
-		}
+		downloadThreadPool.AddJob(func() error {
+			err := downloadJobProfile(key)
+			if err != nil {
+				simplelog.Error(err.Error()) // Print instead of Error
+			}
+			return nil
+		})
+	}
+	downloadThreadPool.Start()
+	if err := downloadThreadPool.Wait(); err != nil {
+		simplelog.Errorf("job profile download thread pool wait error %v", err)
 	}
 	simplelog.Infof("Finished downloading %v job profiles", len(profilesToCollect))
 
