@@ -37,7 +37,7 @@ var DirPerms fs.FileMode = 0750
 
 type CopyStrategy interface {
 	CreatePath(fileType, source, nodeType string) (path string, err error)
-	ArchiveDiag(o string, outputLoc string, files []helpers.CollectedFile) error
+	ArchiveDiag(o string, outputLoc string) error
 	GetTmpDir() string
 }
 
@@ -200,7 +200,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args) error {
 	}
 	// archives the collected files
 	// creates the summary file too
-	return s.ArchiveDiag(o, outputLoc, files)
+	return s.ArchiveDiag(o, outputLoc)
 
 }
 

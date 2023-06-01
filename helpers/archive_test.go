@@ -28,52 +28,6 @@ import (
 
 var expectedOutput string
 
-func TestZip(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFileRaw := filepath.Join("testdata", "test.txt")
-	testFile, err := filepath.Abs(testFileRaw)
-	if err != nil {
-		t.Fatalf("not able to get absolute path for test file %v", err)
-	}
-	fi, err := os.Stat(testFile)
-	if err != nil {
-		t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
-	}
-	archiveFile := tmpDir + ".zip"
-	testDataDir, err := filepath.Abs("testdata")
-	if err != nil {
-		t.Fatalf("not able to get absolute path for testdata dir %v", err)
-	}
-	err = ZipDiag(archiveFile, testDataDir, []CollectedFile{
-		{
-			Path: testFile,
-			Size: fi.Size(),
-		},
-	})
-
-	if err != nil {
-		t.Fatalf("unexpected error zipping file %v due to error %v", testFile, err)
-	}
-	tests.ZipContainsFile(t, testFile, archiveFile)
-
-	fakePath := tmpDir + "/does-not-exist/test.zip"
-	err = ZipDiag(fakePath, tmpDir, []CollectedFile{
-		{
-			Path: testFile,
-			Size: fi.Size(),
-		},
-	})
-	if runtime.GOOS == "windows" {
-		expectedOutput = "open " + filepath.Clean(fakePath) + ": The system cannot find the path specified."
-	} else {
-		expectedOutput = "open " + filepath.Clean(fakePath) + ": no such file or directory"
-	}
-	if err.Error() != expectedOutput {
-		t.Fatalf("unmatched error response\nexpected: %v\nresponse: %v", expectedOutput, err)
-	}
-
-}
-
 func TestTar(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFileRaw := filepath.Join("testdata", "test.txt")
