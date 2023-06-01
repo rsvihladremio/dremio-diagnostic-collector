@@ -1301,7 +1301,7 @@ func getDremioPID() (int, error) {
 		procName = "DremioDaemon"
 	}
 	var dremioPIDOutput bytes.Buffer
-	if err := ddcio.Shell(&dremioPIDOutput, fmt.Sprintf("jps | grep %v", procName)); err != nil {
+	if err := ddcio.Shell(&dremioPIDOutput, fmt.Sprintf("jps | grep %v | awk '{print $1}'", procName)); err != nil {
 		simplelog.Warningf("unable to get pid output due to error %v", err)
 	}
 	dremioIDString := strings.TrimSpace(dremioPIDOutput.String())
