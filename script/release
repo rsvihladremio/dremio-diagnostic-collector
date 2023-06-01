@@ -23,23 +23,23 @@ cp ./default-ddc.yaml ./bin/ddc.yaml
 zip ./bin/ddc-linux-amd64.zip ./bin/ddc ./bin/ddc.yaml
 mkdir -p ./bin/linux
 mv ./bin/ddc ./bin/linux/ddc
-mv ./bin/ddc.yaml ./bin/linux/ddc.yaml
+mv ./bin/ddc.yaml ./bin/ddc.yaml
 echo "Building linux-arm64…"
 date "+%H:%M:%S"
 GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-linux-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
+zip ./bin/ddc-linux-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/ddc.yaml
 echo "Building darwin-os-x-amd64…"
 date "+%H:%M:%S"
 GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-darwin-amd64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
+zip ./bin/ddc-darwin-amd64.zip ./bin/ddc ./bin/linux/ddc ./bin/ddc.yaml
 echo "Building darwin-os-x-arm64…"
 date "+%H:%M:%S"
 GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o ./bin/ddc
-zip ./bin/ddc-darwin-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/linux/ddc.yaml
+zip ./bin/ddc-darwin-arm64.zip ./bin/ddc ./bin/linux/ddc ./bin/ddc.yaml
 echo "Building windows-amd64…"
 date "+%H:%M:%S"
 GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o ./bin/ddc.exe
-zip ./bin/ddc-windows-amd64.zip ./bin/ddc.exe ./bin/linux/ddc ./bin/linux/ddc.yaml
+zip ./bin/ddc-windows-amd64.zip ./bin/ddc.exe ./bin/linux/ddc ./bin/ddc.yaml
 
 
 gh release create $VERSION --title $VERSION -F changelog.md ./bin/ddc-windows-amd64.zip ./bin/ddc-darwin-arm64.zip ./bin/ddc-darwin-amd64.zip ./bin/ddc-linux-arm64.zip ./bin/ddc-linux-amd64.zip 

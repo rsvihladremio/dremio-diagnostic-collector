@@ -18,10 +18,11 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 type CmdExecutor interface {
@@ -48,7 +49,7 @@ type Cli struct {
 
 func (c *Cli) Execute(args ...string) (string, error) {
 	//log.Printf("args: %v", args) // useful for debugging
-	log.Printf("args: %v", strings.Join(args, " "))
+	simplelog.Infof("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
@@ -60,7 +61,7 @@ func (c *Cli) Execute(args ...string) (string, error) {
 
 func (c *Cli) ExecuteBytes(args ...string) ([]byte, error) {
 	//log.Printf("args: %v", args) // useful for debugging
-	log.Printf("args: %v", strings.Join(args, " "))
+	simplelog.Infof("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()

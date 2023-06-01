@@ -18,7 +18,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +38,9 @@ var coordinatorStr string
 var executorsStr string
 var sshKeyLoc string
 var sshUser string
-var outputLoc string
+
+const outputLoc = "diag.tgz"
+
 var kubectlPath string
 var isK8s bool
 var sudoUser string
@@ -59,9 +60,9 @@ var rootCmd = &cobra.Command{
 	Long: getVersion() + `ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
-ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio --output diag.zip
+ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-key $HOME/.ssh/id_rsa_dremio
 
-ddc --k8s --kubectl-path /opt/bin/kubectl --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor --output diag.zip
+ddc --k8s --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor 
 `,
 	Run: func(c *cobra.Command, args []string) {
 
@@ -77,30 +78,19 @@ func Execute() {
 		if sshKeyLoc == "" {
 			sshDefault, err := sshDefault()
 			if err != nil {
-				log.Fatalf("unexpected error getting ssh directory '%v'. This is a critical error and should result in a bug report.", err)
+				simplelog.Errorf("unexpected error getting ssh directory '%v'. This is a critical error and should result in a bug report.", err)
+				os.Exit(1)
 			}
 			sshKeyLoc = sshDefault
 		}
-
-		logOutput := os.Stdout
 
 		collectionArgs := collection.Args{
 			CoordinatorStr: coordinatorStr,
 			ExecutorsStr:   executorsStr,
 			OutputLoc:      filepath.Clean(outputLoc),
-			DremioConfDir:  filepath.Clean(dremioConfDir),
-			DremioLogDir:   filepath.Clean(dremioLogDir),
-			JfrDuration:    dremioJFRTimeSeconds,
 			SudoUser:       sudoUser,
 			DDCfs:          helpers.NewRealFileSystem(),
 		}
-
-		// All dremio deployments will be Linux based so we have to switch the path seperator on these two elements
-		// since https://pkg.go.dev/path/filepath?utm_source=gopls#Clean shows that Clean will replace the slash with OS local seperator
-		confdir := collectionArgs.DremioConfDir
-		logdir := collectionArgs.DremioLogDir
-		collectionArgs.DremioConfDir = strings.Replace(confdir, `\`, `/`, -1)
-		collectionArgs.DremioLogDir = strings.Replace(logdir, `\`, `/`, -1)
 
 		err := validateParameters(collectionArgs, sshKeyLoc, sshUser, isK8s)
 		if err != nil {
@@ -108,7 +98,8 @@ func Execute() {
 			fmt.Println("")
 			err := rootCmd.Help()
 			if err != nil {
-				log.Fatalf("unable to print help %v", err)
+				simplelog.Errorf("unable to print help %v", err)
+				os.Exit(1)
 			}
 			fmt.Println("")
 			fmt.Println("")
@@ -117,7 +108,7 @@ func Execute() {
 			os.Exit(1)
 		}
 		fmt.Println(getVersion())
-
+		fmt.Printf("cli command: %v\n", strings.Join(os.Args, " "))
 		cs := helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
@@ -125,25 +116,25 @@ func Execute() {
 		// Determine namespace
 		var collectorStrategy collection.Collector
 		if isK8s {
-			log.Print("using Kubernetes kubectl based collection")
+			simplelog.Info("using Kubernetes kubectl based collection")
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer, namespace)
 			err = collection.ClusterK8sExecute(namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
 			if err != nil {
 				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
 			}
 		} else {
-			log.Print("using SSH based collection")
+			simplelog.Info("using SSH based collection")
 			collectorStrategy = ssh.NewCmdSSHActions(sshKeyLoc, sshUser)
 		}
 
 		// Launch the collection
 		err = collection.Execute(collectorStrategy,
 			cs,
-			logOutput,
 			collectionArgs,
 		)
 		if err != nil {
-			log.Fatalf("unexpected error running collection '%v'", err)
+			simplelog.Errorf("unexpected error running collection '%v'", err)
+			os.Exit(1)
 		}
 	}
 	if err := rootCmd.Execute(); err != nil {
@@ -179,12 +170,9 @@ func init() {
 	rootCmd.Flags().StringVarP(&executorsStr, "executors", "e", "", "either a common separated list or a ip range of executors nodes to connect to. With ssh set a list of ip addresses separated by commas. In K8s use a label that matches to the pod(s).")
 	rootCmd.Flags().StringVarP(&sshKeyLoc, "ssh-key", "s", "", "location of ssh key to use to login")
 	rootCmd.Flags().StringVarP(&sshUser, "ssh-user", "u", "", "user to use during ssh operations to login")
-	rootCmd.Flags().StringVarP(&outputLoc, "output", "o", "diag.tgz", "filename of the resulting archived (tar) and compressed (gzip) file")
 	rootCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "namespace to use for kubernetes pods")
 	rootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "where to find kubectl")
 	rootCmd.Flags().BoolVarP(&isK8s, "k8s", "k", false, "use kubernetes to retrieve the diagnostics instead of ssh, instead of hosts pass in labels to the --cordinator and --executors flags")
-	rootCmd.Flags().StringVarP(&dremioConfDir, "dremio-conf-dir", "C", "", "directory where to find the configuration files for kubernetes this defaults to /opt/dremio/conf and for ssh this defaults to /etc/dremio/")
-	rootCmd.Flags().StringVarP(&dremioLogDir, "dremio-log-dir", "l", "/var/log/dremio", "directory where to find the logs")
 	rootCmd.Flags().StringVarP(&sudoUser, "sudo-user", "b", "", "if any diagnostcs commands need a sudo user (i.e. for jcmd)")
 	simplelog.InitLogger(3)
 	// TODO implement embedded k8s and ssh support using go libs

@@ -32,24 +32,10 @@ type SystemMetricsRow struct {
 	CachedRAMMB         float64 `json:"cachedRAMMB"`
 }
 
-func writeSystemMetrics(nodeMetricsFile string, header string, addRow func(SystemMetricsRow) (string, error)) error {
-	w, err := os.Create(path.Clean(nodeMetricsFile))
-	if err != nil {
-		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
-	}
-	defer func() {
-		if err := w.Close(); err != nil {
-			simplelog.Errorf("Failure writing file %v as we are unable to close it due to error '%v'", nodeMetricsFile, err)
-		}
-	}()
-
+func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
 	iterations := 60
 	interval := time.Second
 
-	_, err = w.Write([]byte(header))
-	if err != nil {
-		return fmt.Errorf("unable to write output string %v due to %v", header, err)
-	}
 	prevDiskIO, _ := disk.IOCounters()
 	for i := 0; i < iterations; i++ {
 		// Sleep
@@ -100,6 +86,27 @@ func writeSystemMetrics(nodeMetricsFile string, header string, addRow func(Syste
 			FreeRAMMB:   memoreFreeMB,
 			CachedRAMMB: memoryCachedMB,
 		}
+		rows = append(rows, row)
+	}
+	return
+}
+
+func writeSystemMetrics(nodeMetricsFile string, header string, rows []SystemMetricsRow, addRow func(SystemMetricsRow) (string, error)) error {
+	w, err := os.Create(path.Clean(nodeMetricsFile))
+	if err != nil {
+		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			simplelog.Debugf("unable to close file %v due to error '%v'. This is probably ok because we manually close the file as well", nodeMetricsFile, err)
+		}
+	}()
+
+	_, err = w.Write([]byte(header))
+	if err != nil {
+		return fmt.Errorf("unable to write output string %v due to %v", header, err)
+	}
+	for _, row := range rows {
 		rowString, err := addRow(row)
 		if err != nil {
 			return fmt.Errorf("unable to convert row %#v into string due to error %v", row, err)
@@ -110,39 +117,46 @@ func writeSystemMetrics(nodeMetricsFile string, header string, addRow func(Syste
 			return fmt.Errorf("unable to write output string %v due to %v", row, err)
 		}
 	}
-	return nil
+	return w.Close()
 }
 
-func addRow(row SystemMetricsRow) (string, error) {
-	otherCPU := row.NiceCPUPercent + row.IRQCPUPercent + row.SoftIRQCPUPercent + row.StealCPUPercent + row.GuestCPUPercent + row.GuestNiceCPUPercent
-	var readBytesMB, writeBytesMB, freeRAMGB float64
-	if row.ReadBytes > 0 {
-		readBytesMB = float64(row.ReadBytes) / (1024 * 1024)
+func SystemMetrics(nodeMetricsFile, nodeMetricsJSONFile string) error {
+	rows, err := collectSystemMetrics()
+	if err != nil {
+		return fmt.Errorf("unable to collect system metrics with error %v", err)
 	}
-	if row.WriteBytes > 0 {
-		writeBytesMB = float64(row.WriteBytes) / (1024 * 1024)
-	}
-	if row.FreeRAMMB > 0 {
-		freeRAMGB = float64(row.FreeRAMMB) / 1024.0
-	}
-	return fmt.Sprintf("%s\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f\t\t%.2f\t\t%.2f\\t\t%.2f\t\t%.2f\n",
-		time.Now().Format("15:04:05"), row.UserCPUPercent, row.SystemCPUPercent, row.IOWaitCPUPercent, otherCPU, row.QueueDepth, row.DiskLatency, readBytesMB, writeBytesMB, freeRAMGB), nil
-}
-func SystemMetricsToLog(nodeMetricsFileLoc string) error {
-	header := fmt.Sprintf("Time\t\tUser %%\t\tSystem %%\t\tIdle %%\t\tIO Wait%%\t\tOther %%\t\tQueue Depth\tDisk Latency (ms)\tDisk Read (KB/s)\tDisk Write (KB/s)\tFree Mem (MB)\n")
-	return writeSystemMetrics(nodeMetricsFileLoc, header, addRow)
-}
 
-func SystemMetricsToJSON(nodeMetricsFile string) error {
-	header := ""
-	addRow := func(row SystemMetricsRow) (string, error) {
+	//write metrics.txt file
+	txtHeader := fmt.Sprintf("Time\t\tUser %%\t\tSystem %%\t\tIdle %%\t\tIO Wait%%\t\tOther %%\t\tQueue Depth\tDisk Latency (ms)\tDisk Read (KB/s)\tDisk Write (KB/s)\tFree Mem (MB)\n")
+	if err := writeSystemMetrics(nodeMetricsFile, txtHeader, rows, func(row SystemMetricsRow) (string, error) {
+		otherCPU := row.NiceCPUPercent + row.IRQCPUPercent + row.SoftIRQCPUPercent + row.StealCPUPercent + row.GuestCPUPercent + row.GuestNiceCPUPercent
+		var readBytesMB, writeBytesMB, freeRAMGB float64
+		if row.ReadBytes > 0 {
+			readBytesMB = float64(row.ReadBytes) / (1024 * 1024)
+		}
+		if row.WriteBytes > 0 {
+			writeBytesMB = float64(row.WriteBytes) / (1024 * 1024)
+		}
+		if row.FreeRAMMB > 0 {
+			freeRAMGB = float64(row.FreeRAMMB) / 1024.0
+		}
+		return fmt.Sprintf("%s\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f\t\t%.2f\t\t%.2f\\t\t%.2f\t\t%.2f\n",
+			time.Now().Format("15:04:05"), row.UserCPUPercent, row.SystemCPUPercent, row.IOWaitCPUPercent, otherCPU, row.QueueDepth, row.DiskLatency, readBytesMB, writeBytesMB, freeRAMGB), nil
+	}); err != nil {
+		return fmt.Errorf("unable to write metrics file %v due to error %v", nodeMetricsFile, err)
+	}
+
+	//write json file
+	if err := writeSystemMetrics(nodeMetricsJSONFile, "", rows, func(row SystemMetricsRow) (string, error) {
 		str, err := json.Marshal(&row)
 		if err != nil {
 			return "", fmt.Errorf("unable to marshal row %#v due to error %v", row, err)
 		}
 		return string(str), nil
+	}); err != nil {
+		return fmt.Errorf("unable to write metrics file %v due to error %v", nodeMetricsFile, err)
 	}
-	return writeSystemMetrics(nodeMetricsFile, header, addRow)
+	return nil
 }
 
 func getTotalTime(c cpu.TimesStat) float64 {
