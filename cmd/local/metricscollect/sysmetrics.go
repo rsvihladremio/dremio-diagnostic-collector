@@ -112,13 +112,17 @@ func writeSystemMetrics(useTabWriter bool, nodeMetricsFile string, header string
 		tabWriter := tabwriter.NewWriter(w, 5, 0, 1, ' ', tabwriter.AlignRight)
 		writer = tabWriter
 		cleanup = func() {
-			tabWriter.Flush()
+			if err := tabWriter.Flush(); err != nil {
+				simplelog.Warningf("unable to flush metrics file %v due to error %v", nodeMetricsFile, err)
+			}
 		}
 	} else {
 		bufWriter := bufio.NewWriter(w)
 		writer = bufWriter
 		cleanup = func() {
-			bufWriter.Flush()
+			if err := bufWriter.Flush(); err != nil {
+				simplelog.Warningf("unable to flush metrics file %v due to error %v", nodeMetricsFile, err)
+			}
 		}
 	}
 	_, err = writer.Write([]byte(header))
