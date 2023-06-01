@@ -17,7 +17,6 @@ package helpers
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -120,18 +119,13 @@ func (s *CopyStrategyHC) ClusterPath() (path string, err error) {
 }
 
 // Archive calls out to the main archive function
-func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, files []CollectedFile) error {
+func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
-	err := s.Fs.WriteFile(summaryFile, []byte(o), 0600)
-	if err != nil {
+	if err := s.Fs.WriteFile(summaryFile, []byte(o), 0600); err != nil {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
-	// add the summary file to the list
-	files = append(files, CollectedFile{
-		Path: summaryFile,
-		Size: int64(len([]byte(o))),
-	})
+
 	// cleanup when done
 	defer func() {
 		simplelog.Infof("cleaning up temp directory %v", s.TmpDir)
@@ -140,23 +134,14 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, files []Collect
 			simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
+
 	// create completed file (its not gzipped)
-	file, err := s.createHCFiles()
-	if err != nil {
+	if _, err := s.createHCFiles(); err != nil {
 		return err
 	}
-	// Add file info
-	fi, _ := os.Stat(file)
-	files = append(files, CollectedFile{
-		Path: file,
-		Size: fi.Size(),
-	})
+
 	// call general archive routine
-	err = ArchiveDiagDirectory(outputLoc, s.TmpDir, files)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ArchiveDiagDirectory(outputLoc, s.TmpDir)
 }
 
 // This function creates a couple of supplemental files required for the HC data to be uploaded

@@ -76,7 +76,7 @@ func (s *MockStrategy) GzipAllFiles(_ string) ([]helpers.CollectedFile, error) {
 	return nil, nil
 }
 
-func (s *MockStrategy) ArchiveDiag(_ string, _ string, _ []helpers.CollectedFile) error {
+func (s *MockStrategy) ArchiveDiag(_ string, _ string) error {
 	return nil
 }
 
@@ -256,119 +256,6 @@ func TestFindHostsExecutors(t *testing.T) {
 	}
 }
 
-/*
-func TestFailIOstat(t *testing.T) {
-	var returnValues []string
-	var callValues []string
-	callValues = append(callValues, "dremio-coordinator-1", "dremio-eecutor-0", "dremio-executor-1")
-	tmpDir := t.TempDir()
-
-	mockStrategy := &MockStrategy{
-		StrategyName: "healthcheck",
-		BaseDir:      tmpDir,
-	}
-
-	mockCollector := &MockCapCollector{
-		Calls:   callValues,
-		Returns: returnValues,
-	}
-	logOutput := os.Stdout
-	fakeFS := helpers.NewFakeFileSystem()
-	fakeTmp, _ := fakeFS.MkdirTemp("fake", "fake")
-	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-ok",
-		ExecutorsStr:              "10.2.3.4-ok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
-	}
-
-	fakeArgs.ExecutorsStr = "dremio-ok"
-	expected := "Mock execute for ok command: iostat -y -x -d -c -t 1 5"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
-	if err.Error() != expected {
-		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
-	}
-
-}
-*/
-
-func TestZipArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-	//testing zip
-	archiveFile := filepath.Join(tmpDir, "test.zip")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.ZipContainsFile(t, testFile, archiveFile)
-}
-
-func TestTarArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-
-	//testing tar
-	archiveFile := filepath.Join(tmpDir, "test.tar")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.TarContainsFile(t, testFile, archiveFile)
-}
-
-func TestTargzArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-	//testing tar gunzip
-	archiveFile := filepath.Join(tmpDir, "test.tar.gz")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.TgzContainsFile(t, testFile, archiveFile)
-}
-
 func TestTgzArchive(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -377,16 +264,9 @@ func TestTgzArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-
 	//testing tgz
 	archiveFile := filepath.Join(tmpDir, "test.tgz")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}

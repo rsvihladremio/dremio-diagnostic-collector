@@ -71,27 +71,22 @@ func TestArchiveDiagHC(t *testing.T) {
 	testStrat := NewHCCopyStrategy(ddcfs)
 	tmpDir := t.TempDir()
 	testFileRaw := filepath.Join("testdata", "test.txt")
-	testFile, err := filepath.Abs(testFileRaw)
-	if err != nil {
+	if testFile, err := filepath.Abs(testFileRaw); err != nil {
 		t.Fatalf("not able to get absolute path for test file %v", err)
+	} else {
+		if _, err := ddcfs.Stat(testFile); err != nil {
+			t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
+		}
+		archiveFile := tmpDir + ".tgz"
+		if err != nil {
+			t.Fatalf("not able to get absolute path for testdata dir %v", err)
+		}
+
+		// Test Archive, pushes a teal test file into a zip archive
+		err = testStrat.ArchiveDiag("test", archiveFile)
+		if err != nil {
+			t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
+		}
 	}
-	fi, err := ddcfs.Stat(testFile)
-	if err != nil {
-		t.Fatalf("unexpected error getting file size for file %v due to error %v", testFile, err)
-	}
-	archiveFile := tmpDir + ".zip"
-	if err != nil {
-		t.Fatalf("not able to get absolute path for testdata dir %v", err)
-	}
-	testFiles := []CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(fi.Size()),
-		},
-	}
-	// Test Archive, pushes a teal test file into a zip archive
-	err = testStrat.ArchiveDiag("test", archiveFile, testFiles)
-	if err != nil {
-		t.Errorf("\nERROR: gzip file: \nexpected:\t%v\nactual:\t\t%v\n", nil, err)
-	}
+
 }
