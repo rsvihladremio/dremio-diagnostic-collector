@@ -207,28 +207,21 @@ func TestFindHostsCoordinators(t *testing.T) {
 		Returns: returnValues,
 	}
 
-	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
 	mockStrategy := NewMockStrategy(fakeFS)
 	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-nok",
-		ExecutorsStr:              "10.2.3.4-nok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
+		DDCfs:          fakeFS,
+		CoordinatorStr: "10.1.2.3-nok",
+		ExecutorsStr:   "10.2.3.4-nok",
+		OutputLoc:      fakeTmp,
+		CopyStrategy:   mockStrategy,
 	}
 
 	// Test for incorrect host
 	fakeArgs.CoordinatorStr = "dremio-master-99"
 	expected := "ERROR: no hosts found matching dremio-master-99"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
+	err := Execute(mockCollector, fakeArgs.CopyStrategy, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("\nERROR: finding coordinators: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
@@ -244,27 +237,20 @@ func TestFindHostsExecutors(t *testing.T) {
 		Returns: returnValues,
 	}
 
-	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
 	mockStrategy := NewMockStrategy(fakeFS)
 	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-ok",
-		ExecutorsStr:              "10.2.3.4-nok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
+		DDCfs:          fakeFS,
+		CoordinatorStr: "10.1.2.3-ok",
+		ExecutorsStr:   "10.2.3.4-nok",
+		OutputLoc:      fakeTmp,
+		CopyStrategy:   mockStrategy,
 	}
 
 	fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected := "ERROR: no hosts found matching dremio-executor-99"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
+	err := Execute(mockCollector, fakeArgs.CopyStrategy, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("\nERROR: finding executors: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}

@@ -586,19 +586,19 @@ func runCollectOSConfig() error {
 func runCollectDremioConfig() error {
 	simplelog.Infof("Collecting Configuration Information from %v ...", nodeName)
 
-	err := ddcio.CopyFile("/opt/dremio/conf/dremio.conf", filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
+	err := ddcio.CopyFile(filepath.Join(dremioConfDir, "dremio.conf"), filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
 	if err != nil {
 		simplelog.Warningf("unable to copy dremio.conf due to error %v", err)
 	}
-	err = ddcio.CopyFile("/opt/dremio/conf/dremio-env", filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
+	err = ddcio.CopyFile(filepath.Join(dremioConfDir, "dremio-env"), filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
 	if err != nil {
 		simplelog.Warningf("unable to copy dremio.env due to error %v", err)
 	}
-	err = ddcio.CopyFile("/opt/dremio/conf/logback.xml", filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
+	err = ddcio.CopyFile(filepath.Join(dremioConfDir, "logback.xml"), filepath.Join(outputDir, "configuration", nodeName, "logback.xml"))
 	if err != nil {
 		simplelog.Warningf("unable to copy logback.xml due to error %v", err)
 	}
-	err = ddcio.CopyFile("/opt/dremio/conf/logback-access.xml", filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
+	err = ddcio.CopyFile(filepath.Join(dremioConfDir, "logback-access.xml"), filepath.Join(outputDir, "configuration", nodeName, "logback-access.xml"))
 	if err != nil {
 		simplelog.Warningf("unable to copy logback-access.xml due to error %v", err)
 	}
@@ -635,17 +635,10 @@ func runCollectJvmConfig() error {
 
 func runCollectNodeMetrics() error {
 	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
-	nodeMetricsFile := path.Clean(path.Join(outputDir, "node-info", nodeName, "metrics.json"))
-	w, err := os.Create(path.Clean(nodeMetricsFile))
-	if err != nil {
-		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
-	}
-	defer func() {
-		if err := w.Close(); err != nil {
-			simplelog.Errorf("Failure writing file %v as we are unable to close it due to error '%v'", nodeMetricsFile, err)
-		}
-	}()
-	return metricscollect.SystemMetricsToJSON(nodeMetricsFile)
+	nodeInfoDir := path.Join(outputDir, "node-info", nodeName)
+	nodeMetricsFile := path.Join(nodeInfoDir, "metrics.txt")
+	nodeMetricsJSONFile := path.Join(nodeInfoDir, "metrics.json")
+	return metricscollect.SystemMetrics(path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile))
 }
 
 func runCollectJFR() error {
@@ -1046,6 +1039,21 @@ var localCollectCmd = &cobra.Command{
 		collectAccessLogs = viper.GetBool("collect-access-log")
 		gcLogsDir = viper.GetString("dremio-gclogs-dir")
 		dremioLogDir = viper.GetString("dremio-log-dir")
+		// parse in the nodeName now because it is used for dremioLogDir in awse
+		nodeName = viper.GetString("node-name")
+		isAWSE, err := isAWSE()
+		if err != nil {
+			simplelog.Warningf("unable to determind if node is AWSE or not due to error %v", err)
+		}
+		if isAWSE {
+			if strings.Contains(dremioLogDir, nodeName) {
+				simplelog.Warningf("node name %v already included in log directory of %v make this is intentional as you do not need to put the node name in the log path", nodeName, dremioLogDir)
+			} else {
+				dremioLogDir = path.Join(dremioLogDir, nodeName)
+				simplelog.Infof("AWSE detected adding the node name %v to the log directory path %v", nodeName, dremioLogDir)
+			}
+		}
+		dremioConfDir = viper.GetString("dremio-conf-dir")
 		numberThreads = viper.GetInt("number-threads")
 		dremioEndpoint = viper.GetString("dremio-endpoint")
 		dremioUsername = viper.GetString("dremio-username")
@@ -1055,8 +1063,6 @@ var localCollectCmd = &cobra.Command{
 		numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
 		captureHeapDump = viper.GetBool("capture-heap-dump")
 
-		// read the stuff that is only parsed in the configuration
-		nodeName = viper.GetString("node-name")
 		//system diag
 
 		collectNodeMetrics = viper.GetBool("collect-metrics")
@@ -1071,7 +1077,7 @@ var localCollectCmd = &cobra.Command{
 		collectServerLogs = viper.GetBool("collect-server-logs")
 		collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
 		collectReflectionLogs = viper.GetBool("collect-reflection-log")
-		collectReflectionLogs = viper.GetBool("skip-collect-gc-logs")
+		collectGCLogs = viper.GetBool("collect-gc-logs")
 		gcLogsDir = viper.GetString("dremio-gclogs-dir")
 
 		// jfr config
@@ -1156,7 +1162,7 @@ var localCollectCmd = &cobra.Command{
 				simplelog.Warningf("due to configuration parameters new total jobs profiles collected has been adjusted to %v", totalAllocated)
 			}
 		}
-		fmt.Printf("Current configuration: %+v\n", viper.AllSettings())
+		simplelog.Infof("Current configuration: %+v", viper.AllSettings())
 
 		if !acceptCollectionConsent {
 			fmt.Println(outputConsent())
@@ -1271,10 +1277,32 @@ func getOutputDir(now time.Time) string {
 	return filepath.Join(os.TempDir(), "ddc", nowStr)
 }
 
-func getDremioPID() (int, error) {
+func isAWSE() (bool, error) {
 	var dremioPIDOutput bytes.Buffer
-	if err := ddcio.Shell(&dremioPIDOutput, "jps | grep DremioDaemon | awk '{print $1}'"); err != nil {
-		simplelog.Warningf("Error trying to unlock commercial features %v. Note: newer versions of OpenJDK do not support the call VM.unlock_commercial_features. This is usually safe to ignore", err)
+	if err := ddcio.Shell(&dremioPIDOutput, "jps | grep DremioDaemon"); err != nil {
+		return false, fmt.Errorf("unable to get pid output due to error %v", err)
+	}
+	dremioPIDString := dremioPIDOutput.String()
+	if strings.Contains(dremioPIDString, "AwsDremioDaemon") {
+		return true, nil
+	}
+	return false, nil
+}
+
+func getDremioPID() (int, error) {
+	isAWSE, err := isAWSE()
+	if err != nil {
+		return -1, fmt.Errorf("unable to read pid due to error %v", err)
+	}
+	var procName string
+	if isAWSE {
+		procName = "AwsDremioDaemon"
+	} else {
+		procName = "DremioDaemon"
+	}
+	var dremioPIDOutput bytes.Buffer
+	if err := ddcio.Shell(&dremioPIDOutput, fmt.Sprintf("jps | grep %v | awk '{print $1}'", procName)); err != nil {
+		simplelog.Warningf("unable to get pid output due to error %v", err)
 	}
 	dremioIDString := strings.TrimSpace(dremioPIDOutput.String())
 	dremioPID, err := strconv.Atoi(dremioIDString)
@@ -1301,6 +1329,7 @@ func init() {
 	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "", "Dremio username")
 	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
 	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "", "Path to Dremio RocksDB directory")
+	localCollectCmd.Flags().StringVar(&dremioConfDir, "dremio-conf-dir", "", "Directory where to find the configuration files")
 	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
 	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
 	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
@@ -1318,6 +1347,7 @@ func initConfig() {
 	viper.SetDefault("number-threads", defaultThreads)
 	viper.SetDefault("dremio-log-dir", "dremio")
 	viper.SetDefault("dremio-pat-token", "")
+	viper.SetDefault("dremio-conf-dir", "/opt/dremio/conf")
 	viper.SetDefault("dremio-rocksdb-dir", "/opt/dremio/data/db")
 	viper.SetDefault("collect-dremio-configuration", true)
 	viper.SetDefault("capture-heap-dump", false)
@@ -1333,7 +1363,7 @@ func initConfig() {
 	viper.SetDefault("collect-server-logs", true)
 	viper.SetDefault("collect-meta-refresh-log", true)
 	viper.SetDefault("collect-reflection-log", true)
-	viper.SetDefault("skip-collect-gc-logs", true)
+	viper.SetDefault("collect-gc-logs", true)
 	viper.SetDefault("collect-jfr", true)
 	viper.SetDefault("collect-jstack", true)
 	viper.SetDefault("collect-system-tables-export", true)
@@ -1346,7 +1376,7 @@ func initConfig() {
 
 	parsedGCLogDir, err := findGCLogLocation()
 	if err != nil {
-		simplelog.Errorf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
+		simplelog.Warningf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
 	}
 	viper.SetDefault("dremio-gclogs-dir", parsedGCLogDir)
 	// set node name
