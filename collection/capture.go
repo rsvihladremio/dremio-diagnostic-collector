@@ -35,7 +35,7 @@ func (fe FindErr) Error() string {
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outputLoc string) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 
 	ddcTmpDir := "/tmp/ddc"
@@ -70,11 +70,10 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (fil
 		}
 	}
 	//always update the configuration
-	pathToDDCYAML := path.Join(ddcTmpDir, path.Base(localDDCPath)+".yaml")
-	localDDCYAML := localDDCPath + ".yaml"
-	if out, err := ComposeCopyTo(conf, localDDCYAML, pathToDDCYAML); err != nil {
+	pathToDDCYAML := path.Join(ddcTmpDir, path.Base(localDDCYamlPath))
+	if out, err := ComposeCopyTo(conf, localDDCYamlPath, pathToDDCYAML); err != nil {
 		failedFiles = append(failedFiles, FailedFiles{
-			Path: localDDCYAML,
+			Path: localDDCYamlPath,
 			Err:  fmt.Errorf("unable to copy local ddc yaml to remote path due to error: '%v' with output '%v'", err, out),
 		})
 	} else {

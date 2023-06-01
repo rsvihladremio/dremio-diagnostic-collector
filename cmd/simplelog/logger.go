@@ -89,8 +89,8 @@ func NewLogger(level int) *Logger {
 
 	return &Logger{
 		debugLogger:   log.New(debugOut, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile),
-		infoLogger:    log.New(infoOut, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
-		warningLogger: log.New(warningOut, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile),
+		infoLogger:    log.New(infoOut, "INFO:  ", log.Ldate|log.Ltime|log.Lshortfile),
+		warningLogger: log.New(warningOut, "WARN:  ", log.Ldate|log.Ltime|log.Lshortfile),
 		errorLogger:   log.New(errorOut, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
 	}
 }

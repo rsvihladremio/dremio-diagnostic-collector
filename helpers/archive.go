@@ -22,7 +22,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -61,7 +60,7 @@ func ArchiveDiagDirectory(outputFile, outputDir string, _ []CollectedFile) error
 		}
 		defer func() {
 			if err := os.Remove(tempFile); err != nil {
-				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
+				simplelog.Warningf("unable to delete file '%v' due to '%v'", tempFile, err)
 			}
 		}()
 		if err := GZipDiag(outputFile, outputDir, tempFile); err != nil {
@@ -88,7 +87,7 @@ func ArchiveDiagFromList(outputFile, outputDir string, fileList []CollectedFile)
 		}
 		defer func() {
 			if err := os.Remove(tempFile); err != nil {
-				log.Printf("WARN unable to delete file '%v' due to '%v'", tempFile, err)
+				simplelog.Warningf("unable to delete file '%v' due to '%v'", tempFile, err)
 			}
 		}()
 		if err := GZipDiag(outputFile, outputDir, tempFile); err != nil {
@@ -111,7 +110,7 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	defer func() {
 		err := tarFile.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", tarFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", tarFileName, err)
 		}
 	}()
 	// Create a new tar archive.
@@ -119,7 +118,7 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 	defer func() {
 		err := tw.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", tarFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", tarFileName, err)
 		}
 	}()
 	for _, collectedFile := range files {
@@ -131,7 +130,7 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		if fi.IsDir() {
 			continue
 		}
-		log.Printf("taring file %v", file)
+		simplelog.Infof("taring file %v", file)
 		rf, err := os.Open(filepath.Clean(file))
 		if err != nil {
 			return err
@@ -139,7 +138,7 @@ func TarDiag(tarFileName string, baseDir string, files []CollectedFile) error {
 		defer func() {
 			err := rf.Close()
 			if err != nil {
-				log.Printf("unable to close file %v due to error %v", tarFileName, err)
+				simplelog.Warningf("unable to close file %v due to error %v", tarFileName, err)
 			}
 		}()
 		fileWithoutDir := file[len(baseDir):]
@@ -178,7 +177,7 @@ func GZipDiag(zipFileName string, _ string, file string) error {
 	defer func() {
 		err := zipFile.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 
 	}()
@@ -187,10 +186,10 @@ func GZipDiag(zipFileName string, _ string, file string) error {
 	defer func() {
 		err := w.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 	}()
-	log.Printf("gzipping file %v into %v", file, zipFileName)
+	simplelog.Infof("gzipping file %v into %v", file, zipFileName)
 	rf, err := os.Open(filepath.Clean(file))
 	if err != nil {
 		return err
@@ -198,7 +197,7 @@ func GZipDiag(zipFileName string, _ string, file string) error {
 	defer func() {
 		err := rf.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 	}()
 	_, err = io.Copy(w, rf)
@@ -217,7 +216,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 	defer func() {
 		err := zipFile.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 	}()
 	// Create a new zip archive.
@@ -225,7 +224,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 	defer func() {
 		err := w.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 	}()
 	// Add some files to the archive.
@@ -235,12 +234,12 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 		if err != nil {
 			// log instead of return error to make non-fatal. We might be missing some files in
 			// the archive but as long as we log it, something is better than nothing
-			log.Printf("error while checking path %v with error %v", filepath.Clean(file), err)
+			simplelog.Warningf("error while checking path %v with error %v", filepath.Clean(file), err)
 		} else {
 			if fi.IsDir() {
 				continue
 			}
-			log.Printf("zipping file %v", file)
+			simplelog.Infof("zipping file %v", file)
 			// Trim off the tmp dir to leave file and path you need in the archive
 			//fileWithoutDir := strings.TrimPrefix(file, fmt.Sprintf("%v%v", baseDir, filepath.Separator))
 			fileWithoutDir := file[len(baseDir):]
@@ -262,7 +261,7 @@ func ZipDiag(zipFileName string, baseDir string, files []CollectedFile) error {
 			defer func() {
 				err := rf.Close()
 				if err != nil {
-					log.Printf("WARN unable to close file %v due to error %v", file, err)
+					simplelog.Warningf("unable to close file %v due to error %v", file, err)
 				}
 			}()
 			fileBytes, err := os.ReadFile(collectedFile.Path)
@@ -366,7 +365,7 @@ func gZipFile(zipFileName, file string) error {
 	defer func() {
 		err := zipFile.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 
 	}()
@@ -375,10 +374,10 @@ func gZipFile(zipFileName, file string) error {
 	defer func() {
 		err := w.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 	}()
-	log.Printf("gzipping file %v into %v", file, zipFileName)
+	simplelog.Infof("gzipping file %v into %v", file, zipFileName)
 	rf, err := os.Open(filepath.Clean(file))
 	if err != nil {
 		return err
@@ -386,11 +385,11 @@ func gZipFile(zipFileName, file string) error {
 	defer func() {
 		err := rf.Close()
 		if err != nil {
-			log.Printf("unable to close file %v due to error %v", zipFileName, err)
+			simplelog.Warningf("unable to close file %v due to error %v", zipFileName, err)
 		}
 		err = os.Remove(rf.Name())
 		if err != nil {
-			log.Printf("unable to remove file %v due to error %v", rf, err)
+			simplelog.Warningf("unable to remove file %v due to error %v", rf, err)
 		}
 	}()
 	_, err = io.Copy(w, rf)

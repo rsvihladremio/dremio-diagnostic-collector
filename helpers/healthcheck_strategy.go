@@ -17,12 +17,13 @@ package helpers
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 func NewHCCopyStrategy(ddcfs Filesystem) *CopyStrategyHC {
@@ -133,10 +134,10 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string, files []Collect
 	})
 	// cleanup when done
 	defer func() {
-		log.Printf("cleaning up temp directory %v", s.TmpDir)
+		simplelog.Infof("cleaning up temp directory %v", s.TmpDir)
 		//temp folders stay around forever unless we tell them to go away
 		if err := s.Fs.RemoveAll(s.TmpDir); err != nil {
-			log.Printf("WARN: unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
+			simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
 		}
 	}()
 	// create completed file (its not gzipped)

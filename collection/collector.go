@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -52,57 +51,32 @@ type Collector interface {
 }
 
 type Args struct {
-	DDCfs                     helpers.Filesystem
-	CoordinatorStr            string
-	ExecutorsStr              string
-	OutputLoc                 string
-	DremioConfDir             string
-	DremioLogDir              string
-	DremioGcDir               string
-	GCLogOverride             string
-	DurationDiagnosticTooling int
-	LogAge                    int
-	JfrDuration               int
-	SudoUser                  string
-	SizeLimit                 int64
-	ExcludeFiles              []string
-	CopyStrategy              CopyStrategy
+	DDCfs          helpers.Filesystem
+	CoordinatorStr string
+	ExecutorsStr   string
+	OutputLoc      string
+	SudoUser       string
+	CopyStrategy   CopyStrategy
 }
 
 type HostCaptureConfiguration struct {
-	NodeCaptureOutput         string
-	Logger                    *log.Logger
-	IsCoordinator             bool
-	Collector                 Collector
-	Host                      string
-	OutputLocation            string
-	DremioConfDir             string
-	DremioLogDir              string
-	DurationDiagnosticTooling int
-	GCLogOverride             string
-	LogAge                    int
-	jfrduration               int
-	SudoUser                  string
-	SizeLimit                 int64
-	ExcludeFiles              []string
-	CopyStrategy              CopyStrategy
-	DDCfs                     helpers.Filesystem
+	NodeCaptureOutput string
+	IsCoordinator     bool
+	Collector         Collector
+	Host              string
+	OutputLocation    string
+	SudoUser          string
+	CopyStrategy      CopyStrategy
+	DDCfs             helpers.Filesystem
 }
 
-func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Args) error {
+func Execute(c Collector, s CopyStrategy, collectionArgs Args) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
 	outputLoc := collectionArgs.OutputLoc
-	dremioConfDir := collectionArgs.DremioConfDir
-	dremioLogDir := collectionArgs.DremioLogDir
-	dremioGcDir := collectionArgs.GCLogOverride
-	logAge := collectionArgs.LogAge
-	jfrduration := collectionArgs.JfrDuration
 	sudoUser := collectionArgs.SudoUser
 	ddcfs := collectionArgs.DDCfs
-	limit := collectionArgs.SizeLimit
-	excludefiles := collectionArgs.ExcludeFiles
 	operationSystem := runtime.GOOS
 	arch := runtime.GOARCH
 	var ddcLoc string
@@ -111,12 +85,14 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 	if err != nil {
 		return fmt.Errorf("unable to to find ddc cannot copy it to hosts due to error '%v'", err)
 	}
+	ddcExecName := path.Base(ddcLoc)
+	ddcYamlFilePath := filepath.Join(path.Dir(ddcLoc), "ddc.yaml")
 	if operationSystem == "linux" && arch == "amd64" {
 		simplelog.Infof("using linux ddc")
 	} else {
-		// we need to use the exec in the folder next to ddc should be /linux and should contain a ddc exec ddc.yaml
+		// we need to use the exec in the folder next to ddc should be /linux and should contain a ddc exec that is setup for linux
 		ddcDir := path.Join(path.Dir(ddcLoc), "linux")
-		ddcLoc = path.Join(ddcDir, "ddc")
+		ddcLoc = path.Join(ddcDir, ddcExecName)
 	}
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
@@ -134,27 +110,17 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			coordinatorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             true,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            s.GetTmpDir(),
-				DremioConfDir:             dremioConfDir,
-				DremioLogDir:              dremioLogDir,
-				GCLogOverride:             dremioGcDir,
-				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge,
-				jfrduration:               jfrduration,
-				SudoUser:                  sudoUser,
-				SizeLimit:                 limit,
-				ExcludeFiles:              excludefiles,
-				CopyStrategy:              s,
-				DDCfs:                     ddcfs,
-				NodeCaptureOutput:         "/tmp/ddc",
+				Collector:         c,
+				IsCoordinator:     true,
+				Host:              host,
+				OutputLocation:    s.GetTmpDir(),
+				SudoUser:          sudoUser,
+				CopyStrategy:      s,
+				DDCfs:             ddcfs,
+				NodeCaptureOutput: "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, s.GetTmpDir())
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -171,26 +137,17 @@ func Execute(c Collector, s CopyStrategy, logOutput io.Writer, collectionArgs Ar
 		wg.Add(1)
 		go func(host string) {
 			defer wg.Done()
-			logger := log.New(logOutput, "", log.Ldate|log.Ltime|log.Lshortfile)
 			executorCaptureConf := HostCaptureConfiguration{
-				Collector:                 c,
-				IsCoordinator:             false,
-				Logger:                    logger,
-				Host:                      host,
-				OutputLocation:            s.GetTmpDir(),
-				DremioConfDir:             dremioConfDir,
-				DremioLogDir:              dremioLogDir,
-				GCLogOverride:             dremioGcDir,
-				DurationDiagnosticTooling: collectionArgs.DurationDiagnosticTooling,
-				LogAge:                    logAge,
-				jfrduration:               jfrduration,
-				SudoUser:                  sudoUser,
-				ExcludeFiles:              excludefiles,
-				CopyStrategy:              s,
-				DDCfs:                     ddcfs,
-				NodeCaptureOutput:         "/tmp/ddc",
+				Collector:         c,
+				IsCoordinator:     false,
+				Host:              host,
+				OutputLocation:    s.GetTmpDir(),
+				SudoUser:          sudoUser,
+				CopyStrategy:      s,
+				DDCfs:             ddcfs,
+				NodeCaptureOutput: "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, s.GetTmpDir())
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)

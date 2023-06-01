@@ -16,6 +16,12 @@ date "+%H:%M:%S"
 
 ./script/test
 
+echo "Coverage file started at…"
+date "+%H:%M:%S"
+
+./script/cover
+
+
 echo "Linting started at…"
 date "+%H:%M:%S"
 

@@ -27,6 +27,10 @@ fi
 DOWNLOAD=ddc-$OS-$ARCH.zip
 curl -o $DOWNLOAD -L "https://github.com/rsvihladremio/dremio-diagnostic-collector/releases/latest/download/$DOWNLOAD"
 unzip $DOWNLOAD
-sudo mv ./bin/ddc /usr/local/bin/
+
+sudo mkdir -p /usr/local/share/ddc
+sudo mv ./bin/* /usr/local/share/ddc/
+sudo ln -s /usr/local/share/ddc/ddc /usr/local/bin
+
 rm $DOWNLOAD
 rm -fr ddc-$OS-$ARCH
