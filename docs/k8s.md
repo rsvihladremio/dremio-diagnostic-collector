@@ -1,6 +1,6 @@
 # Troubleshooting
 
-## Missing Nodes found
+## Missing Nodes or None Found
 
 Make sure the labels you use actually correspond to kubernetes nodes in your pod. Run the following command to see your labels
 
