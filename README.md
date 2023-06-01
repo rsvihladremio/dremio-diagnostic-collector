@@ -46,7 +46,7 @@ Just need to specify the namespace and labels of the coordinators and the execut
 .tgz, .zip, and .tar.gz are supported
 
 ```sh
-/bin/ddc -k -n default -e app=dremio-executor -c app=dremio-coordinator - -o ~/Downloads/k8s-diag.tgz
+/bin/ddc -k -n default -e app=dremio-executor -c app=dremio-coordinator
 ```
 
 If you have issues consult the [k8s docs](docs/k8s.md)
@@ -56,7 +56,7 @@ If you have issues consult the [k8s docs](docs/k8s.md)
 specific executors that you want to collect from with the -e flag and coordinators with the -c flag. Specify ssh user, and ssh key to use.
 
 ```sh
-/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa -o ~/Downloads/k8s-diag.tgz
+/bin/ddc -e 192.168.1.12,192.168.1.13 -c 192.168.1.19,192.168.1.2  --ssh-user ubuntu --ssh-key ~/.ssh/id_rsa 
 ```
 
 If you have issues consult the [ssh docs](docs/ssh.md)
