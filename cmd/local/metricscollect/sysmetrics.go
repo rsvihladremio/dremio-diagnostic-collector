@@ -1,10 +1,13 @@
 package metricscollect
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"text/tabwriter"
 	"time"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
@@ -14,22 +17,23 @@ import (
 )
 
 type SystemMetricsRow struct {
-	UserCPUPercent      float64 `json:"userCPUPercent"`
-	SystemCPUPercent    float64 `json:"systmeCPUPercent"`
-	IdleCPUPercent      float64 `json:"idleCPUPercent"`
-	NiceCPUPercent      float64 `json:"niceCPUPercent"`
-	IOWaitCPUPercent    float64 `json:"ioWaitCPUPercent"`
-	IRQCPUPercent       float64 `json:"irqCPUPercent"`
-	SoftIRQCPUPercent   float64 `json:"softIRQCPUPercent"`
-	StealCPUPercent     float64 `json:"stealCPUPercent"`
-	GuestCPUPercent     float64 `json:"guestCPUPercent"`
-	GuestNiceCPUPercent float64 `json:"guestCPUNicePercent"`
-	QueueDepth          float64 `json:"queueDepth"`
-	DiskLatency         float64 `json:"diskLatency"`
-	ReadBytes           int64   `json:"readBytes"`
-	WriteBytes          int64   `json:"writeBytes"`
-	FreeRAMMB           float64 `json:"freeRAMMB"`
-	CachedRAMMB         float64 `json:"cachedRAMMB"`
+	CollectionTimeStamp time.Time `json:"collectionTimestamp"`
+	UserCPUPercent      float64   `json:"userCPUPercent"`
+	SystemCPUPercent    float64   `json:"systmeCPUPercent"`
+	IdleCPUPercent      float64   `json:"idleCPUPercent"`
+	NiceCPUPercent      float64   `json:"niceCPUPercent"`
+	IOWaitCPUPercent    float64   `json:"ioWaitCPUPercent"`
+	IRQCPUPercent       float64   `json:"irqCPUPercent"`
+	SoftIRQCPUPercent   float64   `json:"softIRQCPUPercent"`
+	StealCPUPercent     float64   `json:"stealCPUPercent"`
+	GuestCPUPercent     float64   `json:"guestCPUPercent"`
+	GuestNiceCPUPercent float64   `json:"guestCPUNicePercent"`
+	QueueDepth          float64   `json:"queueDepth"`
+	DiskLatency         float64   `json:"diskLatency"`
+	ReadBytes           int64     `json:"readBytes"`
+	WriteBytes          int64     `json:"writeBytes"`
+	FreeRAMMB           float64   `json:"freeRAMMB"`
+	CachedRAMMB         float64   `json:"cachedRAMMB"`
 }
 
 func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
@@ -70,6 +74,7 @@ func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
 		memoryCachedMB := float64(memoryInfo.Cached) / (1024 * 1024)
 
 		row := SystemMetricsRow{
+			CollectionTimeStamp: time.Now(),
 			UserCPUPercent:      (cpuTimes[0].User / total) * 100,
 			SystemCPUPercent:    (cpuTimes[0].System / total) * 100,
 			IdleCPUPercent:      (cpuTimes[0].Idle / total) * 100,
@@ -91,7 +96,7 @@ func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
 	return
 }
 
-func writeSystemMetrics(nodeMetricsFile string, header string, rows []SystemMetricsRow, addRow func(SystemMetricsRow) (string, error)) error {
+func writeSystemMetrics(useTabWriter bool, nodeMetricsFile string, header string, rows []SystemMetricsRow, addRow func(SystemMetricsRow) (string, error)) error {
 	w, err := os.Create(path.Clean(nodeMetricsFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
@@ -101,8 +106,22 @@ func writeSystemMetrics(nodeMetricsFile string, header string, rows []SystemMetr
 			simplelog.Debugf("unable to close file %v due to error '%v'. This is probably ok because we manually close the file as well", nodeMetricsFile, err)
 		}
 	}()
-
-	_, err = w.Write([]byte(header))
+	var writer io.Writer
+	var cleanup func()
+	if useTabWriter {
+		tabWriter := tabwriter.NewWriter(w, 5, 0, 1, ' ', tabwriter.AlignRight)
+		writer = tabWriter
+		cleanup = func() {
+			tabWriter.Flush()
+		}
+	} else {
+		bufWriter := bufio.NewWriter(w)
+		writer = bufWriter
+		cleanup = func() {
+			bufWriter.Flush()
+		}
+	}
+	_, err = writer.Write([]byte(header))
 	if err != nil {
 		return fmt.Errorf("unable to write output string %v due to %v", header, err)
 	}
@@ -112,11 +131,12 @@ func writeSystemMetrics(nodeMetricsFile string, header string, rows []SystemMetr
 			return fmt.Errorf("unable to convert row %#v into string due to error %v", row, err)
 		}
 		// Output
-		_, err = w.Write([]byte(rowString + "\n"))
+		_, err = writer.Write([]byte(rowString + "\n"))
 		if err != nil {
 			return fmt.Errorf("unable to write output string %v due to %v", row, err)
 		}
 	}
+	cleanup()
 	return w.Close()
 }
 
@@ -127,8 +147,8 @@ func SystemMetrics(nodeMetricsFile, nodeMetricsJSONFile string) error {
 	}
 
 	//write metrics.txt file
-	txtHeader := fmt.Sprintf("Time\t\tUser %%\t\tSystem %%\t\tIdle %%\t\tIO Wait%%\t\tOther %%\t\tQueue Depth\tDisk Latency (ms)\tDisk Read (KB/s)\tDisk Write (KB/s)\tFree Mem (MB)\n")
-	if err := writeSystemMetrics(nodeMetricsFile, txtHeader, rows, func(row SystemMetricsRow) (string, error) {
+	txtHeader := fmt.Sprintf("Timestamp\tUser %%\tSystem %%\tIO Wait%%\tOther %%\tIdle %%\tQueue Depth\tDisk Latency (ms)\tDisk Read (MB/s)\tDisk Write (MB/s)\t\tFree Mem (GB)\n")
+	if err := writeSystemMetrics(true, nodeMetricsFile, txtHeader, rows, func(row SystemMetricsRow) (string, error) {
 		otherCPU := row.NiceCPUPercent + row.IRQCPUPercent + row.SoftIRQCPUPercent + row.StealCPUPercent + row.GuestCPUPercent + row.GuestNiceCPUPercent
 		var readBytesMB, writeBytesMB, freeRAMGB float64
 		if row.ReadBytes > 0 {
@@ -140,14 +160,14 @@ func SystemMetrics(nodeMetricsFile, nodeMetricsJSONFile string) error {
 		if row.FreeRAMMB > 0 {
 			freeRAMGB = float64(row.FreeRAMMB) / 1024.0
 		}
-		return fmt.Sprintf("%s\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f\t\t%.2f\t\t%.2f\\t\t%.2f\t\t%.2f\n",
-			time.Now().Format("15:04:05"), row.UserCPUPercent, row.SystemCPUPercent, row.IOWaitCPUPercent, otherCPU, row.QueueDepth, row.DiskLatency, readBytesMB, writeBytesMB, freeRAMGB), nil
+		return fmt.Sprintf("%s\t%.2f%%\t%.2f%%\t%.2f%%\t%.2f%%\t%.2f%%\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+			row.CollectionTimeStamp.Format(time.RFC3339), row.UserCPUPercent, row.SystemCPUPercent, row.IOWaitCPUPercent, otherCPU, row.IdleCPUPercent, row.QueueDepth, row.DiskLatency, readBytesMB, writeBytesMB, freeRAMGB), nil
 	}); err != nil {
 		return fmt.Errorf("unable to write metrics file %v due to error %v", nodeMetricsFile, err)
 	}
 
 	//write json file
-	if err := writeSystemMetrics(nodeMetricsJSONFile, "", rows, func(row SystemMetricsRow) (string, error) {
+	if err := writeSystemMetrics(false, nodeMetricsJSONFile, "", rows, func(row SystemMetricsRow) (string, error) {
 		str, err := json.Marshal(&row)
 		if err != nil {
 			return "", fmt.Errorf("unable to marshal row %#v due to error %v", row, err)
