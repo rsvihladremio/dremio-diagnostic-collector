@@ -637,7 +637,7 @@ func runCollectNodeMetrics() error {
 	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
 	nodeInfoDir := path.Join(outputDir, "node-info", nodeName)
 	nodeMetricsFile := path.Join(nodeInfoDir, "metrics.txt")
-	nodeMetricsJSONFile := path.Join(nodeInfoDir, "metrics.txt")
+	nodeMetricsJSONFile := path.Join(nodeInfoDir, "metrics.json")
 	return metricscollect.SystemMetrics(path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile))
 }
 
