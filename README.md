@@ -38,8 +38,8 @@ number-job-profiles: 25000 # need to have the dremio-pat-token set to work
 capture-heap-dump: false # when true a heap dump will be captured on each node that the collector is run against
 accept-collection-consent: true # when true you accept consent to collect data on each node, if false collection will fail
 ```
+After you have adjusted the yaml to your liking run ddc with either the k8s or on prem options
 
-After adjusting 
 ### dremio on k8s
 
 Just need to specify the namespace and labels of the coordinators and the executors, next you can specify an output file with -o flag
@@ -92,6 +92,7 @@ As of the today the following is collected
 * system tables and their details
 
 
+### Full Help
 
 The help is pretty straight forward and comes with examples
 
