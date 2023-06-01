@@ -8,19 +8,7 @@ cd "$(dirname "$0")/.."
 
 [ -z "$DEBUG" ] || set -x
 
-echo "appending test results to test.out"
-go test -v -race -covermode atomic -coverprofile=covprofile ./... > test.out 
-exit_code=$?
-if [ $exit_code -eq 0 ]; then
-    go tool cover -func=covprofile >> test.out
-    exit_code=$?
-fi
-cat ./test.out
-cat_command_exit_code=$?
-
-# If any of the commands fail, fail the script
-if [ $exit_code -ne 0 ] || [ $cat_command_exit_code -ne 0 ]; then
-    exit 1
-fi
-
-(exit $exit_code)
+go test -v -race -covermode atomic -coverprofile=covprofile ./... 
+echo "appending coverage results to test.out"
+go tool cover -func=covprofile >> test.out
+cat test.out

@@ -35,14 +35,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/logcollect"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/metricscollect"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
@@ -458,7 +456,7 @@ func collect(numberThreads int) {
 		t.AddJob(runCollectDremioSystemTables)
 	}
 
-	if err := t.Wait(); err != nil {
+	if err := t.ProcessAndWait(); err != nil {
 		simplelog.Errorf("thread pool has an error: %v", err)
 	}
 
@@ -637,7 +635,7 @@ func runCollectJvmConfig() error {
 
 func runCollectNodeMetrics() error {
 	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
-	nodeMetricsFile := path.Clean(path.Join(outputDir, "node-info", nodeName, "metrics.txt"))
+	nodeMetricsFile := path.Clean(path.Join(outputDir, "node-info", nodeName, "metrics.json"))
 	w, err := os.Create(path.Clean(nodeMetricsFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error '%v'", nodeMetricsFile, err)
@@ -647,71 +645,7 @@ func runCollectNodeMetrics() error {
 			simplelog.Errorf("Failure writing file %v as we are unable to close it due to error '%v'", nodeMetricsFile, err)
 		}
 	}()
-
-	iterations := 60
-	interval := time.Second
-
-	header := fmt.Sprintf("Time\t\tUser %%\t\tSystem %%\t\tIdle %%\t\tNice %%\t\tIOwait %%\t\tIRQ %%\t\tSteal %%\t\tGuest %%\t\tGuest Nice %%\t\tQueue Depth\tDisk Latency (ms)\tDisk Read (KB/s)\tDisk Write (KB/s)\tFree Mem (MB)\tCached Mem (MB)\n")
-	_, err = w.Write([]byte(header))
-	if err != nil {
-		return fmt.Errorf("unable to write output string %v due to %v", header, err)
-	}
-	prevDiskIO, _ := disk.IOCounters()
-	for i := 0; i < iterations; i++ {
-		// Sleep
-		if i > 0 {
-			time.Sleep(interval)
-		}
-
-		// CPU Times
-		cpuTimes, _ := cpu.Times(false)
-		total := getTotalTime(cpuTimes[0])
-		userPercent := (cpuTimes[0].User / total) * 100
-		systemPercent := (cpuTimes[0].System / total) * 100
-		idlePercent := (cpuTimes[0].Idle / total) * 100
-		nicePercent := (cpuTimes[0].Nice / total) * 100
-		iowaitPercent := (cpuTimes[0].Iowait / total) * 100
-		irqPercent := (cpuTimes[0].Irq / total) * 100
-		softIrqPercent := (cpuTimes[0].Softirq / total) * 100
-		stealPercent := (cpuTimes[0].Steal / total) * 100
-		guestPercent := (cpuTimes[0].Guest / total) * 100
-		guestNicePercent := (cpuTimes[0].GuestNice / total) * 100
-
-		// Memory
-		memoryInfo, _ := mem.VirtualMemory()
-
-		// Disk I/O
-		diskIO, _ := disk.IOCounters()
-		var weightedIOTime, totalIOs uint64
-		var readBytes, writeBytes float64
-		for _, io := range diskIO {
-			weightedIOTime += io.WeightedIO
-			totalIOs += io.IoTime
-
-			if prev, ok := prevDiskIO[io.Name]; ok {
-				readBytes += float64(io.ReadBytes-prev.ReadBytes) / 1024
-				writeBytes += float64(io.WriteBytes-prev.WriteBytes) / 1024
-			}
-		}
-		prevDiskIO = diskIO
-
-		queueDepth := float64(weightedIOTime) / 1000
-		diskLatency := float64(weightedIOTime) / float64(totalIOs)
-
-		// Output
-		row := fmt.Sprintf("%s\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f%%\t\t%.2f\t\t%.2f\t\t%.2f\t\t%.2f\t\t%.2f\t\t%.2f\n",
-			time.Now().Format("15:04:05"), userPercent, systemPercent, idlePercent, nicePercent, iowaitPercent, irqPercent, softIrqPercent, stealPercent, guestPercent, guestNicePercent, queueDepth, diskLatency, readBytes, writeBytes, float64(memoryInfo.Free)/(1024*1024), float64(memoryInfo.Cached)/(1024*1024))
-		_, err := w.Write([]byte(row))
-		if err != nil {
-			return fmt.Errorf("unable to write output string %v due to %v", row, err)
-		}
-	}
-	return nil
-}
-
-func getTotalTime(c cpu.TimesStat) float64 {
-	return c.User + c.System + c.Idle + c.Nice + c.Iowait + c.Irq +
-		c.Softirq + c.Steal + c.Guest + c.GuestNice
+	return metricscollect.SystemMetricsToJSON(nodeMetricsFile)
 }
 
 func runCollectJFR() error {
@@ -919,8 +853,7 @@ func runCollectJobProfiles() error {
 			return nil
 		})
 	}
-	downloadThreadPool.Start()
-	if err := downloadThreadPool.Wait(); err != nil {
+	if err := downloadThreadPool.ProcessAndWait(); err != nil {
 		simplelog.Errorf("job profile download thread pool wait error %v", err)
 	}
 	simplelog.Infof("Finished downloading %v job profiles", len(profilesToCollect))

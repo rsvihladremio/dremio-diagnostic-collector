@@ -32,29 +32,6 @@ var _ = Describe("Threading", func() {
 		tp = threading.NewThreadPool(10)
 	})
 
-	When("forget to call start", func() {
-		var executed bool
-		var waitErr error
-		BeforeEach(func() {
-			executed = false
-			jobFunc := func() error {
-				executed = true
-				return nil
-			}
-
-			tp.AddJob(jobFunc)
-			waitErr = tp.Wait()
-		})
-
-		It("should forget to execute", func() {
-			Expect(executed).ToNot(BeTrue())
-		})
-
-		It("wait should error out", func() {
-			Expect(waitErr).ToNot(BeNil())
-		})
-	})
-
 	When("Wait with one job", func() {
 		var waitErr error
 		var executed bool
@@ -65,9 +42,8 @@ var _ = Describe("Threading", func() {
 				return nil
 			}
 
-			tp.Start()
 			tp.AddJob(jobFunc)
-			waitErr = tp.Wait()
+			waitErr = tp.ProcessAndWait()
 		})
 
 		It("should execute all jobs", func() {
@@ -81,8 +57,7 @@ var _ = Describe("Threading", func() {
 
 	When("Wait with no jobs", func() {
 		It("should fail", func() {
-			tp.Start()
-			err := tp.Wait()
+			err := tp.ProcessAndWait()
 			Expect(err).ToNot(BeNil())
 		})
 	})
@@ -101,8 +76,7 @@ var _ = Describe("Threading", func() {
 			for i := 0; i < 100; i++ {
 				tp.AddJob(jobFunc)
 			}
-			tp.Start()
-			waitErr = tp.Wait()
+			waitErr = tp.ProcessAndWait()
 		})
 
 		It("should execute all jobs", func() {
@@ -130,8 +104,7 @@ var _ = Describe("Threading", func() {
 			for i := 0; i < 10; i++ {
 				tp.AddJob(jobFunc)
 			}
-			tp.Start()
-			waitErr = tp.Wait()
+			waitErr = tp.ProcessAndWait()
 		})
 
 		It("should execute all jobs", func() {
