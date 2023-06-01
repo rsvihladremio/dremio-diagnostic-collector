@@ -1,5 +1,14 @@
 ## Developing
 
+### Dependency
+
+1. Recent verision of Docker up and running
+2. Access to the dremio-ee Docker image
+3. Log into docker using the [docker login](https://docs.docker.com/engine/reference/commandline/login/) command
+4. Pull down dremio-ee with the following command before running any tests `docker pull dremio/dremio-ee:24.0`
+
+### Scripts
+
 On Linux, Mac, and WSL there are some shell scripts modeled off the [GitHub ones](https://github.com/github/scripts-to-rule-them-all)
 
 to get started run
@@ -33,43 +42,6 @@ to cut a release do the following
 git tag v0.1.1
 git push origin v0.1.1
 ./script/release v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
-### Windows
-Similarly on Windows there are powershell scripts of the same design
-
-to get started run
-
-```powershell
-.\script\bootstrap.ps1
 ```
 
-after a pull it is a good idea to run
-
-```powershell
-.\script\update.ps1
-```
-
-tests
-
-```powershell
-.\script\test.ps1
-```
-
-before checkin run
-
-```powershell
-.\script\cibuild.ps1
-```
-
-to cut a release do the following
-
-```powershell
-#dont forget to update changelog.md with the release notes
-git tag v0.1.1
-.\script\release.ps1 v0.1.1
-gh repo view -w
-# review the draft and when done set it to publish
-```
 
