@@ -1,4 +1,16 @@
 # Changelog
+## [0.3.0-beta5]
+
+### Fixed
+
+* forgot to call start on thread pool stopping all collection
+
+### Changed
+
+* simplified thread pool
+* metrics now collect to json fixing #87 no need to have a flag for now
+
+# Changelog
 ## [0.3.0-beta4]
 
 ### Changed
@@ -152,6 +164,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.0-beta5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5
 [0.3.0-beta4]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta3...v0.3.0-beta4
 [0.3.0-beta3]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta2...v0.3.0-beta3
 [0.3.0-beta2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2

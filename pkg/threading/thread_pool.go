@@ -27,7 +27,6 @@ type ThreadPool struct {
 	numberThreads int
 	jobs          chan func() error
 	pendingJobs   int
-	started       bool
 	mut           sync.Mutex
 }
 
@@ -59,16 +58,6 @@ func (t *ThreadPool) AddJob(job func() error) {
 	t.jobs <- job
 }
 
-// Start initializes the ThreadPool to listen for jobs and start the worker goroutines.
-func (t *ThreadPool) Start() {
-	t.mut.Lock()
-	t.started = true
-	t.mut.Unlock()
-	for i := 0; i < t.numberThreads; i++ {
-		go t.worker()
-	}
-}
-
 // worker listens for jobs on the jobs channel and executes them. Each job runs on its own goroutine.
 func (t *ThreadPool) worker() {
 	for job := range t.jobs {
@@ -85,18 +74,19 @@ func (t *ThreadPool) worker() {
 	}
 }
 
-// Wait blocks until all jobs have finished. If no jobs were added, it returns an error.
-func (t *ThreadPool) Wait() error {
+// ProcessAndWait blocks until all jobs have finished. If no jobs were added, it returns an error.
+func (t *ThreadPool) ProcessAndWait() error {
 	t.mut.Lock()
-	if !t.started {
-		t.mut.Unlock()
-		return fmt.Errorf("thread pool was never started before calling wait")
-	}
 	if t.pendingJobs == 0 {
 		t.mut.Unlock()
 		return fmt.Errorf("thread pool wait called with no pending jobs this is unexpected")
 	}
 	t.mut.Unlock()
+	//start processing jobs
+	for i := 0; i < t.numberThreads; i++ {
+		go t.worker()
+	}
+	//then wait for them
 	t.wg.Wait()
 	close(t.jobs)
 	return nil
