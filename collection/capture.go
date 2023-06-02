@@ -80,11 +80,13 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outp
 		simplelog.Infof("sucessfully copied ddc.yaml to host %v", host)
 	}
 	//execute local-collect
-	if out, err := ComposeExecute(conf, []string{pathToDDC, "local-collect"}); err != nil {
-		simplelog.Warningf("on host %v catpure faileddue to error '%v' with output '%v'", host, err, out)
+	if err := ComposeExecuteAndStream(conf, func(line string) {
+		fmt.Printf("HOST %v - %v\n", host, line)
+	}, []string{pathToDDC, "local-collect"}); err != nil {
+		simplelog.Warningf("on host %v capture failed due to error '%v'", host, err)
 		//return
 	} else {
-		simplelog.Infof("on host %v catpure successful with output '%v'", host, out)
+		simplelog.Infof("on host %v capture successful", host)
 	}
 	//defer delete tar.gz
 	defer func() {

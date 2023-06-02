@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -959,20 +960,36 @@ func downloadSysTable(systable string, rowlimit int, sleepms int) ([]byte, error
 
 // findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix
 func findGCLogLocation() (gcLogLoc string, err error) {
+
+	var jpsVerbose bytes.Buffer
+	err = ddcio.Shell(&jpsVerbose, "jps -v")
+	if err != nil {
+		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	}
 	pid, err := getDremioPID()
 	if err != nil {
 		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
 	}
-	var startupFlags bytes.Buffer
-	err = ddcio.Shell(&startupFlags, fmt.Sprintf("ps -f %v", pid))
+	var startupFlags string
+	scanner := bufio.NewScanner(&jpsVerbose)
+	for scanner.Scan() {
+		line := scanner.Text()
+		tokens := strings.Split(line, " ")
+		if len(tokens) > 0 {
+			potentialPid := strings.TrimSpace(tokens[0])
+			if potentialPid == fmt.Sprintf("%d", pid) {
+				startupFlags = strings.Join(tokens[1:], " ")
+			}
+		}
+	}
+	logLocation, err := ParseGCLogFromFlags(startupFlags)
 	if err != nil {
 		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
 	}
-	logLocation, err := ParseGCLogFromFlags(startupFlags.String())
-	if err != nil {
-		return "", fmt.Errorf("unable to find gc logs due to error '%v'", err)
+	if logLocation != "" {
+		return logLocation, nil
 	}
-	return logLocation + "*", nil
+	return "", nil
 }
 
 // ParseGCLogFromFlags takes a given string with java startup flags and finds the gclog directive
@@ -1079,6 +1096,20 @@ var localCollectCmd = &cobra.Command{
 		collectReflectionLogs = viper.GetBool("collect-reflection-log")
 		collectGCLogs = viper.GetBool("collect-gc-logs")
 		gcLogsDir = viper.GetString("dremio-gclogs-dir")
+		parsedGCLogDir, err := findGCLogLocation()
+		if err != nil {
+			if gcLogsDir == "" {
+				simplelog.Warningf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
+			}
+		}
+		if parsedGCLogDir != "" {
+			if gcLogsDir == "" {
+				simplelog.Infof("setting gc logs to %v", parsedGCLogDir)
+			} else {
+				simplelog.Warningf("overriding gc logs location from %v to %v due to detection of gclog directory", gcLogsDir, parsedGCLogDir)
+			}
+			gcLogsDir = parsedGCLogDir
+		}
 
 		// jfr config
 		collectJFR = viper.GetBool("collect-jfr")
@@ -1279,20 +1310,17 @@ func getOutputDir(now time.Time) string {
 
 func isAWSE() (bool, error) {
 	var dremioPIDOutput bytes.Buffer
-	if err := ddcio.Shell(&dremioPIDOutput, "jps | grep DremioDaemon"); err != nil {
-		return false, fmt.Errorf("unable to get pid output due to error %v", err)
+	if err := ddcio.Shell(&dremioPIDOutput, "jps"); err != nil {
+		return false, fmt.Errorf("grepping from Dremio from jps failed %v with output %v", err, dremioPIDOutput.String())
 	}
 	dremioPIDString := dremioPIDOutput.String()
-	if strings.Contains(dremioPIDString, "AwsDremioDaemon") {
-		return true, nil
-	}
-	return false, nil
+	return strings.Contains(dremioPIDString, "AwsDremioDaemon"), nil
 }
 
 func getDremioPID() (int, error) {
 	isAWSE, err := isAWSE()
 	if err != nil {
-		return -1, fmt.Errorf("unable to read pid due to error %v", err)
+		return -1, fmt.Errorf("failed getting awse status %v", err)
 	}
 	var procName string
 	if isAWSE {
@@ -1300,16 +1328,23 @@ func getDremioPID() (int, error) {
 	} else {
 		procName = "DremioDaemon"
 	}
-	var dremioPIDOutput bytes.Buffer
-	if err := ddcio.Shell(&dremioPIDOutput, fmt.Sprintf("jps | grep %v | awk '{print $1}'", procName)); err != nil {
-		simplelog.Warningf("unable to get pid output due to error %v", err)
+	var jpsOutput bytes.Buffer
+	if err := ddcio.Shell(&jpsOutput, "jps"); err != nil {
+		simplelog.Warningf("attempting to get full jps output failed: %v", err)
 	}
-	dremioIDString := strings.TrimSpace(dremioPIDOutput.String())
-	dremioPID, err := strconv.Atoi(dremioIDString)
-	if err != nil {
-		return -1, fmt.Errorf("unable to parse pid from text '%v' due to error %v", dremioIDString, err)
+	scanner := bufio.NewScanner(&jpsOutput)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, procName) {
+			tokens := strings.Split(line, " ")
+			if len(tokens) == 0 {
+				return -1, fmt.Errorf("no pid for dremio found in text '%v'", line)
+			}
+			pidText := tokens[0]
+			return strconv.Atoi(pidText)
+		}
 	}
-	return dremioPID, nil
+	return -1, fmt.Errorf("found no matching process named %v therefore cannot get the pid", procName)
 }
 
 func init() {
@@ -1358,7 +1393,7 @@ func initConfig() {
 	viper.SetDefault("collect-disk-usage", true)
 	viper.SetDefault("dremio-logs-num-days", 7)
 	viper.SetDefault("dremio-queries-json-num-days", 28)
-	viper.SetDefault("dremio-gc-file-pattern", "gc*.log")
+	viper.SetDefault("dremio-gc-file-pattern", "gc*.log*")
 	viper.SetDefault("collect-queries-json", true)
 	viper.SetDefault("collect-server-logs", true)
 	viper.SetDefault("collect-meta-refresh-log", true)
@@ -1373,12 +1408,7 @@ func initConfig() {
 	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jstack-freq-seconds", 1)
-
-	parsedGCLogDir, err := findGCLogLocation()
-	if err != nil {
-		simplelog.Warningf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
-	}
-	viper.SetDefault("dremio-gclogs-dir", parsedGCLogDir)
+	viper.SetDefault("dremio-gclogs-dir", "")
 	// set node name
 	hostName, err := os.Hostname()
 	if err != nil {

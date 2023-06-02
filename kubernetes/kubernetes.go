@@ -50,6 +50,12 @@ func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
 	return c.executorContainer
 }
 
+func (c *KubectlK8sActions) HostExecuteAndStream(hostString string, output cli.OutputHandler, isCoordinator bool, args ...string) (err error) {
+	kubectlArgs := []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), hostString, "--"}
+	kubectlArgs = append(kubectlArgs, args...)
+	return c.cli.ExecuteAndStreamOutput(output, kubectlArgs...)
+}
+
 func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, args ...string) (out string, err error) {
 	kubectlArgs := []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), hostString, "--"}
 	kubectlArgs = append(kubectlArgs, args...)

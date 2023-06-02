@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 )
@@ -48,6 +49,7 @@ type Collector interface {
 	CopyToHostSudo(hostString string, isCoordinator bool, sudoUser, source, destination string) (out string, err error)
 	FindHosts(searchTerm string) (podName []string, err error)
 	HostExecute(hostString string, isCoordinator bool, args ...string) (stdOut string, err error)
+	HostExecuteAndStream(hostString string, output cli.OutputHandler, isCoordinator bool, args ...string) error
 }
 
 type Args struct {
