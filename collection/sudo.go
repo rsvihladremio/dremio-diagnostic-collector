@@ -15,7 +15,33 @@
 // collection package provides the interface for collection implementation and the actual collection execution
 package collection
 
-import "github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+import (
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+)
+
+// Adds the sudo part into the HostExecute call
+func ComposeExecuteAndStream(conf HostCaptureConfiguration, output cli.OutputHandler, command []string) error {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	sudoUser := conf.SudoUser
+	var err error
+
+	if sudoUser == "" {
+		err = c.HostExecuteAndStream(host, output, isCoordinator, command...)
+		if err != nil {
+			simplelog.Errorf("host %v failed to run command with error %v", host, err)
+		}
+	} else {
+		sudoCommand := append([]string{"sudo", "-u", sudoUser}, command...)
+		err = c.HostExecuteAndStream(host, output, isCoordinator, sudoCommand...)
+		if err != nil {
+			simplelog.Errorf("host %v failed to run sudo command with error %v", host, err)
+		}
+	}
+	return err
+}
 
 // Adds the sudo part into the HostExecute call
 func ComposeExecute(conf HostCaptureConfiguration, command []string) (stdOut string, err error) {

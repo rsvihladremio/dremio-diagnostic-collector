@@ -72,7 +72,11 @@ func (l *Collector) RunCollectDremioServerLog() error {
 }
 
 func (l *Collector) RunCollectGcLogs() error {
-	simplelog.Info("Collecting GC logs ...")
+	if l.gcLogsDir == "" {
+		simplelog.Warningf("Skipping GC Logs no gc log directory is configured set dremio-gclogs-dir in ddc.yaml")
+	} else {
+		simplelog.Info("Collecting GC logs ...")
+	}
 	files, err := os.ReadDir(path.Clean(l.gcLogsDir))
 	if err != nil {
 		return fmt.Errorf("error reading directory: %w", err)
