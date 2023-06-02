@@ -98,6 +98,10 @@ type MockCapCopy struct {
 	Destination   string
 }
 
+func (m *MockCapCollector) HelpText() string {
+	return "you should use a production library"
+}
+
 func (m *MockCapCollector) FindHosts(searchTerm string) (response []string, err error) {
 	response = strings.Split(searchTerm, "-")
 	if len(response) > 1 && response[1] != "ok" {
