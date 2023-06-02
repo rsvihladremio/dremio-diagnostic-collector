@@ -113,14 +113,17 @@ func Execute() {
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
 
-		// Determine namespace
+		//default no op
+		var clusterCollect = func() {}
 		var collectorStrategy collection.Collector
 		if isK8s {
 			simplelog.Info("using Kubernetes kubectl based collection")
 			collectorStrategy = kubernetes.NewKubectlK8sActions(kubectlPath, coordinatorContainer, executorsContainer, namespace)
-			err = collection.ClusterK8sExecute(namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
-			if err != nil {
-				fmt.Printf("ERROR: when getting Kubernetes info, the following error was retured: %v", err)
+			clusterCollect = func() {
+				err = collection.ClusterK8sExecute(namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubectlPath)
+				if err != nil {
+					simplelog.Errorf("when getting Kubernetes info, the following error was returned: %v", err)
+				}
 			}
 		} else {
 			simplelog.Info("using SSH based collection")
@@ -131,6 +134,7 @@ func Execute() {
 		err = collection.Execute(collectorStrategy,
 			cs,
 			collectionArgs,
+			clusterCollect,
 		)
 		if err != nil {
 			simplelog.Errorf("unexpected error running collection '%v'", err)
