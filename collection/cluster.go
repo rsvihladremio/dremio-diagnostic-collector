@@ -23,17 +23,19 @@ import (
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
 )
 
-// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInYAML(yamlText string) string { //nolint
-	return yamlText
-}
-
 // maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInJSON(jsonText string) string { //nolint
-	return jsonText
+func maskPasswordsInJSON(jsonText, namespace, kind string) string {
+	if newText, err := masking.RemoveSecretsFromK8sJSON(jsonText); err != nil {
+		simplelog.Warningf("unable to mask secrets for %v in namespace %v returning am empty text due to error %v", kind, namespace, err)
+		return ""
+	} else {
+		return newText
+	}
 }
 
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
@@ -43,13 +45,14 @@ func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesyste
 		if err != nil {
 			return fmt.Errorf("ERROR: when getting cluster config, error was %v", err)
 		}
+		text := maskPasswordsInJSON(string(out), namespace, cmd)
 		p, err := cs.CreatePath("kubernetes", "dremio-master", "")
 		if err != nil {
 			return fmt.Errorf("ERROR: trying to construct cluster config path %v", err)
 		}
 		path := strings.TrimSuffix(p, "dremio-master")
 		filename := filepath.Join(path, cmd+".json")
-		err = ddfs.WriteFile(filename, out, DirPerms)
+		err = ddfs.WriteFile(filename, []byte(text), DirPerms)
 		if err != nil {
 			return fmt.Errorf("ERROR: trying to write file %v, error was %v", filename, err)
 		}
