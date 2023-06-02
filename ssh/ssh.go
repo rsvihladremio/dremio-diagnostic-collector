@@ -79,3 +79,7 @@ func (c *CmdSSHActions) FindHosts(searchTerm string) (hosts []string, err error)
 	}
 	return hosts, nil
 }
+
+func (c *CmdSSHActions) HelpText() string {
+	return "no hosts found did you specify a comma separated list for the ssh-hosts? Something like: ddc --coordinator 192.168.1.10,192.168.1.11 --excecutors 192.168.1.14,192.168.1.15"
+}
