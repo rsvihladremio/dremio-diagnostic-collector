@@ -15,6 +15,8 @@
 // package tests provides helper functions and mocks for running tests
 package tests
 
+import "github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+
 type MockCli struct {
 	Calls          [][]string
 	StoredResponse []string
@@ -25,4 +27,11 @@ func (m *MockCli) Execute(args ...string) (out string, err error) {
 	m.Calls = append(m.Calls, args)
 	length := len(m.Calls)
 	return m.StoredResponse[length-1], m.StoredErrors[length-1]
+}
+
+func (m *MockCli) ExecuteAndStreamOutput(output cli.OutputHandler, args ...string) (err error) {
+	m.Calls = append(m.Calls, args)
+	length := len(m.Calls)
+	output(m.StoredResponse[length-1])
+	return m.StoredErrors[length-1]
 }
