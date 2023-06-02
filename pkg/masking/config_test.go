@@ -51,7 +51,10 @@ var _ = Describe("Config", func() {
 				}
 			}
 			`
-			tmpDir := os.TempDir()
+			tmpDir, err := os.MkdirTemp("", "ddctester")
+			if err != nil {
+				Expect(err).NotTo(HaveOccurred())
+			}
 			tmpfile := filepath.Join(tmpDir, "dremio.conf")
 			defer func() {
 				if err := os.RemoveAll(tmpDir); err != nil {
@@ -59,7 +62,7 @@ var _ = Describe("Config", func() {
 				}
 			}()
 
-			err := os.WriteFile(tmpfile, []byte(conf), 0700)
+			err = os.WriteFile(tmpfile, []byte(conf), 0700)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = masking.RemoveSecretsFromDremioConf(tmpfile)
