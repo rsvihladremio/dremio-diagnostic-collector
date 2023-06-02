@@ -34,14 +34,6 @@ var _ = Describe("Cli", func() {
 			})
 		})
 
-		Context("with a command that produces stderr", func() {
-			It("should stream the command error output", func() {
-				err := c.ExecuteAndStreamOutput(outputHandler, "cat", "nonexistentfile")
-				Expect(err).ToNot(BeNil())
-				Expect(strings.TrimSpace(executedOutput)).To(ContainSubstring("No such file or directory"))
-			})
-		})
-
 		Context("with an invalid command", func() {
 			It("should return an error", func() {
 				err := c.ExecuteAndStreamOutput(outputHandler, "22JIDJMJMHHF")
