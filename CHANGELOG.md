@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0]
+
+### Added
+
+* logs now stream from the nodes capturing this give a sense of progress
+
+### Fixed
+
+* if no gc log is set or found the gc log collection skips
+* gclog detection was running on the root ddc command, this has been
+  moved to a later evaluation time than the init() command
+
+### Changed
+
+* jps -v is now used to parse startup flags, this works more
+  consistently than ps -f
+* gclog detection now will log a warn if it overrides a setting
+* default gclog directory is now empty in ddc.yaml this should usually
+  not need to be set
+* matcher on gc logs now will match .current files
+
 ## [0.3.0-rc1]
 
 ### Fixed
@@ -182,6 +203,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-rc1...v0.3.0
 [0.3.0-rc1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta5...v0.3.0-rc1
 [0.3.0-beta5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5
 [0.3.0-beta4]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta3...v0.3.0-beta4
