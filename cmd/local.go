@@ -1013,6 +1013,29 @@ func ParseGCLogFromFlags(startupFlagsStr string) (gcLogLocation string, err erro
 	return path.Dir(gcLogLocationTokens[1]), nil
 }
 
+func isAWSEExecutor() (bool, error) {
+	//search EFS folder
+	// Open the directory
+	efsFolder := "/var/dremio_efs/log/executor"
+	dir, err := os.ReadDir(efsFolder)
+	if err != nil {
+		return false, err
+	}
+	simplelog.Debugf("searching for node name %v in %v", nodeName, efsFolder)
+	// Iterate over the directory entries
+	for _, entry := range dir {
+		// Check if the entry is a directory
+		if entry.IsDir() {
+			simplelog.Debugf("found node named %v in %v", entry.Name(), efsFolder)
+			// match the directory name this assumes aws and the node believe they have the same name
+			if entry.Name() == nodeName {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 var localCollectCmd = &cobra.Command{
 	Use:   "local-collect",
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
@@ -1063,11 +1086,24 @@ var localCollectCmd = &cobra.Command{
 			simplelog.Warningf("unable to determind if node is AWSE or not due to error %v", err)
 		}
 		if isAWSE {
-			if strings.Contains(dremioLogDir, nodeName) {
-				simplelog.Warningf("node name %v already included in log directory of %v make this is intentional as you do not need to put the node name in the log path", nodeName, dremioLogDir)
+			isExec, err := isAWSEExecutor()
+			if err != nil {
+				simplelog.Errorf("unable to detect if this was an executor so will not apply AWSE log path fix this may mean no log collection %v", err)
+			} else if isExec {
+				if strings.Contains(dremioLogDir, nodeName) {
+					simplelog.Warningf("node name %v already included in log directory of %v make this is intentional as you do not need to put the node name in the log path", nodeName, dremioLogDir)
+				} else {
+					// ok so looks like we need to adjust this since the node name is not already in the path
+					dremioLogDir = path.Join(dremioLogDir, "executor", nodeName)
+					simplelog.Infof("AWSE detected adding the node name %v to the log directory path %v", nodeName, dremioLogDir)
+				}
 			} else {
-				dremioLogDir = path.Join(dremioLogDir, nodeName)
-				simplelog.Infof("AWSE detected adding the node name %v to the log directory path %v", nodeName, dremioLogDir)
+				if strings.Contains(dremioLogDir, "coordinator") {
+					simplelog.Warningf("coordinator already included in log directory of %v make this is intentional as you do not need to put the coordinator in the log path", dremioLogDir)
+				} else {
+					dremioLogDir = path.Join(dremioLogDir, "coordinator")
+					simplelog.Infof("AWSE coordinator node detected adding coordinator name to log dir %v", dremioLogDir)
+				}
 			}
 		}
 		dremioConfDir = viper.GetString("dremio-conf-dir")
