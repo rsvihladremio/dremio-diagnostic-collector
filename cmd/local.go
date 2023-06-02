@@ -74,6 +74,7 @@ var (
 	dremioJFRTimeSeconds        int
 	dremioJStackFreqSeconds     int
 	dremioJStackTimeSeconds     int
+	systemMetricsTimeSeconds    int
 	dremioLogsNumDays           int
 	dremioGCFilePattern         string
 	dremioQueriesJSONNumDays    int
@@ -634,11 +635,11 @@ func runCollectJvmConfig() error {
 }
 
 func runCollectNodeMetrics() error {
-	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
+	simplelog.Infof("Collecting Node Metrics for %v seconds ....", systemMetricsTimeSeconds)
 	nodeInfoDir := path.Join(outputDir, "node-info", nodeName)
 	nodeMetricsFile := path.Join(nodeInfoDir, "metrics.txt")
 	nodeMetricsJSONFile := path.Join(nodeInfoDir, "metrics.json")
-	return metricscollect.SystemMetrics(path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile))
+	return metricscollect.SystemMetrics(path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile), systemMetricsTimeSeconds)
 }
 
 func runCollectJFR() error {
@@ -1066,6 +1067,7 @@ var localCollectCmd = &cobra.Command{
 		//system diag
 
 		collectNodeMetrics = viper.GetBool("collect-metrics")
+		systemMetricsTimeSeconds = viper.GetInt("system-metrics-time-seconds")
 		collectDiskUsage = viper.GetBool("collect-disk-usage")
 
 		// log collect
@@ -1372,6 +1374,7 @@ func initConfig() {
 	defaultCaptureSeconds := 60
 	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
+	viper.SetDefault("system-metrics-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jstack-freq-seconds", 1)
 
 	parsedGCLogDir, err := findGCLogLocation()

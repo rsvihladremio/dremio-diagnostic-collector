@@ -325,6 +325,13 @@ jvm_args: -Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler -
 }
 
 func TestCaptureSystemMetrics(t *testing.T) {
+	// lower capture time to speed up test
+
+	oldSystemMetricsTimeSeconds := systemMetricsTimeSeconds
+	systemMetricsTimeSeconds = 5
+	defer func() {
+		systemMetricsTimeSeconds = oldSystemMetricsTimeSeconds
+	}()
 	outputDir := filepath.Join("testdata", "output", "node-info")
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		t.Errorf("cannot make output dir due to error %v", err)
@@ -359,11 +366,11 @@ func TestCaptureSystemMetrics(t *testing.T) {
 		}
 		rows = append(rows, row)
 	}
-	if len(rows) > 65 {
-		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 60", len(rows))
+	if len(rows) > systemMetricsTimeSeconds+2 {
+		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 5", len(rows))
 	}
-	if len(rows) < 55 {
-		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 60", len(rows))
+	if len(rows) < 4 {
+		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 5", len(rows))
 	}
 	t.Logf("%v rows of metrics captured", len(rows))
 }
