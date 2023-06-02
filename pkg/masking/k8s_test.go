@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
 )
 
@@ -97,6 +98,8 @@ var _ = Describe("K8s Masking", func() {
 
 func jsonCompact(s string) string {
 	buf := new(bytes.Buffer)
-	json.Compact(buf, []byte(s))
+	if err := json.Compact(buf, []byte(s)); err != nil {
+		simplelog.Errorf("json compact failed due to error %v", err)
+	}
 	return buf.String()
 }

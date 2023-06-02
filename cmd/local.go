@@ -46,6 +46,7 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/threading"
 )
 
@@ -587,9 +588,14 @@ func runCollectOSConfig() error {
 func runCollectDremioConfig() error {
 	simplelog.Infof("Collecting Configuration Information from %v ...", nodeName)
 
-	err := ddcio.CopyFile(filepath.Join(dremioConfDir, "dremio.conf"), filepath.Join(outputDir, "configuration", nodeName, "dremio.conf"))
+	dremioConfDest := filepath.Join(outputDir, "configuration", nodeName, "dremio.conf")
+	err := ddcio.CopyFile(filepath.Join(dremioConfDir, "dremio.conf"), dremioConfDest)
 	if err != nil {
 		simplelog.Warningf("unable to copy dremio.conf due to error %v", err)
+	}
+	simplelog.Info("masking passwords in dremio.conf")
+	if err := masking.RemoveSecretsFromDremioConf(dremioConfDest); err != nil {
+		simplelog.Warningf("UNABLE TO MASK SECRETS in dremio.conf due to error %v", err)
 	}
 	err = ddcio.CopyFile(filepath.Join(dremioConfDir, "dremio-env"), filepath.Join(outputDir, "configuration", nodeName, "dremio.env"))
 	if err != nil {

@@ -53,22 +53,20 @@ func checkStringForSecret(s string) bool {
 
 // maskConfigSecret masks the potential secrets found in the given line of a configuration file.
 // It uses a regular expression (regex) to identify potential secrets and replaces them with "<REMOVED_POTENTIAL_SECRET>".
-// The regexPattern used in the function is explained as follows:
-// - `\s*` : Matches any number of white spaces at the start of the line.
-// - `\S+` : Matches one or more non-white space characters. This typically represents the key in a key-value pair.
-// - `:` : Matches the colon character which separates the key and the value in the line.
-// - `\s*` : Matches any number of white spaces that may exist between the colon and the start of the value.
-// - `"(\S*)"` : Matches the value which is enclosed in quotes. The actual value can be zero or more non-whitespace characters. This is the group that gets captured due to the parentheses around it, which will be used as the secret to be masked.
-// - `,?` : Matches zero or one comma, representing that the comma is optional, as the last line in a config file may not have a comma at the end.
+// This pattern works as follows:
+//
+// : matches the colon character.
+// \s* matches zero or more whitespace characters.
+// ([^,\n]+) captures one or more characters that are not a comma or a newline. This is the value that you want to replace.
 func maskConfigSecret(line string) string {
-	regexPattern := `\s*\S+:\s*"(\S*)",?`
+	regexPattern := `:\s*([^,\n]+)`
 	re := regexp.MustCompile(regexPattern)
 	matches := re.FindStringSubmatch(line)
 	// If there is more than one match, the secret will be the second element in the slice (at index 1)
 	if len(matches) > 1 {
 		secret := matches[1]
 		// Replace the secret with the masking text
-		line = strings.Replace(line, secret, "<REMOVED_POTENTIAL_SECRET>", -1)
+		line = strings.Replace(line, secret, "\"<REMOVED_POTENTIAL_SECRET>\"", -1)
 	}
 	return line
 }

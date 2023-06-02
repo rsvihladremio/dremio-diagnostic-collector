@@ -30,12 +30,12 @@ import (
 
 // maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
 func maskPasswordsInJSON(jsonText, namespace, kind string) string {
-	if newText, err := masking.RemoveSecretsFromK8sJSON(jsonText); err != nil {
+	newText, err := masking.RemoveSecretsFromK8sJSON(jsonText)
+	if err != nil {
 		simplelog.Warningf("unable to mask secrets for %v in namespace %v returning am empty text due to error %v", kind, namespace, err)
 		return ""
-	} else {
-		return newText
 	}
+	return newText
 }
 
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
