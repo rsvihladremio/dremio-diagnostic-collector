@@ -5,12 +5,17 @@
 ### Added
 
 * logs now stream from the nodes capturing this give a sense of progress
+* added k8s json file password masking
+* password masking for dremio.conf
+* prevent collection when invalid k8s or ssh is given
 
 ### Fixed
 
 * if no gc log is set or found the gc log collection skips
 * gclog detection was running on the root ddc command, this has been
   moved to a later evaluation time than the init() command
+* was removing the test tmp dir by accident
+* fixed a race in the cli that lead to it exiting when streaming before all data had been written out
 
 ### Changed
 
@@ -20,6 +25,7 @@
 * default gclog directory is now empty in ddc.yaml this should usually
   not need to be set
 * matcher on gc logs now will match .current files
+* beta enchanced AWSE detection, may still have to manually collect with local-collect in some cases
 
 ## [0.3.0-rc1]
 
