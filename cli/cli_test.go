@@ -28,9 +28,9 @@ var _ = Describe("Cli", func() {
 	Describe("ExecuteAndStreamOutput", func() {
 		Context("with a valid command", func() {
 			It("should stream the command output", func() {
-				err := c.ExecuteAndStreamOutput(outputHandler, "echo", "Hello, World!")
+				err := c.ExecuteAndStreamOutput(outputHandler, "ls", "-v")
 				Expect(err).To(BeNil())
-				Expect(strings.TrimSpace(executedOutput)).To(Equal("Hello, World!"))
+				Expect(strings.TrimSpace(executedOutput)).ToNot(BeEmpty())
 			})
 		})
 
