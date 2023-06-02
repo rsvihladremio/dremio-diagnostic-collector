@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
 )
@@ -175,6 +176,13 @@ func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator boo
 		err = fmt.Errorf("ERROR: no files found for %v", copyCall.Source)
 	}
 	return response, err
+}
+
+func (m *MockCapCollector) HostExecuteAndStream(hostString string, output cli.OutputHandler, _ bool, args ...string) error {
+	fullCmd := strings.Join(args, " ")
+	response := "Mock execute for " + hostString + " command: " + fullCmd
+	output(response)
+	return nil
 }
 
 func (m *MockCapCollector) HostExecute(hostString string, _ bool, args ...string) (response string, err error) {
