@@ -50,6 +50,7 @@ type Collector interface {
 	FindHosts(searchTerm string) (podName []string, err error)
 	HostExecute(hostString string, isCoordinator bool, args ...string) (stdOut string, err error)
 	HostExecuteAndStream(hostString string, output cli.OutputHandler, isCoordinator bool, args ...string) error
+	HelpText() string
 }
 
 type Args struct {
@@ -72,7 +73,7 @@ type HostCaptureConfiguration struct {
 	DDCfs             helpers.Filesystem
 }
 
-func Execute(c Collector, s CopyStrategy, collectionArgs Args) error {
+func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection ...func()) error {
 	start := time.Now().UTC()
 	coordinatorStr := collectionArgs.CoordinatorStr
 	executorsStr := collectionArgs.ExecutorsStr
@@ -99,6 +100,20 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args) error {
 	coordinators, err := c.FindHosts(coordinatorStr)
 	if err != nil {
 		return err
+	}
+
+	executors, err := c.FindHosts(executorsStr)
+	if err != nil {
+		return err
+	}
+
+	totalNodes := len(executors) + len(coordinators)
+	if totalNodes == 0 {
+		return fmt.Errorf("there are no nodes to connect: %v", c.HelpText())
+	}
+	//now safe to collect cluster level information
+	for _, c := range clusterCollection {
+		c()
 	}
 	var files []helpers.CollectedFile
 	var totalFailedFiles []FailedFiles
@@ -130,10 +145,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args) error {
 			m.Unlock()
 		}(coordinator)
 	}
-	executors, err := c.FindHosts(executorsStr)
-	if err != nil {
-		return err
-	}
+
 	for _, executor := range executors {
 		nodesConnectedTo++
 		wg.Add(1)

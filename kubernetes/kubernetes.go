@@ -119,3 +119,7 @@ func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err 
 	}
 	return pods, nil
 }
+
+func (c *KubectlK8sActions) HelpText() string {
+	return "Make sure the labels and namespace you use actually correspond to your dremio pods: try something like 'ddc -n mynamespace --coordinator app=dremio-coordinator --executor app=dremio-executor'.  You can also run 'kubectl get pods --show-labels' to see what labels are available to use for your dremio pods"
+}
