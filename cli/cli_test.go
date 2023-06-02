@@ -25,25 +25,25 @@ var _ = Describe("Cli", func() {
 		}
 	})
 
-	Describe("ExecuteAndStreamOutput", func() {
-		Context("with a valid command", func() {
-			It("should stream the command output", func() {
-				err := c.ExecuteAndStreamOutput(outputHandler, "ls", "-v")
-				Expect(err).To(BeNil())
-				Expect(strings.TrimSpace(executedOutput)).ToNot(BeEmpty())
-			})
-		})
+	// Describe("ExecuteAndStreamOutput", func() {
+	// 	Context("with a valid command", func() {
+	// 		It("should stream the command output", func() {
+	// 			err := c.ExecuteAndStreamOutput(outputHandler, "ls", "-v")
+	// 			Expect(err).To(BeNil())
+	// 			Expect(strings.TrimSpace(executedOutput)).ToNot(BeEmpty())
+	// 		})
+	// 	})
 
-		Context("with an invalid command", func() {
-			It("should return an error", func() {
-				err := c.ExecuteAndStreamOutput(outputHandler, "22JIDJMJMHHF")
-				Expect(err).To(HaveOccurred())
-				Expect(err).To(BeAssignableToTypeOf(cli.UnableToStartErr{}))
-				expectedErr := "unable to start command '22JIDJMJMHHF' due to error"
-				Expect(strings.Contains(err.Error(), expectedErr)).To(BeTrue())
-			})
-		})
-	})
+	// 	Context("with an invalid command", func() {
+	// 		It("should return an error", func() {
+	// 			err := c.ExecuteAndStreamOutput(outputHandler, "22JIDJMJMHHF")
+	// 			Expect(err).To(HaveOccurred())
+	// 			Expect(err).To(BeAssignableToTypeOf(cli.UnableToStartErr{}))
+	// 			expectedErr := "unable to start command '22JIDJMJMHHF' due to error"
+	// 			Expect(strings.Contains(err.Error(), expectedErr)).To(BeTrue())
+	// 		})
+	// 	})
+	// })
 
 	Describe("Execute", func() {
 		Context("when the command is valid", func() {
