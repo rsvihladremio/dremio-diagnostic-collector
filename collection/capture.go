@@ -35,7 +35,7 @@ func (fe FindErr) Error() string {
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outputLoc string) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outputLoc string, skipRESTCollect bool) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 
 	ddcTmpDir := "/tmp/ddc"
@@ -79,10 +79,14 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outp
 	} else {
 		simplelog.Infof("sucessfully copied ddc.yaml to host %v", host)
 	}
-	//execute local-collect
+	//execute local-collect if skipRESTCollect is set blank the pat
+	localCollectArgs := []string{pathToDDC, "local-collect"}
+	if skipRESTCollect {
+		localCollectArgs = append(localCollectArgs, "--dremio-pat-token", "")
+	}
 	if err := ComposeExecuteAndStream(conf, func(line string) {
 		fmt.Printf("HOST %v - %v\n", host, line)
-	}, []string{pathToDDC, "local-collect"}); err != nil {
+	}, localCollectArgs); err != nil {
 		simplelog.Warningf("on host %v capture failed due to error '%v'", host, err)
 		//return
 	} else {

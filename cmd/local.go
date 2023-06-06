@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -68,6 +69,7 @@ var (
 	collectAccessLogs          bool
 	captureHeapDump            bool
 	acceptCollectionConsent    bool
+	allowInsecureSSL           bool
 )
 
 // advanced variables setable by configuration or environement variable
@@ -1117,6 +1119,7 @@ var localCollectCmd = &cobra.Command{
 		dremioEndpoint = viper.GetString("dremio-endpoint")
 		dremioUsername = viper.GetString("dremio-username")
 		dremioPATToken = viper.GetString("dremio-pat-token")
+		allowInsecureSSL = viper.GetBool("allow-insecure-ssl")
 		dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
 		collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
 		numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
@@ -1410,8 +1413,10 @@ func init() {
 	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
 	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
 	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
+	localCollectCmd.Flags().BoolVar(&allowInsecureSSL, "allow-insecure-ssl", false, "When true allow insecure ssl certs when doing API calls")
 
 	rootCmd.AddCommand(localCollectCmd)
+
 }
 
 func initConfig() {
@@ -1451,6 +1456,7 @@ func initConfig() {
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jstack-freq-seconds", 1)
 	viper.SetDefault("dremio-gclogs-dir", "")
+	viper.SetDefault("allow-insecure-ssl", false)
 	// set node name
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -1501,7 +1507,6 @@ func validateAPICredentials() error {
 
 func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
 	simplelog.Debugf("Requesting %s", url)
-	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(request, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create request due to error %v", err)
@@ -1511,6 +1516,11 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL},
+	}
+	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -1527,9 +1537,12 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 
 func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
 	simplelog.Debugf("Collecting sys." + systable)
-
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL},
+	}
+	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
 	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
-	client := &http.Client{Timeout: 5 * time.Second}
+
 	req, err := http.NewRequest("POST", url, strings.NewReader(sqlbody))
 	if err != nil {
 		return "", fmt.Errorf("unable to create request due to error %v", err)
