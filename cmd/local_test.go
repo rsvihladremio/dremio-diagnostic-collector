@@ -31,6 +31,7 @@ import (
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/spf13/pflag"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -58,11 +59,20 @@ func cleanupOutput() {
 }
 
 func writeConf(patToken, dremioEndpoint, tmpOutputDir string) string {
-	testDDCYaml := filepath.Join("testdata", "output", "conf", "ddc.yaml")
+	testDDCYamlDir := filepath.Join("testdata", "output", "conf")
+	if err := os.MkdirAll(testDDCYamlDir, 0700); err != nil {
+		log.Fatal(err)
+	}
+	testDDCYaml := filepath.Join(testDDCYamlDir, "ddc.yaml")
 	w, err := os.Create(testDDCYaml)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			simplelog.Warningf("unable to close %v with reason '%v'", testDDCYaml, err)
+		}
+	}()
 	yamlText := fmt.Sprintf(`verbose: vvvv
 collect-acceleration-log: true
 collect-access-log: true
@@ -82,7 +92,7 @@ tmp-output-dir: "%v
 node-metrics-collect-duration-seconds: 10
 "
 `, dremioEndpoint, patToken, tmpOutputDir)
-	if _, err := io.WriteString(w, yamlText); err != nil {
+	if _, err := w.WriteString(yamlText); err != nil {
 		log.Fatal(err)
 	}
 	return testDDCYaml

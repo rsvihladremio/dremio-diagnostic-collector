@@ -25,19 +25,11 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
-func IsAWSE() (bool, error) {
-	var dremioPIDOutput bytes.Buffer
-	if err := ddcio.Shell(&dremioPIDOutput, "jps"); err != nil {
-		return false, fmt.Errorf("grepping from Dremio from jps failed %v with output %v", err, dremioPIDOutput.String())
-	}
-	dremioPIDString := dremioPIDOutput.String()
-	return strings.Contains(dremioPIDString, "AwsDremioDaemon"), nil
+func IsAWSEFromJPSOutput(jpsText string) (bool, error) {
+	return strings.Contains(jpsText, "AwsDremioDaemon"), nil
 }
 
-func IsAWSEExecutor(nodeName string) (bool, error) {
-	//search EFS folder
-	// Open the directory
-	efsFolder := "/var/dremio_efs/log/executor"
+func IsAWSEExecutorUsingDir(efsFolder, nodeName string) (bool, error) {
 	dir, err := os.ReadDir(efsFolder)
 	if err != nil {
 		return false, err
@@ -55,4 +47,20 @@ func IsAWSEExecutor(nodeName string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func IsAWSE() (bool, error) {
+	var dremioPIDOutput bytes.Buffer
+	if err := ddcio.Shell(&dremioPIDOutput, "jps"); err != nil {
+		return false, fmt.Errorf("grepping from Dremio from jps failed %v with output %v", err, dremioPIDOutput.String())
+	}
+	dremioPIDString := dremioPIDOutput.String()
+	return IsAWSEFromJPSOutput(dremioPIDString)
+}
+
+func IsAWSEExecutor(nodeName string) (bool, error) {
+	//search EFS folder
+	// Open the directory
+	efsFolder := "/var/dremio_efs/log/executor"
+	return IsAWSEExecutorUsingDir(efsFolder, nodeName)
 }

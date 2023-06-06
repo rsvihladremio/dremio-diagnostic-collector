@@ -17,11 +17,9 @@ package conf
 import (
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -101,10 +99,16 @@ func ReadConfFromExecLocation(overrides map[string]*pflag.Flag) (*CollectConf, e
 }
 
 func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf, error) {
-
+	defaultThreads := autodetect.GetThreads()
+	defaultCaptureSeconds := 60
+	// set node name
+	hostName, err := os.Hostname()
+	if err != nil {
+		hostName = fmt.Sprintf("unknown-%v", uuid.New())
+	}
+	SetViperDefaults(defaultThreads, hostName, defaultCaptureSeconds, getOutputDir(time.Now()))
 	c := &CollectConf{}
 	c.supportedExtensions = []string{"yaml", "json", "toml", "hcl", "env", "props"}
-	//kubernetesConfTypes = []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	c.systemtables = []string{
 		"\\\"tables\\\"",
 		"boot",
@@ -136,48 +140,6 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 		return &CollectConf{}, fmt.Errorf("read config stopped due to error %v", err)
 	}
 	c.dremioPID = dremioPID
-	// set default config
-	viper.SetDefault("collect-acceleration-log", false)
-	viper.SetDefault("collect-access-log", false)
-	viper.SetDefault("dremio-log-dir", "/var/log/dremio")
-	defaultThreads := getThreads(runtime.NumCPU())
-	viper.SetDefault("number-threads", defaultThreads)
-	viper.SetDefault("dremio-usernme", "dremio")
-	viper.SetDefault("dremio-pat-token", "")
-	viper.SetDefault("dremio-conf-dir", "/opt/dremio/conf")
-	viper.SetDefault("dremio-rocksdb-dir", "/opt/dremio/data/db")
-	viper.SetDefault("collect-dremio-configuration", true)
-	viper.SetDefault("capture-heap-dump", false)
-	viper.SetDefault("number-job-profiles", 25000)
-	viper.SetDefault("dremio-endpoint", "http://localhost:9047")
-	viper.SetDefault("tmp-output-dir", getOutputDir(time.Now()))
-	viper.SetDefault("collect-metrics", true)
-	viper.SetDefault("collect-disk-usage", true)
-	viper.SetDefault("dremio-logs-num-days", 7)
-	viper.SetDefault("dremio-queries-json-num-days", 28)
-	viper.SetDefault("dremio-gc-file-pattern", "gc*.log*")
-	viper.SetDefault("collect-queries-json", true)
-	viper.SetDefault("collect-server-logs", true)
-	viper.SetDefault("collect-meta-refresh-log", true)
-	viper.SetDefault("collect-reflection-log", true)
-	viper.SetDefault("collect-gc-logs", true)
-	viper.SetDefault("collect-jfr", true)
-	viper.SetDefault("collect-jstack", true)
-	viper.SetDefault("collect-system-tables-export", true)
-	viper.SetDefault("collect-wlm", true)
-	viper.SetDefault("collect-kvstore-report", true)
-	defaultCaptureSeconds := 60
-	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
-	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
-	viper.SetDefault("node-metrics-collect-duration-seconds", defaultCaptureSeconds)
-	viper.SetDefault("dremio-jstack-freq-seconds", 1)
-	viper.SetDefault("dremio-gclogs-dir", "")
-	// set node name
-	hostName, err := os.Hostname()
-	if err != nil {
-		hostName = fmt.Sprintf("unknown-%v", uuid.New())
-	}
-	viper.SetDefault("node-name", hostName)
 
 	//read viper config
 	baseConfig := "ddc"
@@ -201,16 +163,6 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 
 	viper.AutomaticEnv() // Automatically read environment variables
 
-	//TODO add back command flag binding or remove flags
-	// // Only bind flags that were actually set
-	// cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-	// 	if flag.Changed {
-	// 		log.Printf("flag %v passed in binding it", flag.Name)
-	// 		if err := viper.BindPFlag(flag.Name, flag); err != nil {
-	// 			simplelog.Errorf("unable to bind flag %v so it will likely not be read due to error: %v", flag.Name, err)
-	// 		}
-	// 	}
-	// })
 	for k, v := range overrides {
 		viper.Set(k, v)
 	}
@@ -238,14 +190,12 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 	} else {
 		simplelog.Infof("found config file %v", c.foundConfig)
 	}
-	// override the flag values
-	c.acceptCollectionConsent = viper.GetBool("accept-collection-consent")
-	c.collectAccelerationLogs = viper.GetBool("collect-acceleration-log")
-	c.collectAccessLogs = viper.GetBool("collect-access-log")
-	c.gcLogsDir = viper.GetString("dremio-gclogs-dir")
-	c.dremioLogDir = viper.GetString("dremio-log-dir")
-	// parse in the nodeName now because it is used for dremioLogDir in awse
-	c.nodeName = viper.GetString("node-name")
+	c.acceptCollectionConsent = viper.GetBool(KeyAcceptCollectionConsent)
+	c.collectAccelerationLogs = viper.GetBool(KeyCollectAccelerationLog)
+	c.collectAccessLogs = viper.GetBool(KeyCollectAccessLog)
+	c.gcLogsDir = viper.GetString(KeyDremioGCLogsDir)
+	c.dremioLogDir = viper.GetString(KeyDremioLogDir)
+	c.nodeName = viper.GetString(KeyNodeName)
 	isAWSE, err := autodetect.IsAWSE()
 	if err != nil {
 		simplelog.Warningf("unable to determind if node is AWSE or not due to error %v", err)
@@ -271,32 +221,31 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 			}
 		}
 	}
-	c.dremioConfDir = viper.GetString("dremio-conf-dir")
-	c.numberThreads = viper.GetInt("number-threads")
-	c.dremioEndpoint = viper.GetString("dremio-endpoint")
-	c.dremioUsername = viper.GetString("dremio-username")
-	c.dremioPATToken = viper.GetString("dremio-pat-token")
-	c.dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
-	c.collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
-	c.numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
-	c.captureHeapDump = viper.GetBool("capture-heap-dump")
+	c.dremioConfDir = viper.GetString(KeyDremioConfDir)
+	c.numberThreads = viper.GetInt(KeyNumberThreads)
+	c.dremioEndpoint = viper.GetString(KeyDremioEndpoint)
+	c.dremioUsername = viper.GetString(KeyDremioUsername)
+	c.dremioPATToken = viper.GetString(KeyDremioPatToken)
+	c.dremioRocksDBDir = viper.GetString(KeyDremioRocksdbDir)
+	c.collectDremioConfiguration = viper.GetBool(KeyCollectDremioConfiguration)
+	c.numberJobProfilesToCollect = viper.GetInt(KeyNumberJobProfiles)
+	c.captureHeapDump = viper.GetBool(KeyCaptureHeapDump)
 
-	//system diag
-
-	c.collectNodeMetrics = viper.GetBool("collect-metrics")
-	c.collectDiskUsage = viper.GetBool("collect-disk-usage")
+	// system diag
+	c.collectNodeMetrics = viper.GetBool(KeyCollectMetrics)
+	c.collectDiskUsage = viper.GetBool(KeyCollectDiskUsage)
 
 	// log collect
-	c.outputDir = viper.GetString("tmp-output-dir")
-	c.dremioLogsNumDays = viper.GetInt("dremio-logs-num-days")
-	c.dremioQueriesJSONNumDays = viper.GetInt("dremio-queries-json-num-days")
-	c.dremioGCFilePattern = viper.GetString("dremio-gc-file-pattern")
-	c.collectQueriesJSON = viper.GetBool("collect-queries-json")
-	c.collectServerLogs = viper.GetBool("collect-server-logs")
-	c.collectMetaRefreshLogs = viper.GetBool("collect-meta-refresh-log")
-	c.collectReflectionLogs = viper.GetBool("collect-reflection-log")
-	c.collectGCLogs = viper.GetBool("collect-gc-logs")
-	c.gcLogsDir = viper.GetString("dremio-gclogs-dir")
+	c.outputDir = viper.GetString(KeyTmpOutputDir)
+	c.dremioLogsNumDays = viper.GetInt(KeyDremioLogsNumDays)
+	c.dremioQueriesJSONNumDays = viper.GetInt(KeyDremioQueriesJsonNumDays)
+	c.dremioGCFilePattern = viper.GetString(KeyDremioGCFilePattern)
+	c.collectQueriesJSON = viper.GetBool(KeyCollectQueriesJson)
+	c.collectServerLogs = viper.GetBool(KeyCollectServerLogs)
+	c.collectMetaRefreshLogs = viper.GetBool(KeyCollectMetaRefreshLog)
+	c.collectReflectionLogs = viper.GetBool(KeyCollectReflectionLog)
+	c.collectGCLogs = viper.GetBool(KeyCollectGCLogs)
+	c.gcLogsDir = viper.GetString(KeyDremioGCLogsDir)
 	parsedGCLogDir, err := autodetect.FindGCLogLocation()
 	if err != nil {
 		if c.gcLogsDir == "" {
@@ -397,11 +346,6 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 	simplelog.Infof("Current configuration: %+v", viper.AllSettings())
 
 	return c, nil
-}
-
-func getThreads(cpus int) int {
-	numCPU := math.Round(float64(cpus / 2.0))
-	return int(math.Max(numCPU, 2))
 }
 
 func getOutputDir(now time.Time) string {

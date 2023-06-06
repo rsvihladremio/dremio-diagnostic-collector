@@ -14,3 +14,17 @@
 
 // package autodetect looks at the system configuration and file names and tries to guess at the correct configuration
 package autodetect
+
+import (
+	"math"
+	"runtime"
+)
+
+func GetThreads() int {
+	return GetDefaultThreadsFromCPUs(runtime.NumCPU())
+}
+
+func GetDefaultThreadsFromCPUs(cpus int) int {
+	numCPU := math.Round(float64(cpus / 2.0))
+	return int(math.Max(numCPU, 2))
+}

@@ -26,24 +26,18 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
-func GetDremioPID() (int, error) {
-	isAWSE, err := IsAWSE()
-	if err != nil {
-		return -1, fmt.Errorf("failed getting awse status %v", err)
-	}
+func GetDremioPIDFromText(jpsOutput string, isAWSE bool) (int, error) {
 	var procName string
 	if isAWSE {
 		procName = "AwsDremioDaemon"
 	} else {
 		procName = "DremioDaemon"
 	}
-	var jpsOutput bytes.Buffer
-	if err := ddcio.Shell(&jpsOutput, "jps"); err != nil {
-		simplelog.Warningf("attempting to get full jps output failed: %v", err)
-	}
-	scanner := bufio.NewScanner(&jpsOutput)
+	var lines []string
+	scanner := bufio.NewScanner(strings.NewReader(jpsOutput))
 	for scanner.Scan() {
 		line := scanner.Text()
+		lines = append(lines, line)
 		if strings.Contains(line, procName) {
 			tokens := strings.Split(line, " ")
 			if len(tokens) == 0 {
@@ -53,5 +47,17 @@ func GetDremioPID() (int, error) {
 			return strconv.Atoi(pidText)
 		}
 	}
-	return -1, fmt.Errorf("found no matching process named %v therefore cannot get the pid", procName)
+	return -1, fmt.Errorf("found no matching process named %v in text %v therefore cannot get the pid", procName, strings.Join(lines, ", "))
+}
+
+func GetDremioPID() (int, error) {
+	var jpsOutput bytes.Buffer
+	if err := ddcio.Shell(&jpsOutput, "jps"); err != nil {
+		simplelog.Warningf("attempting to get full jps output failed: %v", err)
+	}
+	isAWSE, err := IsAWSE()
+	if err != nil {
+		return -1, fmt.Errorf("failed getting awse status %v", err)
+	}
+	return GetDremioPIDFromText(jpsOutput.String(), isAWSE)
 }
