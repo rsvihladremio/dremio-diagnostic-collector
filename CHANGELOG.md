@@ -3,6 +3,10 @@
 
 ## [0.3.1]
 
+### Added
+
+* support for untrusted certs when accessing the dremio API
+
 ### Fixed
 
 * We were logging WARN messages for unsupported kinds, we are ignoring those now and there will be a debug log that explains we are not masking those kinds
