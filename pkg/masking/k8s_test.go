@@ -68,7 +68,7 @@ var _ = Describe("K8s Masking", func() {
 			Expect(jsonCompact(output)).To(Equal(jsonCompact(expected)))
 		})
 
-		It("should return error for unsupported kind", func() {
+		It("should not return error for unsupported kind", func() {
 			input := `{
 				"items": [
 					{
@@ -80,8 +80,7 @@ var _ = Describe("K8s Masking", func() {
 			}`
 
 			_, err := masking.RemoveSecretsFromK8sJSON(input)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("unsupported kind"))
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should handle invalid JSON input", func() {

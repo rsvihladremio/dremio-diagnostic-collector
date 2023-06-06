@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 var secretK8sKeywords = []string{
@@ -29,17 +31,29 @@ var secretK8sKeywords = []string{
 
 func getContainers(k8sItem map[string]interface{}) ([]interface{}, error) {
 	var containers []interface{}
-	specRaw, ok := k8sItem["spec"]
-	if !ok {
-		return containers, fmt.Errorf("unable to read spec")
-	}
-	spec := specRaw.(map[string]interface{})
 	kindRaw, ok := k8sItem["kind"]
 	if !ok {
 		return containers, fmt.Errorf("unable to read kind")
 	}
 	kind := kindRaw.(string)
 
+	supported := false
+	supportedTypesForMasking := []string{"cronjob", "job", "statefulset", "pod"}
+	for _, k := range supportedTypesForMasking {
+		if k == kind {
+			supported = true
+		}
+	}
+	if !supported {
+		simplelog.Debugf("There is no password masking for kubernetes type %s", kind)
+		return containers, nil
+	}
+
+	specRaw, ok := k8sItem["spec"]
+	if !ok {
+		return containers, fmt.Errorf("unable to read spec")
+	}
+	spec := specRaw.(map[string]interface{})
 	switch strings.ToLower(kind) {
 	case "cronjob":
 		containers = spec["jobTemplate"].(map[string]interface{})["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
@@ -50,7 +64,7 @@ func getContainers(k8sItem map[string]interface{}) ([]interface{}, error) {
 	case "statefulset":
 		containers = spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
 	default:
-		return nil, fmt.Errorf("unsupported kind: %s", kind)
+		simplelog.Errorf("Unsupported kind %v file a bug", kind)
 	}
 
 	return containers, nil
