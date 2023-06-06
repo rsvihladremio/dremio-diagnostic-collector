@@ -135,9 +135,11 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				SudoUser:          sudoUser,
 				CopyStrategy:      s,
 				DDCfs:             ddcfs,
-				NodeCaptureOutput: "/tmp/ddc",
+				NodeCaptureOutput: "/tmp/ddc", //TODO use node output dirs from the config
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
+			//we want to be able to capture the job profiles of all the nodes
+			skipRESTCalls := true
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), skipRESTCalls)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -161,7 +163,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				DDCfs:             ddcfs,
 				NodeCaptureOutput: "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), true)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -281,7 +283,7 @@ func ExtractTarGz(gzFilePath, dest string) error {
 					return err
 				}
 			}
-			simplelog.Infof("extracted file %v", file)
+			simplelog.Debugf("extracted file %v", file.Name())
 		}
 	}
 }

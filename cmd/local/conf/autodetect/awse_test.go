@@ -1,7 +1,6 @@
 package autodetect_test
 
 import (
-	"io/ioutil"
 	"os"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,7 +33,7 @@ var _ = Describe("AWSE", func() {
 		)
 
 		BeforeEach(func() {
-			testDir, err = ioutil.TempDir("", "example")
+			testDir, err = os.MkdirTemp("", "example")
 			Expect(err).NotTo(HaveOccurred())
 			nodeName = "TestNode"
 
@@ -72,7 +71,7 @@ var _ = Describe("AWSE", func() {
 		)
 
 		BeforeEach(func() {
-			testDir, err = ioutil.TempDir("", "example")
+			testDir, err = os.MkdirTemp("", "example")
 			Expect(err).NotTo(HaveOccurred())
 			nodeName = "TestNode"
 

@@ -31,6 +31,7 @@ import (
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/restclient"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/spf13/pflag"
 	"github.com/testcontainers/testcontainers-go"
@@ -59,36 +60,35 @@ func cleanupOutput() {
 }
 
 func writeConf(patToken, dremioEndpoint, tmpOutputDir string) string {
-	testDDCYamlDir := filepath.Join("testdata", "output", "conf")
-	if err := os.MkdirAll(testDDCYamlDir, 0700); err != nil {
+	if err := os.MkdirAll(tmpOutputDir, 0700); err != nil {
 		log.Fatal(err)
 	}
-	testDDCYaml := filepath.Join(testDDCYamlDir, "ddc.yaml")
+	testDDCYaml := filepath.Join(tmpOutputDir, "ddc.yaml")
 	w, err := os.Create(testDDCYaml)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() {
 		if err := w.Close(); err != nil {
-			simplelog.Warningf("unable to close %v with reason '%v'", testDDCYaml, err)
+			log.Printf("WARN: unable to close %v with reason '%v'", testDDCYaml, err)
 		}
 	}()
 	yamlText := fmt.Sprintf(`verbose: vvvv
 collect-acceleration-log: true
 collect-access-log: true
-dremio-gclogs-dir: "" # if left blank detection is used to find the gc log dir
-dremio-log-dir: "/opt/dremio/data/logs" # where the dremio log is located
-dremio-conf-dir: "/opt/dremio/conf" #where the dremio conf files are located
-dremio-rocksdb-dir: /opt/dremio/data/db # used for locating Dremio's KV Metastore
-number-threads: 2 #number of threads to use for collection
-dremio-endpoint: "%v" # dremio endpoint on each node to use for collecting Workload Manager, KV Report and Job Profiles
-dremio-username: "dremio" # dremio user to for collecting Workload Manager, KV Report and Job Profiles 
-dremio-pat-token: "%v" # when set will attempt to collect Workload Manager, KV report and Job Profiles. Dremio PATs can be enabled by the support key auth.personal-access-tokens.enabled
-collect-dremio-configuration: true # will collect dremio.conf, dremio-env, logback.xml and logback-access.xml
-number-job-profiles: 0 # need to have the dremio-pat-token set to work
-capture-heap-dump: false # when true a heap dump will be captured on each node that the collector is run against
-accept-collection-consent: true # when true you accept consent to collect data on each node, if false collection will fail
-tmp-output-dir: "%v
+dremio-gclogs-dir: ""
+dremio-log-dir: /opt/dremio/data/logs
+dremio-conf-dir: /opt/dremio/conf
+dremio-rocksdb-dir: /opt/dremio/data/db
+number-threads: 2
+dremio-endpoint: %v
+dremio-username: dremio
+dremio-pat-token: %v
+collect-dremio-configuration: true
+number-job-profiles: 0
+capture-heap-dump: false
+accept-collection-consent: true
+tmp-output-dir: %v
 node-metrics-collect-duration-seconds: 10
 "
 `, dremioEndpoint, patToken, tmpOutputDir)
@@ -100,7 +100,9 @@ node-metrics-collect-duration-seconds: 10
 
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
+	simplelog.InitLogger(4)
 	exitCode := func() (exitCode int) {
+		restclient.InitClient(true)
 		ctx := context.Background()
 
 		pwd, err := os.Getwd()
@@ -228,8 +230,12 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != 200 {
 			log.Fatalf("expected status code 200 but instead got %v while trying to create source", res.StatusCode)
 		}
-		yamlLocation := writeConf(dremioPATToken, dremioEndpoint, filepath.Join("testdata", "output"))
-		c, err = conf.ReadConf(make(map[string]*pflag.Flag), filepath.Join("testdata", filepath.Dir(yamlLocation)))
+		tmpDirForConf, err := os.MkdirTemp("", "ddc")
+		if err != nil {
+			log.Fatal(err)
+		}
+		yamlLocation := writeConf(dremioPATToken, dremioEndpoint, tmpDirForConf)
+		c, err = conf.ReadConf(make(map[string]*pflag.Flag), filepath.Dir(yamlLocation))
 		if err != nil {
 			log.Fatalf("reading config %v", err)
 		}
@@ -342,7 +348,7 @@ func TestValidateCollectJobProfiles(t *testing.T) {
 }
 
 func TestCaptureSystemMetrics(t *testing.T) {
-	if err := os.MkdirAll(c.NodeInfoOutDir(), 0755); err != nil {
+	if err := os.MkdirAll(c.NodeInfoOutDir(), 0700); err != nil {
 		t.Errorf("cannot make output dir due to error %v", err)
 	}
 	defer func() {
@@ -353,7 +359,7 @@ func TestCaptureSystemMetrics(t *testing.T) {
 	if err := runCollectNodeMetrics(c); err != nil {
 		t.Errorf("expected no errors but had %v", err)
 	}
-	metricsFile := filepath.Join("testdata", "output", "node-info", "metrics.json")
+	metricsFile := filepath.Join(c.NodeInfoOutDir(), "metrics.json")
 	fs, err := os.Stat(metricsFile)
 	if err != nil {
 		t.Errorf("expected to find file but got error %v", err)

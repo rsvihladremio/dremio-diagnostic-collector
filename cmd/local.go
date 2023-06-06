@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/http"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,6 +40,7 @@ import (
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/logcollect"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/restclient"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
@@ -463,7 +464,7 @@ func runCollectKvReport(c *conf.CollectConf) error {
 	apipath := "/apiv2/kvstore/report"
 	url := c.DremioEndpoint() + apipath
 	headers := map[string]string{"Accept": "application/octet-stream"}
-	body, err := apiRequest(url, c.DremioPATToken(), "GET", headers)
+	body, err := restclient.APIRequest(url, c.DremioPATToken(), "GET", headers)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve KV store report from %s due to error %v", url, err)
 	}
@@ -496,7 +497,7 @@ func runCollectWLM(c *conf.CollectConf) error {
 		filename := apiobject[1]
 		url := c.DremioEndpoint() + apipath
 		headers := map[string]string{"Content-Type": "application/json"}
-		body, err := apiRequest(url, c.DremioPATToken(), "GET", headers)
+		body, err := restclient.APIRequest(url, c.DremioPATToken(), "GET", headers)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve WLM from %s due to error %v", url, err)
 		}
@@ -611,7 +612,7 @@ func downloadJobProfile(c *conf.CollectConf, jobid string) error {
 	filename := jobid + ".zip"
 	url := c.DremioEndpoint() + apipath
 	headers := map[string]string{"Accept": "application/octet-stream"}
-	body, err := apiRequest(url, c.DremioPATToken(), "POST", headers)
+	body, err := restclient.APIRequest(url, c.DremioPATToken(), "POST", headers)
 	if err != nil {
 		return err
 	}
@@ -678,7 +679,7 @@ func downloadSysTable(c *conf.CollectConf, systable string, rowlimit int, sleepm
 	headers := map[string]string{"Content-Type": "application/json"}
 	sqlurl := c.DremioEndpoint() + "/api/v3/sql"
 	joburl := c.DremioEndpoint() + "/api/v3/job/"
-	jobid, err := postQuery(sqlurl, c.DremioPATToken(), headers, systable)
+	jobid, err := restclient.PostQuery(sqlurl, c.DremioPATToken(), headers, systable)
 	if err != nil {
 		return nil, err
 	}
@@ -686,7 +687,7 @@ func downloadSysTable(c *conf.CollectConf, systable string, rowlimit int, sleepm
 	jobstate := "RUNNING"
 	for jobstate == "RUNNING" {
 		time.Sleep(time.Duration(sleepms) * time.Millisecond)
-		body, err := apiRequest(jobstateurl, c.DremioPATToken(), "GET", headers)
+		body, err := restclient.APIRequest(jobstateurl, c.DremioPATToken(), "GET", headers)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve job state from %s due to error %v", jobstateurl, err)
 		}
@@ -700,7 +701,7 @@ func downloadSysTable(c *conf.CollectConf, systable string, rowlimit int, sleepm
 	if jobstate == "COMPLETED" {
 		jobresultsurl := c.DremioEndpoint() + "/apiv2/job/" + jobid + "/data?offset=0&limit=" + strconv.Itoa(rowlimit)
 		simplelog.Info("Retrieving job results ...")
-		body, err := apiRequest(jobresultsurl, c.DremioPATToken(), "GET", headers)
+		body, err := restclient.APIRequest(jobresultsurl, c.DremioPATToken(), "GET", headers)
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve job results from %s due to error %v", jobresultsurl, err)
 		}
@@ -714,6 +715,14 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
+		simplelog.InitLogger(4)
+		defer func() {
+			if err := simplelog.Close(); err != nil {
+				log.Printf("unable to close log due to error %v", err)
+			}
+		}()
+		simplelog.Infof("ddc local-collect version: %v", getVersion())
+		simplelog.Infof("args: %v", strings.Join(args, " "))
 		overrides := make(map[string]*pflag.Flag)
 		//if a cli flag was set go ahead and use those values to override the viper configuration
 		cmd.Flags().Visit(func(flag *pflag.Flag) {
@@ -830,7 +839,7 @@ func TarGzDir(srcDir, dest string) error {
 
 func init() {
 	//wire up override flags
-
+	simplelog.InitLogger(3)
 	// consent form
 	localCollectCmd.Flags().Bool("accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
@@ -849,8 +858,9 @@ func init() {
 	localCollectCmd.Flags().Bool("collect-dremio-configuration", true, "Collect Dremio Configuration collector")
 	localCollectCmd.Flags().Int("number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
 	localCollectCmd.Flags().Bool("capture-heap-dump", false, "Run the Heap Dump collector")
-
+	localCollectCmd.Flags().Bool("allow-insecure-ssl", false, "When true allow insecure ssl certs when doing API calls")
 	rootCmd.AddCommand(localCollectCmd)
+
 }
 
 // ### Helper functions
@@ -858,69 +868,8 @@ func validateAPICredentials(c *conf.CollectConf) error {
 	simplelog.Info("Validating REST API user credentials...")
 	url := c.DremioEndpoint() + "/apiv2/login"
 	headers := map[string]string{"Content-Type": "application/json"}
-	_, err := apiRequest(url, c.DremioPATToken(), "GET", headers)
+	_, err := restclient.APIRequest(url, c.DremioPATToken(), "GET", headers)
 	return err
-}
-
-func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
-	simplelog.Debugf("Requesting %s", url)
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(request, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create request due to error %v", err)
-	}
-	authorization := "Bearer " + pat
-	req.Header.Set("Authorization", authorization)
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf(res.Status)
-	}
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
-}
-
-func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
-	simplelog.Debugf("Collecting sys." + systable)
-
-	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("POST", url, strings.NewReader(sqlbody))
-	if err != nil {
-		return "", fmt.Errorf("unable to create request due to error %v", err)
-	}
-	authorization := "Bearer " + pat
-	req.Header.Set("Authorization", authorization)
-
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-	res, err := client.Do(req)
-
-	if err != nil {
-		return "", err
-	}
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf(res.Status)
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	var job map[string]string
-	if err := json.Unmarshal(body, &job); err != nil {
-		return "", err
-	}
-	return job["id"], nil
 }
 
 func errCheck(f func() error) {

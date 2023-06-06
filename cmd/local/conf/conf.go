@@ -16,7 +16,6 @@ package conf
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -75,12 +74,8 @@ type CollectConf struct {
 	nodeName                          string
 
 	// variables
-	supportedExtensions     []string
 	systemtables            []string
 	unableToReadConfigError error
-	confFiles               []string
-	configIsFound           bool
-	foundConfig             string
 	dremioPID               int
 }
 
@@ -99,6 +94,7 @@ func ReadConfFromExecLocation(overrides map[string]*pflag.Flag) (*CollectConf, e
 }
 
 func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf, error) {
+	simplelog.InitLogger(3)
 	defaultThreads := autodetect.GetThreads()
 	defaultCaptureSeconds := 60
 	// set node name
@@ -107,8 +103,8 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 		hostName = fmt.Sprintf("unknown-%v", uuid.New())
 	}
 	SetViperDefaults(defaultThreads, hostName, defaultCaptureSeconds, getOutputDir(time.Now()))
+
 	c := &CollectConf{}
-	c.supportedExtensions = []string{"yaml", "json", "toml", "hcl", "env", "props"}
 	c.systemtables = []string{
 		"\\\"tables\\\"",
 		"boot",
@@ -137,36 +133,15 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 	}
 	dremioPID, err := autodetect.GetDremioPID()
 	if err != nil {
-		return &CollectConf{}, fmt.Errorf("read config stopped due to error %v", err)
+		simplelog.Errorf("disabling Heap Dump Capture, Jstack and JFR collection: %v", err)
+		//return &CollectConf{}, fmt.Errorf("read config stopped due to error %v", err)
 	}
 	c.dremioPID = dremioPID
+	dremioPIDIsValid := dremioPID > 0
 
-	//read viper config
-	baseConfig := "ddc"
-	viper.SetConfigName(baseConfig) // Name of config file (without extension)
-	viper.AddConfigPath(configDir)
-
-	for _, e := range c.supportedExtensions {
-		c.confFiles = append(c.confFiles, fmt.Sprintf("%v.%v", baseConfig, e))
-	}
-
-	//searching for all known
-	for _, ext := range c.supportedExtensions {
-		viper.SetConfigType(ext)
-		unableToReadConfigError := viper.ReadInConfig()
-		if unableToReadConfigError == nil {
-			c.configIsFound = true
-			c.foundConfig = fmt.Sprintf("%v.%v", baseConfig, ext)
-			break
-		}
-	}
-
-	viper.AutomaticEnv() // Automatically read environment variables
-
-	for k, v := range overrides {
-		viper.Set(k, v)
-	}
-
+	supportedExtensions := []string{"yaml", "json", "toml", "hcl", "env", "props"}
+	foundConfig := ParseConfig(configDir, viper.SupportedExts, overrides)
+	// now we can setup verbosity as we are parsing it in the ParseConfig function
 	verboseString := viper.GetString("verbose")
 	verbose := strings.Count(verboseString, "v")
 	if verbose >= 3 {
@@ -179,16 +154,11 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 		fmt.Println("verbosity level ERROR")
 	}
 	simplelog.InitLogger(verbose)
-	defer func() {
-		if err := simplelog.Close(); err != nil {
-			log.Printf("unable to close log due to error %v", err)
-		}
-	}()
-	simplelog.Infof("searched for the following optional configuration files in the current directory %v", strings.Join(c.confFiles, ", "))
-	if !c.configIsFound {
-		simplelog.Warningf("was unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(c.supportedExtensions, ","), c.unableToReadConfigError)
+
+	if foundConfig == "" {
+		simplelog.Warningf("was unable to read any of the valid config file formats (%v) due to error '%v' - falling back to defaults, command line flags and environment variables", strings.Join(supportedExtensions, ","), c.unableToReadConfigError)
 	} else {
-		simplelog.Infof("found config file %v", c.foundConfig)
+		simplelog.Infof("found config file %v", foundConfig)
 	}
 	c.acceptCollectionConsent = viper.GetBool(KeyAcceptCollectionConsent)
 	c.collectAccelerationLogs = viper.GetBool(KeyCollectAccelerationLog)
@@ -229,18 +199,19 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 	c.dremioRocksDBDir = viper.GetString(KeyDremioRocksdbDir)
 	c.collectDremioConfiguration = viper.GetBool(KeyCollectDremioConfiguration)
 	c.numberJobProfilesToCollect = viper.GetInt(KeyNumberJobProfiles)
-	c.captureHeapDump = viper.GetBool(KeyCaptureHeapDump)
+	c.captureHeapDump = viper.GetBool(KeyCaptureHeapDump) && dremioPIDIsValid
 
 	// system diag
 	c.collectNodeMetrics = viper.GetBool(KeyCollectMetrics)
+	c.nodeMetricsCollectDurationSeconds = viper.GetInt(KeyNodeMetricsCollectDurationSeconds)
 	c.collectDiskUsage = viper.GetBool(KeyCollectDiskUsage)
 
 	// log collect
 	c.outputDir = viper.GetString(KeyTmpOutputDir)
 	c.dremioLogsNumDays = viper.GetInt(KeyDremioLogsNumDays)
-	c.dremioQueriesJSONNumDays = viper.GetInt(KeyDremioQueriesJsonNumDays)
+	c.dremioQueriesJSONNumDays = viper.GetInt(KeyDremioQueriesJSONNumDays)
 	c.dremioGCFilePattern = viper.GetString(KeyDremioGCFilePattern)
-	c.collectQueriesJSON = viper.GetBool(KeyCollectQueriesJson)
+	c.collectQueriesJSON = viper.GetBool(KeyCollectQueriesJSON)
 	c.collectServerLogs = viper.GetBool(KeyCollectServerLogs)
 	c.collectMetaRefreshLogs = viper.GetBool(KeyCollectMetaRefreshLog)
 	c.collectReflectionLogs = viper.GetBool(KeyCollectReflectionLog)
@@ -262,87 +233,28 @@ func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf,
 	}
 
 	// jfr config
-	c.collectJFR = viper.GetBool("collect-jfr")
-	c.dremioJFRTimeSeconds = viper.GetInt("dremio-jfr-time-seconds")
+	c.collectJFR = viper.GetBool(KeyCollectJFR) && dremioPIDIsValid
+	c.dremioJFRTimeSeconds = viper.GetInt(KeyDremioJFRTimeSeconds)
 	// jstack config
-	c.collectJStack = viper.GetBool("collect-jstack")
-	c.dremioJStackTimeSeconds = viper.GetInt("dremio-jstack-time-seconds")
-	c.dremioJStackFreqSeconds = viper.GetInt("dremio-jstack-freq-seconds")
+	c.collectJStack = viper.GetBool(KeyCollectJStack) && dremioPIDIsValid
+	c.dremioJStackTimeSeconds = viper.GetInt(KeyDremioJStackTimeSeconds)
+	c.dremioJStackFreqSeconds = viper.GetInt(KeyDremioJStackFreqSeconds)
 
 	// collect rest apis
 	personalAccessTokenPresent := c.dremioPATToken != ""
 	if !personalAccessTokenPresent {
 		simplelog.Warningf("disabling all Workload Manager, System Table, KV Store, and Job Profile collection since the --dremio-pat-token is not set")
 	}
-	c.collectWLM = viper.GetBool("collect-wlm") && personalAccessTokenPresent
-	c.collectSystemTablesExport = viper.GetBool("collect-system-tables-export") && personalAccessTokenPresent
-	c.collectKVStoreReport = viper.GetBool("collect-kvstore-report") && personalAccessTokenPresent
-	// don't bother doing any of the calculation if personal access token is not present in fact zero out everything
-	if !personalAccessTokenPresent {
-		c.numberJobProfilesToCollect = 0
-		c.jobProfilesNumHighQueryCost = 0
-		c.jobProfilesNumSlowExec = 0
-		c.jobProfilesNumRecentErrors = 0
-		c.jobProfilesNumSlowPlanning = 0
-	} else {
-		// check if job profile is set
-		var defaultJobProfilesNumSlowExec int
-		var defaultJobProfilesNumRecentErrors int
-		var defaultJobProfilesNumSlowPlanning int
-		var defaultJobProfilesNumHighQueryCost int
-		if c.numberJobProfilesToCollect > 0 {
-			if c.numberJobProfilesToCollect < 4 {
-				//so few that it is not worth being clever
-				defaultJobProfilesNumSlowExec = c.numberJobProfilesToCollect
-			} else {
-				defaultJobProfilesNumSlowExec = int(float64(c.numberJobProfilesToCollect) * 0.4)
-				defaultJobProfilesNumRecentErrors = int(float64(defaultJobProfilesNumRecentErrors) * 0.2)
-				defaultJobProfilesNumSlowPlanning = int(float64(defaultJobProfilesNumSlowPlanning) * 0.2)
-				defaultJobProfilesNumHighQueryCost = int(float64(defaultJobProfilesNumHighQueryCost) * 0.2)
-				//grab the remainder and drop on top of defaultJobProfilesNumSlowExec
-				totalAllocated := defaultJobProfilesNumSlowExec + defaultJobProfilesNumRecentErrors + defaultJobProfilesNumSlowPlanning + defaultJobProfilesNumHighQueryCost
-				diff := c.numberJobProfilesToCollect - totalAllocated
-				defaultJobProfilesNumSlowExec += diff
-			}
-			simplelog.Infof("setting default values for slow execution profiles: %v, recent error profiles %v, slow planning profiles %v, high query cost profiles %v",
-				defaultJobProfilesNumSlowExec,
-				defaultJobProfilesNumRecentErrors,
-				defaultJobProfilesNumSlowPlanning,
-				defaultJobProfilesNumHighQueryCost)
-		}
+	c.collectWLM = viper.GetBool(KeyCollectWLM) && personalAccessTokenPresent
+	c.collectSystemTablesExport = viper.GetBool(KeyCollectSystemTablesExport) && personalAccessTokenPresent
+	c.collectKVStoreReport = viper.GetBool(KeyCollectKVStoreReport) && personalAccessTokenPresent
 
-		// job profile specific numbers
-		c.jobProfilesNumHighQueryCost = viper.GetInt("job-profiles-num-high-query-cost")
-		if c.jobProfilesNumHighQueryCost == 0 {
-			c.jobProfilesNumHighQueryCost = defaultJobProfilesNumHighQueryCost
-		} else if c.jobProfilesNumHighQueryCost != defaultJobProfilesNumHighQueryCost {
-			simplelog.Warningf("job-profiles-num-high-query-cost changed to %v by configuration", c.jobProfilesNumHighQueryCost)
-		}
-		c.jobProfilesNumSlowExec = viper.GetInt("job-profiles-num-slow-exec")
-		if c.jobProfilesNumSlowExec == 0 {
-			c.jobProfilesNumSlowExec = defaultJobProfilesNumSlowExec
-		} else if c.jobProfilesNumSlowExec != defaultJobProfilesNumSlowExec {
-			simplelog.Warningf("job-profiles-num-slow-exec changed to %v by configuration", c.jobProfilesNumSlowExec)
-		}
-
-		c.jobProfilesNumRecentErrors = viper.GetInt("job-profiles-num-recent-errors")
-		if c.jobProfilesNumRecentErrors == 0 {
-			c.jobProfilesNumRecentErrors = defaultJobProfilesNumRecentErrors
-		} else if c.jobProfilesNumRecentErrors != defaultJobProfilesNumRecentErrors {
-			simplelog.Warningf("job-profiles-num-recent-errors changed to %v by configuration", c.jobProfilesNumRecentErrors)
-		}
-		c.jobProfilesNumSlowPlanning = viper.GetInt("job-profiles-num-slow-planning")
-		if c.jobProfilesNumSlowPlanning == 0 {
-			c.jobProfilesNumSlowPlanning = defaultJobProfilesNumSlowPlanning
-		} else if c.jobProfilesNumSlowPlanning != defaultJobProfilesNumSlowPlanning {
-			simplelog.Warningf("job-profiles-num-slow-planning changed to %v by configuration", c.jobProfilesNumSlowPlanning)
-		}
-		totalAllocated := defaultJobProfilesNumSlowExec + defaultJobProfilesNumRecentErrors + defaultJobProfilesNumSlowPlanning + defaultJobProfilesNumHighQueryCost
-		if totalAllocated > 0 && totalAllocated != c.numberJobProfilesToCollect {
-			c.numberJobProfilesToCollect = totalAllocated
-			simplelog.Warningf("due to configuration parameters new total jobs profiles collected has been adjusted to %v", totalAllocated)
-		}
-	}
+	numberJobProfilesToCollect, jobProfilesNumHighQueryCost, jobProfilesNumSlowExec, jobProfilesNumRecentErrors, jobProfilesNumSlowPlanning := CalculateJobProfileSettings(c)
+	c.numberJobProfilesToCollect = numberJobProfilesToCollect
+	c.jobProfilesNumHighQueryCost = jobProfilesNumHighQueryCost
+	c.jobProfilesNumSlowExec = jobProfilesNumSlowExec
+	c.jobProfilesNumRecentErrors = jobProfilesNumRecentErrors
+	c.jobProfilesNumSlowPlanning = jobProfilesNumSlowPlanning
 	simplelog.Infof("Current configuration: %+v", viper.AllSettings())
 
 	return c, nil

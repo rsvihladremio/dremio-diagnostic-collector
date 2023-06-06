@@ -36,9 +36,9 @@ func SetViperDefaults(defaultThreads int, hostName string, defaultCaptureSeconds
 	viper.SetDefault(KeyCollectMetrics, true)
 	viper.SetDefault(KeyCollectDiskUsage, true)
 	viper.SetDefault(KeyDremioLogsNumDays, 7)
-	viper.SetDefault(KeyDremioQueriesJsonNumDays, 28)
+	viper.SetDefault(KeyDremioQueriesJSONNumDays, 28)
 	viper.SetDefault(KeyDremioGCFilePattern, "gc*.log*")
-	viper.SetDefault(KeyCollectQueriesJson, true)
+	viper.SetDefault(KeyCollectQueriesJSON, true)
 	viper.SetDefault(KeyCollectServerLogs, true)
 	viper.SetDefault(KeyCollectMetaRefreshLog, true)
 	viper.SetDefault(KeyCollectReflectionLog, true)
@@ -54,4 +54,6 @@ func SetViperDefaults(defaultThreads int, hostName string, defaultCaptureSeconds
 	viper.SetDefault(KeyDremioJStackFreqSeconds, 1)
 	viper.SetDefault(KeyDremioGCLogsDir, "")
 	viper.SetDefault(KeyNodeName, hostName)
+	viper.SetDefault(KeyAcceptCollectionConsent, true)
+	viper.SetDefault(KeyAllowInsecureSSL, false)
 }

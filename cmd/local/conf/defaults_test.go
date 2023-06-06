@@ -22,6 +22,7 @@ var _ = Describe("SetViperDefaults", func() {
 		defaultCaptureSeconds = 30
 		outputDir = "/tmp"
 
+		viper.Reset()
 		// Run the function.
 		conf.SetViperDefaults(defaultThreads, hostName, defaultCaptureSeconds, outputDir)
 	})
@@ -43,9 +44,9 @@ var _ = Describe("SetViperDefaults", func() {
 		Expect(viper.Get(conf.KeyCollectMetrics)).To(BeTrue())
 		Expect(viper.Get(conf.KeyCollectDiskUsage)).To(BeTrue())
 		Expect(viper.Get(conf.KeyDremioLogsNumDays)).To(Equal(7))
-		Expect(viper.Get(conf.KeyDremioQueriesJsonNumDays)).To(Equal(28))
+		Expect(viper.Get(conf.KeyDremioQueriesJSONNumDays)).To(Equal(28))
 		Expect(viper.Get(conf.KeyDremioGCFilePattern)).To(Equal("gc*.log*"))
-		Expect(viper.Get(conf.KeyCollectQueriesJson)).To(BeTrue())
+		Expect(viper.Get(conf.KeyCollectQueriesJSON)).To(BeTrue())
 		Expect(viper.Get(conf.KeyCollectServerLogs)).To(BeTrue())
 		Expect(viper.Get(conf.KeyCollectMetaRefreshLog)).To(BeTrue())
 		Expect(viper.Get(conf.KeyCollectReflectionLog)).To(BeTrue())
@@ -61,5 +62,7 @@ var _ = Describe("SetViperDefaults", func() {
 		Expect(viper.Get(conf.KeyDremioJStackFreqSeconds)).To(Equal(1))
 		Expect(viper.Get(conf.KeyDremioGCLogsDir)).To(Equal(""))
 		Expect(viper.Get(conf.KeyNodeName)).To(Equal(hostName))
+		Expect(viper.Get(conf.KeyAcceptCollectionConsent)).To(BeTrue())
+		Expect(viper.Get(conf.KeyAllowInsecureSSL)).To(BeFalse())
 	})
 })
