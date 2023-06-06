@@ -1,4 +1,19 @@
-package metricscollect
+//	Copyright 2023 Dremio Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// package nodeinfocollect has all the methods for collecting the information for nodeinfo
+package nodeinfocollect
 
 import (
 	"bufio"
@@ -36,8 +51,8 @@ type SystemMetricsRow struct {
 	CachedRAMMB         float64   `json:"cachedRAMMB"`
 }
 
-func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
-	iterations := 60
+func collectSystemMetrics(seconds int) (rows []SystemMetricsRow, err error) {
+	iterations := seconds
 	interval := time.Second
 
 	prevDiskIO, _ := disk.IOCounters()
@@ -144,8 +159,8 @@ func writeSystemMetrics(useTabWriter bool, nodeMetricsFile string, header string
 	return w.Close()
 }
 
-func SystemMetrics(nodeMetricsFile, nodeMetricsJSONFile string) error {
-	rows, err := collectSystemMetrics()
+func SystemMetrics(secondsToCollect int, nodeMetricsFile, nodeMetricsJSONFile string) error {
+	rows, err := collectSystemMetrics(secondsToCollect)
 	if err != nil {
 		return fmt.Errorf("unable to collect system metrics with error %v", err)
 	}

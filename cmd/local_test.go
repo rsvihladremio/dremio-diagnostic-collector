@@ -29,7 +29,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/metricscollect"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/restclient"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/spf13/pflag"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -47,18 +51,60 @@ type JobAPIResponse struct {
 	ID string `json:"id"`
 }
 
-var dremioTestPort int
+var c *conf.CollectConf
 
 func cleanupOutput() {
-	if err := os.RemoveAll(outputDir); err != nil {
-		log.Printf("WARN unable to remove %v it may have to be manually cleaned up", outputDir)
+	if err := os.RemoveAll(c.OutputDir()); err != nil {
+		log.Printf("WARN unable to remove %v it may have to be manually cleaned up", c.OutputDir())
 	}
+}
+
+func writeConf(patToken, dremioEndpoint, tmpOutputDir string) string {
+	if err := os.MkdirAll(tmpOutputDir, 0700); err != nil {
+		log.Fatal(err)
+	}
+	testDDCYaml := filepath.Join(tmpOutputDir, "ddc.yaml")
+	w, err := os.Create(testDDCYaml)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("WARN: unable to close %v with reason '%v'", testDDCYaml, err)
+		}
+	}()
+	yamlText := fmt.Sprintf(`verbose: vvvv
+collect-acceleration-log: true
+collect-access-log: true
+dremio-gclogs-dir: ""
+dremio-log-dir: /opt/dremio/data/logs
+dremio-conf-dir: /opt/dremio/conf
+dremio-rocksdb-dir: /opt/dremio/data/db
+number-threads: 2
+dremio-endpoint: %v
+dremio-username: dremio
+dremio-pat-token: %v
+collect-dremio-configuration: true
+number-job-profiles: 0
+capture-heap-dump: false
+accept-collection-consent: true
+tmp-output-dir: %v
+node-metrics-collect-duration-seconds: 10
+"
+`, dremioEndpoint, patToken, tmpOutputDir)
+	if _, err := w.WriteString(yamlText); err != nil {
+		log.Fatal(err)
+	}
+	return testDDCYaml
 }
 
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
+	simplelog.InitLogger(4)
 	exitCode := func() (exitCode int) {
+		restclient.InitClient(true)
 		ctx := context.Background()
+
 		pwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("failed to get working directory: %s", err)
@@ -91,7 +137,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("could not get dremio port: %s", err)
 		}
-		dremioTestPort = dremioTestPortRaw.Int()
+		dremioTestPort := dremioTestPortRaw.Int()
 		exit, _, err := dremioC.Exec(context.Background(), []string{"mkdir", "/tmp/dremio-source"})
 		if err != nil {
 			log.Fatalf("could not make dremio source: %s", err)
@@ -100,10 +146,9 @@ func TestMain(m *testing.M) {
 			log.Fatalf("unable to make dremio source due to exit code %d", exit)
 		}
 
-		requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
-		dremioEndpoint = requestURL
+		dremioEndpoint := fmt.Sprintf("http://localhost:%v", dremioTestPort)
 
-		res, err := http.Get(requestURL) //nolint
+		res, err := http.Get(dremioEndpoint) //nolint
 		if err != nil {
 			log.Fatalf("error making http request: %s\n", err)
 		}
@@ -121,7 +166,6 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != 204 {
 			log.Fatalf("expected status code 204 but instead got %v while trying to accept EULA", res.StatusCode)
 		}
-		dremioUsername = "dremio"
 		authRequest := &AuthRequest{
 			Username: "dremio",
 			Password: "dremio123",
@@ -153,7 +197,7 @@ func TestMain(m *testing.M) {
 			log.Printf("body was %s", string(text))
 			log.Fatalf("fatal attempt to decode body from dremio auth %v", err)
 		}
-		dremioPATToken = authResponse.Token
+		dremioPATToken := authResponse.Token
 
 		nasSource := `{
 			"metadataPolicy": {
@@ -186,7 +230,16 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != 200 {
 			log.Fatalf("expected status code 200 but instead got %v while trying to create source", res.StatusCode)
 		}
-		outputDir = "testdata/output"
+		tmpDirForConf, err := os.MkdirTemp("", "ddc")
+		if err != nil {
+			log.Fatal(err)
+		}
+		yamlLocation := writeConf(dremioPATToken, dremioEndpoint, tmpDirForConf)
+		c, err = conf.ReadConf(make(map[string]*pflag.Flag), filepath.Dir(yamlLocation))
+		if err != nil {
+			log.Fatalf("reading config %v", err)
+		}
+
 		return m.Run()
 	}()
 
@@ -201,30 +254,31 @@ func TestMain(m *testing.M) {
 }
 
 func TestCreateAllDirs(t *testing.T) {
-	err := createAllDirs()
+	err := createAllDirs(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCollectWlm(t *testing.T) {
-	err := runCollectWLM()
+	err := runCollectWLM(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCollectKVReport(t *testing.T) {
-	err := os.MkdirAll("testdata/output/kvstore/", 0755)
+	kvStoreDir := c.KVstoreOutDir()
+	err := os.MkdirAll(kvStoreDir, 0755)
 	if err != nil {
 		t.Errorf("unable to make kvstore output dir: %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll("testdata/output/kvstore"); err != nil {
+		if err := os.RemoveAll(kvStoreDir); err != nil {
 			t.Logf("error removing kvstore out dir %v", err)
 		}
 	}()
-	err = runCollectKvReport()
+	err = runCollectKvReport(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -242,12 +296,12 @@ func TestDownloadJobProfile(t *testing.T) {
 	sql := `{
 		"sql": "CREATE TABLE tester.table1 AS SELECT \"a\", \"b\" FROM (values (CAST(1 AS INTEGER), CAST(2 AS INTEGER))) as t(\"a\", \"b\")"
 	}`
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/api/v3/sql/", dremioTestPort), bytes.NewBuffer([]byte(sql)))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/api/v3/sql/", c.DremioEndpoint()), bytes.NewBuffer([]byte(sql)))
 	if err != nil {
 		t.Fatalf("unable to create table request %v", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "_dremio"+dremioPATToken)
+	req.Header.Add("Authorization", "_dremio"+c.DremioPATToken())
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("unable to create table %v", err)
@@ -273,71 +327,39 @@ func TestDownloadJobProfile(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 	jobid := jobResponse.ID
-	err = downloadJobProfile(jobid)
+	err = downloadJobProfile(c, jobid)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestValidateAPICredentials(t *testing.T) {
-	err := validateAPICredentials()
+	err := validateAPICredentials(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestValidateCollectJobProfiles(t *testing.T) {
-	err := runCollectJobProfiles()
+	err := runCollectJobProfiles(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
-func TestParseGCLogFromFlags(t *testing.T) {
-	processFlags := `1:
-VM Arguments:
-jvm_args: -Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler -Djava.library.path=/opt/dremio/lib -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Ddremio.plugins.path=/opt/dremio/plugins -Xmx4096m -XX:MaxDirectMemorySize=2048m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/dremio -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=400 -XX:+UseG1GC -Ddremio.log.path=/opt/dremio/data/log -Xloggc:/opt/dremio/data/log/gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=4000k -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintClassHistogramBeforeFullGC -XX:+PrintClassHistogramAfterFullGC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/dremio/data -XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:MaxGCPauseMillis=500 -XX:InitiatingHeapOccupancyPercent=25 -XX:+PrintAdaptiveSizePolicy -XX:+PrintReferenceGC -XX:ErrorFile=/opt/dremio/data/hs_err_pid%p.log -Dzookeeper=zk-hs:2181 -Dservices.coordinator.enabled=false -Dservices.coordinator.master.enabled=false -Dservices.coordinator.master.embedded-zookeeper.enabled=false -Dservices.executor.enabled=true -Dservices.conduit.port=45679 -Dservices.node-tag=default -XX:+PrintClassHistogramBeforeFullGC -XX:+PrintClassHistogramAfterFullGC 
-java_command: com.dremio.dac.daemon.DremioDaemon
-java_class_path (initial): /opt/dremio/conf:/opt/dremio/jars/dremio-services-coordinator-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-hive-function-registry-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ce-sabot-serializer-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-hive2-plugin-launcher-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ee-services-credentials-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ee-services-accesscontrol-common-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ce-sabot-scheduler-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-dac-common-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-usersessions-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ee-services-sysflight-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-protocol-20.0.0-202201050826310141-8cc7162b-proto.jar:/opt/dremio/jars/dremio-services-telemetry-impl-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-jobtelemetry-client-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-hive3-plugin-launcher-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ce-services-cachemanager-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ee-dac-tools-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-base-rpc-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-datastore-20.0.0-202201050826310141-8cc7162b-proto.jar:/opt/dremio/jars/dremio-sabot-logical-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-transientstore-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-services-resourcescheduler-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-dac-daemon-20.0.0-202201050826310141-8cc7162b.jar:/opt/dremio/jars/dremio-ee-services-namespace-20.0.0-202201050826310141-8cc7162b-tests.jar:/opt/dremio/j
-Launcher Type: SUN_STANDARD`
-	gcLogLocation, err := ParseGCLogFromFlags(processFlags)
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	expected := "/opt/dremio/data/log"
-	if gcLogLocation != expected {
-		t.Errorf("expected '%v' but was '%v'", expected, gcLogLocation)
-	}
-}
-
-func TestParseGCLogFromFlagsWithExtraLogFileLine(t *testing.T) {
-	processFlags := `kubectl exec -it -n default -c dremio-master-coordinator dremio-master-0 -- jcmd 1 VM.command_line | grep Xlog
-jvm_args: -Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler -Djava.library.path=/opt/dremio/lib -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:/var/log/dremio/server.gc -Ddremio.log.path=/var/log/dremio -Ddremio.plugins.path=/opt/dremio/plugins -Xmx6144m -XX:MaxDirectMemorySize=2048m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/dremio -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=400 -XX:+UseG1GC -Ddremio.log.path=/opt/dremio/data/log -Xloggc:/opt/dremio/data/log/gc.log -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=4000k -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintClassHistogramBeforeFullGC -XX:+PrintClassHistogramAfterFullGC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/dremio/data -XX:+UseG1GC -XX:G1HeapRegionSize=32M -XX:MaxGCPauseMillis=500 -XX:InitiatingHeapOccupancyPercent=25 -XX:+PrintAdaptiveSizePolicy -XX:+PrintReferenceGC -XX:ErrorFile=/opt/dremio/data/hs_err_pid%p.log -Dzookeeper=zk-hs:2181 -Dservices.coordinator.enabled=true -Dservices.coordinator.master.enabled=true -Dservices.coordinator.master.embedded-zookeeper.enabled=false -Dservices.executor.enabled=false -Dservices.conduit.port=45679 -XX:+PrintClassHistogramBeforeFullGC -XX:+PrintClassHistogramAfterFullGC
-`
-	gcLogLocation, err := ParseGCLogFromFlags(processFlags)
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	expected := "/opt/dremio/data/log"
-	if gcLogLocation != expected {
-		t.Errorf("expected '%v' but was '%v'", expected, gcLogLocation)
-	}
-}
-
 func TestCaptureSystemMetrics(t *testing.T) {
-	outputDir := filepath.Join("testdata", "output", "node-info")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(c.NodeInfoOutDir(), 0700); err != nil {
 		t.Errorf("cannot make output dir due to error %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll(outputDir); err != nil {
-			t.Logf("error cleaning up dir %v due to error %v", outputDir, err)
+		if err := os.RemoveAll(c.NodeInfoOutDir()); err != nil {
+			t.Logf("error cleaning up dir %v due to error %v", c.NodeInfoOutDir(), err)
 		}
 	}()
-	if err := runCollectNodeMetrics(); err != nil {
+	if err := runCollectNodeMetrics(c); err != nil {
 		t.Errorf("expected no errors but had %v", err)
 	}
-	metricsFile := filepath.Join("testdata", "output", "node-info", "metrics.json")
+	metricsFile := filepath.Join(c.NodeInfoOutDir(), "metrics.json")
 	fs, err := os.Stat(metricsFile)
 	if err != nil {
 		t.Errorf("expected to find file but got error %v", err)
@@ -350,20 +372,20 @@ func TestCaptureSystemMetrics(t *testing.T) {
 		t.Errorf("while opening file %v we had error %v", metricsFile, err)
 	}
 	scanner := bufio.NewScanner(f)
-	var rows []metricscollect.SystemMetricsRow
+	var rows []nodeinfocollect.SystemMetricsRow
 	for scanner.Scan() {
-		var row metricscollect.SystemMetricsRow
+		var row nodeinfocollect.SystemMetricsRow
 		text := scanner.Text()
 		if err := json.Unmarshal([]byte(text), &row); err != nil {
 			t.Errorf("unable to convert text %v to json due to error %v", text, err)
 		}
 		rows = append(rows, row)
 	}
-	if len(rows) > 65 {
-		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 60", len(rows))
+	if len(rows) > 12 {
+		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 10", len(rows))
 	}
-	if len(rows) < 55 {
-		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 60", len(rows))
+	if len(rows) < 8 {
+		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 10", len(rows))
 	}
 	t.Logf("%v rows of metrics captured", len(rows))
 }

@@ -39,7 +39,7 @@ func TestLogger(t *testing.T) {
 	for _, tt := range tests {
 		buf := new(bytes.Buffer)
 
-		logger := NewLogger(tt.level)
+		logger := newLogger(tt.level)
 		logger.debugLogger.SetOutput(buf)
 		logger.infoLogger.SetOutput(buf)
 		logger.warningLogger.SetOutput(buf)

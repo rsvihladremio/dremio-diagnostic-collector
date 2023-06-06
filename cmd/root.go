@@ -107,8 +107,8 @@ func Execute() {
 			fmt.Println("")
 			os.Exit(1)
 		}
-		fmt.Println(getVersion())
-		fmt.Printf("cli command: %v\n", strings.Join(os.Args, " "))
+		simplelog.Info(getVersion())
+		simplelog.Infof("cli command: %v", strings.Join(os.Args, " "))
 		cs := helpers.NewHCCopyStrategy(collectionArgs.DDCfs)
 		// This is where the SSH or K8s collection is determined. We create an instance of the interface based on this
 		// which then determines whether the commands are routed to the SSH or K8s commands
