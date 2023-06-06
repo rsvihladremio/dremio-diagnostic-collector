@@ -15,6 +15,7 @@
 
 * if unable to detect any dremio PID process we will now exit with an error that states one must run sudo to run collections
 * several warnings have the text error in them, this was leading to people thinking there was an error when really it is just a warning that may or may not be signficant
+* REST calls now only occur on the first coordinator and will not occur on subsequent nodes
 
 ## [0.3.0]
 
