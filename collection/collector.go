@@ -122,9 +122,11 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 	var m sync.Mutex
 	var wg sync.WaitGroup
 
-	for _, coordinator := range coordinators {
+	for i, coordinator := range coordinators {
 		nodesConnectedTo++
 		wg.Add(1)
+		// only attempt rest API connections on the first coordinator
+		skipRESTCalls := i > 0
 		go func(host string) {
 			defer wg.Done()
 			coordinatorCaptureConf := HostCaptureConfiguration{
@@ -135,9 +137,9 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				SudoUser:          sudoUser,
 				CopyStrategy:      s,
 				DDCfs:             ddcfs,
-				NodeCaptureOutput: "/tmp/ddc",
+				NodeCaptureOutput: "/tmp/ddc", //TODO use node output dirs from the config
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
+			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), skipRESTCalls)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -161,7 +163,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				DDCfs:             ddcfs,
 				NodeCaptureOutput: "/tmp/ddc",
 			}
-			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir())
+			writtenFiles, failedFiles, skippedFiles := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), true)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
 			totalSkippedFiles = append(totalSkippedFiles, skippedFiles...)
@@ -281,7 +283,7 @@ func ExtractTarGz(gzFilePath, dest string) error {
 					return err
 				}
 			}
-			simplelog.Infof("extracted file %v", file)
+			simplelog.Debugf("extracted file %v", file.Name())
 		}
 	}
 }
