@@ -1,5 +1,17 @@
 # Changelog
 
+
+## [0.3.1]
+
+### Fixed
+
+* We were logging WARN messages for unsupported kinds, we are ignoring those now and there will be a debug log that explains we are not masking those kinds
+
+### Changed
+
+* if unable to detect any dremio PID process we will now exit with an error that states one must run sudo to run collections
+* several warnings have the text error in them, this was leading to people thinking there was an error when really it is just a warning that may or may not be signficant
+
 ## [0.3.0]
 
 ### Added
@@ -209,6 +221,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-rc1...v0.3.0
 [0.3.0-rc1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta5...v0.3.0-rc1
 [0.3.0-beta5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5

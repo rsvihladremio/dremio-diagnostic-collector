@@ -1395,7 +1395,7 @@ func init() {
 	// consent form
 	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
-	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
+	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "ddc.log logging verbosity")
 	localCollectCmd.Flags().BoolVar(&collectAccelerationLogs, "collect-acceleration-log", false, "Run the Collect Acceleration Log collector")
 	localCollectCmd.Flags().BoolVar(&collectAccessLogs, "collect-access-log", false, "Run the Collect Access Log collector")
 	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "", "by default will read from the Xloggc flag, otherwise you can override it here")
@@ -1487,7 +1487,6 @@ func initConfig() {
 			break
 		}
 	}
-
 	viper.AutomaticEnv() // Automatically read environment variables
 }
 
@@ -1501,7 +1500,7 @@ func validateAPICredentials() error {
 }
 
 func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
-	simplelog.Infof("Requesting %s", url)
+	simplelog.Debugf("Requesting %s", url)
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(request, url, nil)
 	if err != nil {
@@ -1527,7 +1526,7 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 }
 
 func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
-	simplelog.Info("Collecting sys." + systable)
+	simplelog.Debugf("Collecting sys." + systable)
 
 	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
 	client := &http.Client{Timeout: 5 * time.Second}
