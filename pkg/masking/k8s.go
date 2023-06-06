@@ -35,7 +35,7 @@ func getContainers(k8sItem map[string]interface{}) ([]interface{}, error) {
 	if !ok {
 		return containers, fmt.Errorf("unable to read kind")
 	}
-	kind := kindRaw.(string)
+	kind := strings.ToLower(kindRaw.(string))
 
 	supported := false
 	supportedTypesForMasking := []string{"cronjob", "job", "statefulset", "pod"}
