@@ -32,7 +32,6 @@ var _ = Describe("CompareFiles", func() {
 		It("should return true", func() {
 			file1 := "testdata/file1.txt"
 			file2 := "testdata/file1_copy.txt"
-
 			areSame, err := ddcio.CompareFiles(file1, file2)
 			Expect(err).To(BeNil())
 			Expect(areSame).To(BeTrue())

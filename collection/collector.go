@@ -122,11 +122,9 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 	var m sync.Mutex
 	var wg sync.WaitGroup
 
-	for i, coordinator := range coordinators {
+	for _, coordinator := range coordinators {
 		nodesConnectedTo++
 		wg.Add(1)
-		// only attempt rest API connections on the first coordinator
-		skipRESTCalls := i > 0
 		go func(host string) {
 			defer wg.Done()
 			coordinatorCaptureConf := HostCaptureConfiguration{
@@ -139,6 +137,8 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				DDCfs:             ddcfs,
 				NodeCaptureOutput: "/tmp/ddc", //TODO use node output dirs from the config
 			}
+			//we want to be able to capture the job profiles of all the nodes
+			skipRESTCalls := true
 			writtenFiles, failedFiles, skippedFiles := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), skipRESTCalls)
 			m.Lock()
 			totalFailedFiles = append(totalFailedFiles, failedFiles...)
