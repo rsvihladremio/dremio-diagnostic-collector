@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogger(t *testing.T) {
@@ -31,9 +31,9 @@ func TestLogger(t *testing.T) {
 		errMessage   string
 	}{
 		{LevelError, "", "", "", "ERROR: "},
-		{LevelWarning, "", "", "WARNING: ", "ERROR: "},
-		{LevelInfo, "", "INFO: ", "WARNING: ", "ERROR: "},
-		{LevelDebug, "DEBUG: ", "INFO: ", "WARNING: ", "ERROR: "},
+		{LevelWarning, "", "", "WARN: ", "ERROR: "},
+		{LevelInfo, "", "INFO: ", "WARN: ", "ERROR: "},
+		{LevelDebug, "DEBUG: ", "INFO: ", "WARN: ", "ERROR: "},
 	}
 
 	for _, tt := range tests {

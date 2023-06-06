@@ -18,40 +18,39 @@ package collection
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
 )
-
-// maskPasswordsInYAML searches through all text YAML and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInYAML(yamlText string) string { //nolint
-	return yamlText
-}
-
-// maskPasswordsInJSON searches through all text JSON and replaces the values of all keys case-insensitively named `*password*`
-func maskPasswordsInJSON(jsonText string) string { //nolint
-	return jsonText
-}
 
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
 	cmds := []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	for _, cmd := range cmds {
 		out, err := clusterExecute(namespace, cmd, c, k)
 		if err != nil {
-			return fmt.Errorf("ERROR: when getting cluster config, error was %v", err)
+			simplelog.Errorf("when getting cluster config, error was %v", err)
+			continue
+		}
+		text, err := masking.RemoveSecretsFromK8sJSON(string(out))
+		if err != nil {
+			simplelog.Errorf("unable to mask secrets for %v in namespace %v returning am empty text due to error '%v'", k, namespace, err)
+			continue
 		}
 		p, err := cs.CreatePath("kubernetes", "dremio-master", "")
 		if err != nil {
-			return fmt.Errorf("ERROR: trying to construct cluster config path %v", err)
+			simplelog.Errorf("trying to construct cluster config path %v with error %v", p, err)
+			continue
 		}
 		path := strings.TrimSuffix(p, "dremio-master")
 		filename := filepath.Join(path, cmd+".json")
-		err = ddfs.WriteFile(filename, out, DirPerms)
+		err = ddfs.WriteFile(filename, []byte(text), DirPerms)
 		if err != nil {
-			return fmt.Errorf("ERROR: trying to write file %v, error was %v", filename, err)
+			simplelog.Errorf("trying to write file %v, error was %v", filename, err)
+			continue
 		}
 
 	}
@@ -67,7 +66,7 @@ func clusterExecute(namespace, cmd string, _ Collector, k string) ([]byte, error
 	kubectlArgs = append(kubectlArgs, cmd, "-o", "json")
 	res, err := cli.ExecuteBytes(kubectlArgs...)
 	if err != nil {
-		log.Printf("ERROR: when getting config %v error returned was %v", cmd, err)
+		return []byte(""), fmt.Errorf("when getting config %v error returned was %v", cmd, err)
 	}
 	return res, nil
 }

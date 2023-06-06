@@ -1,5 +1,85 @@
 # Changelog
 
+
+## [0.3.1]
+
+### Fixed
+
+* We were logging WARN messages for unsupported kinds, we are ignoring those now and there will be a debug log that explains we are not masking those kinds
+
+### Changed
+
+* if unable to detect any dremio PID process we will now exit with an error that states one must run sudo to run collections
+* several warnings have the text error in them, this was leading to people thinking there was an error when really it is just a warning that may or may not be signficant
+
+## [0.3.0]
+
+### Added
+
+* logs now stream from the nodes capturing this give a sense of progress
+* added k8s json file password masking
+* password masking for dremio.conf
+* prevent collection when invalid k8s or ssh is given
+
+### Fixed
+
+* if no gc log is set or found the gc log collection skips
+* gclog detection was running on the root ddc command, this has been
+  moved to a later evaluation time than the init() command
+* was removing the test tmp dir by accident
+* fixed a race in the cli that lead to it exiting when streaming before all data had been written out
+
+### Changed
+
+* jps -v is now used to parse startup flags, this works more
+  consistently than ps -f
+* gclog detection now will log a warn if it overrides a setting
+* default gclog directory is now empty in ddc.yaml this should usually
+  not need to be set
+* matcher on gc logs now will match .current files
+* beta enchanced AWSE detection, may still have to manually collect with local-collect in some cases
+
+## [0.3.0-rc1]
+
+### Fixed
+
+* awse log directory fix
+* awse pid fix
+* removed stale logging in multiple packages
+* removed no longer used flags for root command
+* metrics fix and logger test fix
+* cover and test scripts are separate so failures are not buried
+
+### Changed
+
+* updated docs for 0.3.0
+* now log both kinds of metrics
+* logger name change for warn resulted in failing tests
+* tab layout for metrics report
+
+## [0.3.0-beta5]
+
+### Fixed
+
+* forgot to call start on thread pool stopping all collection
+
+### Changed
+
+* simplified thread pool
+* metrics now collect to json fixing #87 no need to have a flag for now
+
+## [0.3.0-beta4]
+
+### Changed
+
+* job profiles now threads
+* new improved thread pool that executes more consistently instead of in bunches
+* support for more than just gzipped archive logs
+
+### Fixed
+
+* archiving of logs now works correctly and will grab several days of logs
+
 ## [0.3.0-beta3]
 
 ### Added
@@ -141,6 +221,11 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[0.3.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-rc1...v0.3.0
+[0.3.0-rc1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta5...v0.3.0-rc1
+[0.3.0-beta5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5
+[0.3.0-beta4]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta3...v0.3.0-beta4
 [0.3.0-beta3]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta2...v0.3.0-beta3
 [0.3.0-beta2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2
 [0.3.0-beta1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1

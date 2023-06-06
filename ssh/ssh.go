@@ -39,6 +39,13 @@ type CmdSSHActions struct {
 	sshUser string
 }
 
+func (c *CmdSSHActions) HostExecuteAndStream(hostString string, output cli.OutputHandler, _ bool, args ...string) (err error) {
+	sshArgs := []string{"ssh", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no"}
+	sshArgs = append(sshArgs, fmt.Sprintf("%v@%v", c.sshUser, hostString))
+	sshArgs = append(sshArgs, strings.Join(args, " "))
+	return c.cli.ExecuteAndStreamOutput(output, sshArgs...)
+}
+
 func (c *CmdSSHActions) CopyFromHost(hostName string, _ bool, source, destination string) (string, error) {
 	return c.cli.Execute("scp", "-i", c.sshKey, "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, source), destination)
 }
@@ -71,4 +78,8 @@ func (c *CmdSSHActions) FindHosts(searchTerm string) (hosts []string, err error)
 		hosts = append(hosts, strings.TrimSpace(host))
 	}
 	return hosts, nil
+}
+
+func (c *CmdSSHActions) HelpText() string {
+	return "no hosts found did you specify a comma separated list for the ssh-hosts? Something like: ddc --coordinator 192.168.1.10,192.168.1.11 --excecutors 192.168.1.14,192.168.1.15"
 }

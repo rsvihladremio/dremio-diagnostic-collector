@@ -15,24 +15,51 @@
 // collection package provides the interface for collection implementation and the actual collection execution
 package collection
 
+import (
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+)
+
+// Adds the sudo part into the HostExecute call
+func ComposeExecuteAndStream(conf HostCaptureConfiguration, output cli.OutputHandler, command []string) error {
+	host := conf.Host
+	c := conf.Collector
+	isCoordinator := conf.IsCoordinator
+	sudoUser := conf.SudoUser
+	var err error
+
+	if sudoUser == "" {
+		err = c.HostExecuteAndStream(host, output, isCoordinator, command...)
+		if err != nil {
+			simplelog.Errorf("host %v failed to run command with error %v", host, err)
+		}
+	} else {
+		sudoCommand := append([]string{"sudo", "-u", sudoUser}, command...)
+		err = c.HostExecuteAndStream(host, output, isCoordinator, sudoCommand...)
+		if err != nil {
+			simplelog.Errorf("host %v failed to run sudo command with error %v", host, err)
+		}
+	}
+	return err
+}
+
 // Adds the sudo part into the HostExecute call
 func ComposeExecute(conf HostCaptureConfiguration, command []string) (stdOut string, err error) {
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
-	logger := conf.Logger
 	sudoUser := conf.SudoUser
 
 	if sudoUser == "" {
 		stdOut, err = c.HostExecute(host, isCoordinator, command...)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run command with error %v", host, err)
 		}
 	} else {
 		sudoCommand := append([]string{"sudo", "-u", sudoUser}, command...)
 		stdOut, err = c.HostExecute(host, isCoordinator, sudoCommand...)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run sudo command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run sudo command with error %v", host, err)
 		}
 	}
 	return stdOut, err
@@ -43,18 +70,17 @@ func ComposeCopy(conf HostCaptureConfiguration, source, destination string) (std
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
-	logger := conf.Logger
 	sudoUser := conf.SudoUser
 
 	if sudoUser == "" {
 		stdOut, err = c.CopyFromHost(host, isCoordinator, source, destination)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run command with error %v", host, err)
 		}
 	} else {
 		stdOut, err = c.CopyFromHostSudo(host, isCoordinator, sudoUser, source, destination)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run sudo command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run sudo command with error %v", host, err)
 		}
 	}
 	return stdOut, err
@@ -65,18 +91,17 @@ func ComposeCopyTo(conf HostCaptureConfiguration, source, destination string) (s
 	host := conf.Host
 	c := conf.Collector
 	isCoordinator := conf.IsCoordinator
-	logger := conf.Logger
 	sudoUser := conf.SudoUser
 
 	if sudoUser == "" {
 		stdOut, err = c.CopyToHost(host, isCoordinator, source, destination)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run command with error %v", host, err)
 		}
 	} else {
 		stdOut, err = c.CopyToHostSudo(host, isCoordinator, sudoUser, source, destination)
 		if err != nil {
-			logger.Printf("ERROR: host %v failed to run sudo command with error %v", host, err)
+			simplelog.Errorf("host %v failed to run sudo command with error %v", host, err)
 		}
 	}
 	return stdOut, err

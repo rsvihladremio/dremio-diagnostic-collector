@@ -24,8 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/tests"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 type MockCopyStrategy struct {
@@ -76,7 +77,7 @@ func (s *MockStrategy) GzipAllFiles(_ string) ([]helpers.CollectedFile, error) {
 	return nil, nil
 }
 
-func (s *MockStrategy) ArchiveDiag(_ string, _ string, _ []helpers.CollectedFile) error {
+func (s *MockStrategy) ArchiveDiag(_ string, _ string) error {
 	return nil
 }
 
@@ -95,6 +96,10 @@ type MockCapCopy struct {
 	IsCoordinator bool
 	Source        string
 	Destination   string
+}
+
+func (m *MockCapCollector) HelpText() string {
+	return "you should use a production library"
 }
 
 func (m *MockCapCollector) FindHosts(searchTerm string) (response []string, err error) {
@@ -177,6 +182,13 @@ func (m *MockCapCollector) CopyFromHostSudo(hostString string, isCoordinator boo
 	return response, err
 }
 
+func (m *MockCapCollector) HostExecuteAndStream(hostString string, output cli.OutputHandler, _ bool, args ...string) error {
+	fullCmd := strings.Join(args, " ")
+	response := "Mock execute for " + hostString + " command: " + fullCmd
+	output(response)
+	return nil
+}
+
 func (m *MockCapCollector) HostExecute(hostString string, _ bool, args ...string) (response string, err error) {
 
 	fullCmd := strings.Join(args, " ")
@@ -207,28 +219,21 @@ func TestFindHostsCoordinators(t *testing.T) {
 		Returns: returnValues,
 	}
 
-	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
 	mockStrategy := NewMockStrategy(fakeFS)
 	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-nok",
-		ExecutorsStr:              "10.2.3.4-nok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
+		DDCfs:          fakeFS,
+		CoordinatorStr: "10.1.2.3-nok",
+		ExecutorsStr:   "10.2.3.4-nok",
+		OutputLoc:      fakeTmp,
+		CopyStrategy:   mockStrategy,
 	}
 
 	// Test for incorrect host
 	fakeArgs.CoordinatorStr = "dremio-master-99"
 	expected := "ERROR: no hosts found matching dremio-master-99"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
+	err := Execute(mockCollector, fakeArgs.CopyStrategy, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("\nERROR: finding coordinators: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
@@ -244,143 +249,23 @@ func TestFindHostsExecutors(t *testing.T) {
 		Returns: returnValues,
 	}
 
-	logOutput := os.Stdout
 	fakeFS := helpers.NewFakeFileSystem()
 	mockStrategy := NewMockStrategy(fakeFS)
 	fakeTmp := mockStrategy.TmpDir
 	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-ok",
-		ExecutorsStr:              "10.2.3.4-nok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
+		DDCfs:          fakeFS,
+		CoordinatorStr: "10.1.2.3-ok",
+		ExecutorsStr:   "10.2.3.4-nok",
+		OutputLoc:      fakeTmp,
+		CopyStrategy:   mockStrategy,
 	}
 
 	fakeArgs.ExecutorsStr = "dremio-executor-99"
 	expected := "ERROR: no hosts found matching dremio-executor-99"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
+	err := Execute(mockCollector, fakeArgs.CopyStrategy, fakeArgs)
 	if err.Error() != expected {
 		t.Errorf("\nERROR: finding executors: \nexpected:\t%v\nactual:\t\t%v\n", expected, err)
 	}
-}
-
-/*
-func TestFailIOstat(t *testing.T) {
-	var returnValues []string
-	var callValues []string
-	callValues = append(callValues, "dremio-coordinator-1", "dremio-eecutor-0", "dremio-executor-1")
-	tmpDir := t.TempDir()
-
-	mockStrategy := &MockStrategy{
-		StrategyName: "healthcheck",
-		BaseDir:      tmpDir,
-	}
-
-	mockCollector := &MockCapCollector{
-		Calls:   callValues,
-		Returns: returnValues,
-	}
-	logOutput := os.Stdout
-	fakeFS := helpers.NewFakeFileSystem()
-	fakeTmp, _ := fakeFS.MkdirTemp("fake", "fake")
-	fakeArgs := Args{
-		DDCfs:                     fakeFS,
-		CoordinatorStr:            "10.1.2.3-ok",
-		ExecutorsStr:              "10.2.3.4-ok",
-		OutputLoc:                 fakeTmp,
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DremioGcDir:               "/var/log/dremio",
-		GCLogOverride:             "",
-		DurationDiagnosticTooling: 5,
-		LogAge:                    1,
-		CopyStrategy:              mockStrategy,
-	}
-
-	fakeArgs.ExecutorsStr = "dremio-ok"
-	expected := "Mock execute for ok command: iostat -y -x -d -c -t 1 5"
-	err := Execute(mockCollector, fakeArgs.CopyStrategy, logOutput, fakeArgs)
-	if err.Error() != expected {
-		t.Errorf("ERROR: expected: %v, got: %v", expected, err)
-	}
-
-}
-*/
-
-func TestZipArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-	//testing zip
-	archiveFile := filepath.Join(tmpDir, "test.zip")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.ZipContainsFile(t, testFile, archiveFile)
-}
-
-func TestTarArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-
-	//testing tar
-	archiveFile := filepath.Join(tmpDir, "test.tar")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.TarContainsFile(t, testFile, archiveFile)
-}
-
-func TestTargzArchive(t *testing.T) {
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test.txt")
-	str := "my row"
-	err := os.WriteFile(testFile, []byte(str), 0600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-	//testing tar gunzip
-	archiveFile := filepath.Join(tmpDir, "test.tar.gz")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tests.TgzContainsFile(t, testFile, archiveFile)
 }
 
 func TestTgzArchive(t *testing.T) {
@@ -391,16 +276,9 @@ func TestTgzArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := []helpers.CollectedFile{
-		{
-			Path: testFile,
-			Size: int64(len(str)),
-		},
-	}
-
 	//testing tgz
 	archiveFile := filepath.Join(tmpDir, "test.tgz")
-	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir, files)
+	err = helpers.ArchiveDiagDirectory(archiveFile, tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}

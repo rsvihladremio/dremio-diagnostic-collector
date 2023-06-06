@@ -72,8 +72,7 @@ func TestValidateParameters(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
-	tc := makeTestCollection()
-	tc.SizeLimit = 1000
+	_ = makeTestCollection()
 	actual, err := captureAllOutput(checkstds)
 	//message, err := captureAllOutput(Execute)
 	expected := "This is stdout\nThis is stderr\n"
@@ -88,13 +87,9 @@ func TestExecute(t *testing.T) {
 // Set of args for other tests
 func makeTestCollection() collection.Args {
 	testCollection := collection.Args{
-		CoordinatorStr:            "dremio-master-0",
-		ExecutorsStr:              "dremio-executor-0",
-		OutputLoc:                 "/tmp/diags",
-		DremioConfDir:             "/opt/dremio/conf",
-		DremioLogDir:              "/var/log/dremio",
-		DurationDiagnosticTooling: 10,
-		LogAge:                    5,
+		CoordinatorStr: "dremio-master-0",
+		ExecutorsStr:   "dremio-executor-0",
+		OutputLoc:      "/tmp/diags",
 	}
 	return testCollection
 }

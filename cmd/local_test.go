@@ -16,18 +16,22 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	dockertest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/metricscollect"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type AuthResponse struct {
@@ -43,7 +47,7 @@ type JobAPIResponse struct {
 	ID string `json:"id"`
 }
 
-var dremioTestPort string
+var dremioTestPort int
 
 func cleanupOutput() {
 	if err := os.RemoveAll(outputDir); err != nil {
@@ -53,81 +57,69 @@ func cleanupOutput() {
 
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
-	// uses a sensible default on windows (tcp/http) and linux/osx (socket)
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		log.Fatalf("Could not construct pool: %s", err)
-	}
-	pool.MaxWait = time.Minute * 5
-	// uses pool to try to connect to Docker
-	err = pool.Client.Ping()
-	if err != nil {
-		log.Fatalf("Could not connect to Docker: %s", err)
-	}
-
-	// pulls an image, creates a container based on it and runs it
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "dremio/dremio-ee",
-		Tag:        "24.0",
-		//Env:        []string{},
-	}, func(config *dc.HostConfig) {
-		// set AutoRemove to true so that stopped container goes away by itself
-		config.AutoRemove = true
-		config.RestartPolicy = dc.RestartPolicy{
-			Name: "no",
-		}
+	exitCode := func() (exitCode int) {
+		ctx := context.Background()
 		pwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("failed to get working directory: %s", err)
 		}
-		config.Mounts = []dc.HostMount{
-			{
-				Target: "/opt/dremio/conf/dremio.conf",
-				Source: fmt.Sprintf("%s/testdata/conf/dremio.conf", pwd),
-				Type:   "bind",
+		req := testcontainers.ContainerRequest{
+			Image:        "dremio/dremio-ee:24.0",
+			ExposedPorts: []string{"9047/tcp"},
+			WaitingFor:   wait.ForLog("Dremio Daemon Started as master"),
+			Files: []testcontainers.ContainerFile{
+				{
+					HostFilePath:      fmt.Sprintf("%s/testdata/conf/dremio.conf", pwd), // a directory
+					ContainerFilePath: "/opt/dremio/conf/dremio.conf",                   // important! its parent already exists
+					FileMode:          644,
+				},
 			},
 		}
-	})
-	if err != nil {
-		log.Fatalf("Could not start resource: %s", err)
-	}
-	dremioTestPort = resource.GetPort("9047/tcp")
-	exit, err := resource.Exec([]string{"mkdir", "/tmp/dremio-source"}, dockertest.ExecOptions{})
-	if err != nil {
-		log.Fatalf("could not make dremio source: %s", err)
-	}
-	if exit > 0 {
-		log.Fatalf("unable to make dremio source due to exit code %d", exit)
-	}
-	err = resource.Expire(60 * 5)
-	if err != nil {
-		log.Fatalf("Could not set expiry on resource : %s", err)
-	}
+		dremioC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+		if err != nil {
+			panic(err)
+		}
+		defer func() {
+			if err := dremioC.Terminate(ctx); err != nil {
+				panic(fmt.Sprintf("failed to terminate container: %s", err.Error()))
+			}
+		}()
+		dremioTestPortRaw, err := dremioC.MappedPort(ctx, "9047/tcp")
+		if err != nil {
+			log.Fatalf("could not get dremio port: %s", err)
+		}
+		dremioTestPort = dremioTestPortRaw.Int()
+		exit, _, err := dremioC.Exec(context.Background(), []string{"mkdir", "/tmp/dremio-source"})
+		if err != nil {
+			log.Fatalf("could not make dremio source: %s", err)
+		}
+		if exit > 0 {
+			log.Fatalf("unable to make dremio source due to exit code %d", exit)
+		}
 
-	requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
-	dremioEndpoint = requestURL
+		requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
+		dremioEndpoint = requestURL
 
-	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
-	if err := pool.Retry(func() error {
 		res, err := http.Get(requestURL) //nolint
 		if err != nil {
-			log.Printf("error making http request: %s\n", err)
-			return err
+			log.Fatalf("error making http request: %s\n", err)
 		}
 		expectedCode := 200
 		if res.StatusCode != expectedCode {
-			return fmt.Errorf("expected status code %v but instead got %v. Dremio is not ready", expectedCode, res.StatusCode)
+			log.Fatalf("expected status code %v but instead got %v. Dremio is not ready", expectedCode, res.StatusCode)
 		}
 		// accept EULA
 		var empty bytes.Buffer
 		eulaURL := fmt.Sprintf("http://localhost:%v/apiv2/eula/accept", dremioTestPort)
 		res, err = http.Post(eulaURL, "application/json", &empty) //nolint
 		if err != nil {
-			log.Printf("error accepting EULA request: %s\n", err)
-			return err
+			log.Fatalf("error accepting EULA request: %s\n", err)
 		}
 		if res.StatusCode != 204 {
-			return fmt.Errorf("expected status code 204 but instead got %v while trying to accept EULA", res.StatusCode)
+			log.Fatalf("expected status code 204 but instead got %v while trying to accept EULA", res.StatusCode)
 		}
 		dremioUsername = "dremio"
 		authRequest := &AuthRequest{
@@ -136,7 +128,7 @@ func TestMain(m *testing.M) {
 		}
 		body, err := json.Marshal(authRequest)
 		if err != nil {
-			return fmt.Errorf("Error marshaling JSON: %v", err)
+			log.Fatalf("Error marshaling JSON: %v", err)
 		}
 		res, err = http.Post(fmt.Sprintf("http://localhost:%v/apiv2/login", dremioTestPort), "application/json", bytes.NewBuffer(body))
 		if err != nil {
@@ -181,31 +173,31 @@ func TestMain(m *testing.M) {
 			"type": "NAS",
 			"name": "tester"
 		  }`
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/apiv3/catalog", dremioTestPort), bytes.NewBuffer([]byte(nasSource)))
+		httpReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/apiv3/catalog", dremioTestPort), bytes.NewBuffer([]byte(nasSource)))
 		if err != nil {
-			return fmt.Errorf("unable to create data source request")
+			log.Fatalf("unable to create data source request")
 		}
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", "_dremio"+dremioPATToken)
-		res, err = http.DefaultClient.Do(req)
+		httpReq.Header.Add("Content-Type", "application/json")
+		httpReq.Header.Add("Authorization", "_dremio"+dremioPATToken)
+		res, err = http.DefaultClient.Do(httpReq)
 		if err != nil {
-			return fmt.Errorf("unable to create data source due to error %v", err)
+			log.Fatalf("unable to create data source due to error %v", err)
 		}
 		if res.StatusCode != 200 {
-			return fmt.Errorf("expected status code 200 but instead got %v while trying to create source", res.StatusCode)
+			log.Fatalf("expected status code 200 but instead got %v while trying to create source", res.StatusCode)
 		}
-		return nil
-	}); err != nil {
-		log.Fatalf("Could not connect to dremio: %s", err)
+		outputDir = "testdata/output"
+		return m.Run()
+	}()
+
+	// handle panic
+	if r := recover(); r != nil {
+		// handle the panic and terminate gracefully
+		// ...
+		exitCode = 1
 	}
-	outputDir = "testdata/output"
-	code := m.Run()
 	cleanupOutput()
-	// You can't defer this because os.Exit doesn't care for defer
-	if err := pool.Purge(resource); err != nil {
-		log.Fatalf("Could not purge resource: %s", err)
-	}
-	os.Exit(code)
+	os.Exit(exitCode)
 }
 
 func TestCreateAllDirs(t *testing.T) {
@@ -223,7 +215,16 @@ func TestCollectWlm(t *testing.T) {
 }
 
 func TestCollectKVReport(t *testing.T) {
-	err := runCollectKvReport()
+	err := os.MkdirAll("testdata/output/kvstore/", 0755)
+	if err != nil {
+		t.Errorf("unable to make kvstore output dir: %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll("testdata/output/kvstore"); err != nil {
+			t.Logf("error removing kvstore out dir %v", err)
+		}
+	}()
+	err = runCollectKvReport()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -321,6 +322,50 @@ jvm_args: -Djava.util.logging.config.class=org.slf4j.bridge.SLF4JBridgeHandler -
 	if gcLogLocation != expected {
 		t.Errorf("expected '%v' but was '%v'", expected, gcLogLocation)
 	}
+}
+
+func TestCaptureSystemMetrics(t *testing.T) {
+	outputDir := filepath.Join("testdata", "output", "node-info")
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Errorf("cannot make output dir due to error %v", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(outputDir); err != nil {
+			t.Logf("error cleaning up dir %v due to error %v", outputDir, err)
+		}
+	}()
+	if err := runCollectNodeMetrics(); err != nil {
+		t.Errorf("expected no errors but had %v", err)
+	}
+	metricsFile := filepath.Join("testdata", "output", "node-info", "metrics.json")
+	fs, err := os.Stat(metricsFile)
+	if err != nil {
+		t.Errorf("expected to find file but got error %v", err)
+	}
+	if fs.Size() == 0 {
+		t.Errorf("should not have an empty file")
+	}
+	f, err := os.Open(metricsFile)
+	if err != nil {
+		t.Errorf("while opening file %v we had error %v", metricsFile, err)
+	}
+	scanner := bufio.NewScanner(f)
+	var rows []metricscollect.SystemMetricsRow
+	for scanner.Scan() {
+		var row metricscollect.SystemMetricsRow
+		text := scanner.Text()
+		if err := json.Unmarshal([]byte(text), &row); err != nil {
+			t.Errorf("unable to convert text %v to json due to error %v", text, err)
+		}
+		rows = append(rows, row)
+	}
+	if len(rows) > 65 {
+		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 60", len(rows))
+	}
+	if len(rows) < 55 {
+		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 60", len(rows))
+	}
+	t.Logf("%v rows of metrics captured", len(rows))
 }
 
 // func TestFindGCLocation(t *testing.T) {

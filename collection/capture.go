@@ -35,7 +35,7 @@ func (fe FindErr) Error() string {
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
+func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outputLoc string) (files []helpers.CollectedFile, failedFiles []FailedFiles, skippedFiles []string) {
 	host := conf.Host
 
 	ddcTmpDir := "/tmp/ddc"
@@ -70,22 +70,23 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, outputLoc string) (fil
 		}
 	}
 	//always update the configuration
-	pathToDDCYAML := path.Join(ddcTmpDir, path.Base(localDDCPath)+".yaml")
-	localDDCYAML := localDDCPath + ".yaml"
-	if out, err := ComposeCopyTo(conf, localDDCYAML, pathToDDCYAML); err != nil {
+	pathToDDCYAML := path.Join(ddcTmpDir, path.Base(localDDCYamlPath))
+	if out, err := ComposeCopyTo(conf, localDDCYamlPath, pathToDDCYAML); err != nil {
 		failedFiles = append(failedFiles, FailedFiles{
-			Path: localDDCYAML,
+			Path: localDDCYamlPath,
 			Err:  fmt.Errorf("unable to copy local ddc yaml to remote path due to error: '%v' with output '%v'", err, out),
 		})
 	} else {
 		simplelog.Infof("sucessfully copied ddc.yaml to host %v", host)
 	}
 	//execute local-collect
-	if out, err := ComposeExecute(conf, []string{pathToDDC, "local-collect"}); err != nil {
-		simplelog.Warningf("on host %v catpure faileddue to error '%v' with output '%v'", host, err, out)
+	if err := ComposeExecuteAndStream(conf, func(line string) {
+		fmt.Printf("HOST %v - %v\n", host, line)
+	}, []string{pathToDDC, "local-collect"}); err != nil {
+		simplelog.Warningf("on host %v capture failed due to error '%v'", host, err)
 		//return
 	} else {
-		simplelog.Infof("on host %v catpure successful with output '%v'", host, out)
+		simplelog.Infof("on host %v capture successful", host)
 	}
 	//defer delete tar.gz
 	defer func() {

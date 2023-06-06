@@ -6,6 +6,7 @@
 *.dylib
 
 
+ddc.log
 # Test binary, built with `go test -c`
 *.test
 
@@ -28,3 +29,5 @@ lsp-quickpick
 lsp-quickpick-filter
 
 test.out
+ddc.log
+diag.tgz

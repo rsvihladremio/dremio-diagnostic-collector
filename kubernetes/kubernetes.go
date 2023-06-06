@@ -50,6 +50,12 @@ func (c *KubectlK8sActions) getContainerName(isCoordinator bool) string {
 	return c.executorContainer
 }
 
+func (c *KubectlK8sActions) HostExecuteAndStream(hostString string, output cli.OutputHandler, isCoordinator bool, args ...string) (err error) {
+	kubectlArgs := []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), hostString, "--"}
+	kubectlArgs = append(kubectlArgs, args...)
+	return c.cli.ExecuteAndStreamOutput(output, kubectlArgs...)
+}
+
 func (c *KubectlK8sActions) HostExecute(hostString string, isCoordinator bool, args ...string) (out string, err error) {
 	kubectlArgs := []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", c.getContainerName(isCoordinator), hostString, "--"}
 	kubectlArgs = append(kubectlArgs, args...)
@@ -112,4 +118,8 @@ func (c *KubectlK8sActions) FindHosts(searchTerm string) (podName []string, err 
 		pods = append(pods, pod)
 	}
 	return pods, nil
+}
+
+func (c *KubectlK8sActions) HelpText() string {
+	return "Make sure the labels and namespace you use actually correspond to your dremio pods: try something like 'ddc -n mynamespace --coordinator app=dremio-coordinator --executor app=dremio-executor'.  You can also run 'kubectl get pods --show-labels' to see what labels are available to use for your dremio pods"
 }

@@ -1,10 +1,10 @@
-//  Copyright 2023 Dremio Corporation
+//	Copyright 2023 Dremio Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package tests provides helper functions and mocks for running tests
-package tests
+package logcollect_test
 
-type MockCli struct {
-	Calls          [][]string
-	StoredResponse []string
-	StoredErrors   []error
-}
+import (
+	"testing"
 
-func (m *MockCli) Execute(args ...string) (out string, err error) {
-	m.Calls = append(m.Calls, args)
-	length := len(m.Calls)
-	return m.StoredResponse[length-1], m.StoredErrors[length-1]
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+func TestLogcollect(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Logcollect Suite")
 }
