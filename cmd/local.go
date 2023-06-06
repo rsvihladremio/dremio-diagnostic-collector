@@ -1456,7 +1456,7 @@ func initConfig() {
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jstack-freq-seconds", 1)
 	viper.SetDefault("dremio-gclogs-dir", "")
-	viper.SetDefault("allow-insecure-ssl:", false)
+	viper.SetDefault("allow-insecure-ssl", false)
 	// set node name
 	hostName, err := os.Hostname()
 	if err != nil {
