@@ -69,7 +69,7 @@ var (
 	collectAccessLogs          bool
 	captureHeapDump            bool
 	acceptCollectionConsent    bool
-	insecureSSLCertCheck       bool
+	allowInsecureSSL           bool
 )
 
 // advanced variables setable by configuration or environement variable
@@ -1119,7 +1119,7 @@ var localCollectCmd = &cobra.Command{
 		dremioEndpoint = viper.GetString("dremio-endpoint")
 		dremioUsername = viper.GetString("dremio-username")
 		dremioPATToken = viper.GetString("dremio-pat-token")
-		insecureSSLCertCheck = viper.GetBool("insecure-ssl-cert-check")
+		allowInsecureSSL = viper.GetBool("allow-insecure-ssl")
 		dremioRocksDBDir = viper.GetString("dremio-rocksdb-dir")
 		collectDremioConfiguration = viper.GetBool("collect-dremio-configuration")
 		numberJobProfilesToCollect = viper.GetInt("number-job-profiles")
@@ -1413,7 +1413,7 @@ func init() {
 	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
 	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
 	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
-	localCollectCmd.Flags().BoolVar(&insecureSSLCertCheck, "insecure-ssl-cert-check", false, "When true skip the ssl cert check when doing API calls")
+	localCollectCmd.Flags().BoolVar(&allowInsecureSSL, "allow-insecure-ssl", false, "When true allow insecure ssl certs when doing API calls")
 
 	rootCmd.AddCommand(localCollectCmd)
 
@@ -1518,7 +1518,7 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSSLCertCheck},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL},
 	}
 	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
 	res, err := client.Do(req)
@@ -1538,7 +1538,7 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
 	simplelog.Debugf("Collecting sys." + systable)
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSSLCertCheck},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL},
 	}
 	client := &http.Client{Timeout: 5 * time.Second, Transport: tr}
 	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
