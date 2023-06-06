@@ -863,7 +863,7 @@ func validateAPICredentials(c *conf.CollectConf) error {
 }
 
 func apiRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
-	simplelog.Infof("Requesting %s", url)
+	simplelog.Debugf("Requesting %s", url)
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(request, url, nil)
 	if err != nil {
@@ -889,7 +889,7 @@ func apiRequest(url string, pat string, request string, headers map[string]strin
 }
 
 func postQuery(url string, pat string, headers map[string]string, systable string) (string, error) {
-	simplelog.Info("Collecting sys." + systable)
+	simplelog.Debugf("Collecting sys." + systable)
 
 	sqlbody := "{\"sql\": \"SELECT * FROM sys." + systable + "\"}"
 	client := &http.Client{Timeout: 5 * time.Second}
