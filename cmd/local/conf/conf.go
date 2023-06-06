@@ -28,12 +28,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 type CollectConf struct {
 	// flags that are configurable by env or configuration
-	verbose                    int
 	numberThreads              int
 	gcLogsDir                  string
 	dremioLogDir               string
@@ -49,31 +49,32 @@ type CollectConf struct {
 	acceptCollectionConsent    bool
 
 	// advanced variables setable by configuration or environement variable
-	outputDir                   string
-	dremioJFRTimeSeconds        int
-	dremioJStackFreqSeconds     int
-	dremioJStackTimeSeconds     int
-	dremioLogsNumDays           int
-	dremioGCFilePattern         string
-	dremioQueriesJSONNumDays    int
-	jobProfilesNumSlowExec      int
-	jobProfilesNumHighQueryCost int
-	jobProfilesNumSlowPlanning  int
-	jobProfilesNumRecentErrors  int
-	collectNodeMetrics          bool
-	collectJFR                  bool
-	collectJStack               bool
-	collectKVStoreReport        bool
-	collectServerLogs           bool
-	collectMetaRefreshLogs      bool
-	collectQueriesJSON          bool
-	collectDremioConfiguration  bool
-	collectReflectionLogs       bool
-	collectSystemTablesExport   bool
-	collectDiskUsage            bool
-	collectGCLogs               bool
-	collectWLM                  bool
-	nodeName                    string
+	outputDir                         string
+	dremioJFRTimeSeconds              int
+	dremioJStackFreqSeconds           int
+	dremioJStackTimeSeconds           int
+	dremioLogsNumDays                 int
+	dremioGCFilePattern               string
+	dremioQueriesJSONNumDays          int
+	jobProfilesNumSlowExec            int
+	jobProfilesNumHighQueryCost       int
+	jobProfilesNumSlowPlanning        int
+	jobProfilesNumRecentErrors        int
+	nodeMetricsCollectDurationSeconds int
+	collectNodeMetrics                bool
+	collectJFR                        bool
+	collectJStack                     bool
+	collectKVStoreReport              bool
+	collectServerLogs                 bool
+	collectMetaRefreshLogs            bool
+	collectQueriesJSON                bool
+	collectDremioConfiguration        bool
+	collectReflectionLogs             bool
+	collectSystemTablesExport         bool
+	collectDiskUsage                  bool
+	collectGCLogs                     bool
+	collectWLM                        bool
+	nodeName                          string
 
 	// variables
 	supportedExtensions     []string
@@ -85,7 +86,21 @@ type CollectConf struct {
 	dremioPID               int
 }
 
-func ReadConf() (*CollectConf, error) {
+func ReadConfFromExecLocation(overrides map[string]*pflag.Flag) (*CollectConf, error) {
+	//now read in viper configuration values. This will get defaults if no values are available in the configuration files or no environment variable is set
+
+	// find the location of the ddc executable
+	execPath, err := os.Executable()
+	if err != nil {
+		simplelog.Errorf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
+		execPath = "."
+	}
+	// use that as the default location of the configuration
+	configDir := filepath.Dir(execPath)
+	return ReadConf(overrides, configDir)
+}
+
+func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf, error) {
 
 	c := &CollectConf{}
 	c.supportedExtensions = []string{"yaml", "json", "toml", "hcl", "env", "props"}
@@ -127,7 +142,7 @@ func ReadConf() (*CollectConf, error) {
 	viper.SetDefault("dremio-log-dir", "/var/log/dremio")
 	defaultThreads := getThreads(runtime.NumCPU())
 	viper.SetDefault("number-threads", defaultThreads)
-	viper.SetDefault("dremio-log-dir", "dremio")
+	viper.SetDefault("dremio-usernme", "dremio")
 	viper.SetDefault("dremio-pat-token", "")
 	viper.SetDefault("dremio-conf-dir", "/opt/dremio/conf")
 	viper.SetDefault("dremio-rocksdb-dir", "/opt/dremio/data/db")
@@ -154,6 +169,7 @@ func ReadConf() (*CollectConf, error) {
 	defaultCaptureSeconds := 60
 	viper.SetDefault("dremio-jstack-time-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jfr-time-seconds", defaultCaptureSeconds)
+	viper.SetDefault("node-metrics-collect-duration-seconds", defaultCaptureSeconds)
 	viper.SetDefault("dremio-jstack-freq-seconds", 1)
 	viper.SetDefault("dremio-gclogs-dir", "")
 	// set node name
@@ -163,19 +179,9 @@ func ReadConf() (*CollectConf, error) {
 	}
 	viper.SetDefault("node-name", hostName)
 
-	//now read in viper configuration values. This will get defaults if no values are available in the configuration files or no environment variable is set
-
+	//read viper config
 	baseConfig := "ddc"
 	viper.SetConfigName(baseConfig) // Name of config file (without extension)
-
-	//find the location of the ddc executable
-	execPath, err := os.Executable()
-	if err != nil {
-		simplelog.Errorf("Error getting executable path: '%v'. Falling back to working directory for search location", err)
-		execPath = "."
-	}
-	// use that as the default location of the configuration
-	configDir := filepath.Dir(execPath)
 	viper.AddConfigPath(configDir)
 
 	for _, e := range c.supportedExtensions {
@@ -205,6 +211,10 @@ func ReadConf() (*CollectConf, error) {
 	// 		}
 	// 	}
 	// })
+	for k, v := range overrides {
+		viper.Set(k, v)
+	}
+
 	verboseString := viper.GetString("verbose")
 	verbose := strings.Count(verboseString, "v")
 	if verbose >= 3 {
@@ -571,4 +581,8 @@ func (c *CollectConf) DremioQueriesJSONNumDays() int {
 
 func (c *CollectConf) DremioLogsNumDays() int {
 	return c.dremioLogsNumDays
+}
+
+func (c *CollectConf) NodeMetricsCollectDurationSeconds() int {
+	return c.nodeMetricsCollectDurationSeconds
 }

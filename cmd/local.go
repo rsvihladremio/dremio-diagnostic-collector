@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
@@ -397,10 +398,10 @@ func runCollectJvmConfig(c *conf.CollectConf) error {
 }
 
 func runCollectNodeMetrics(c *conf.CollectConf) error {
-	simplelog.Info("Collecting Node Metrics for 60 seconds ....")
+	simplelog.Infof("Collecting Node Metrics for %v seconds ....", c.NodeMetricsCollectDurationSeconds())
 	nodeMetricsFile := path.Join(c.NodeInfoOutDir(), "metrics.txt")
 	nodeMetricsJSONFile := path.Join(c.NodeInfoOutDir(), "metrics.json")
-	return nodeinfocollect.SystemMetrics(path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile))
+	return nodeinfocollect.SystemMetrics(c.NodeMetricsCollectDurationSeconds(), path.Clean(nodeMetricsFile), path.Clean(nodeMetricsJSONFile))
 }
 
 func runCollectJFR(c *conf.CollectConf) error {
@@ -416,17 +417,17 @@ func runCollectJFR(c *conf.CollectConf) error {
 	simplelog.Debugf("node: %v - jfr start output - %v", c.NodeName(), w.String())
 	time.Sleep(time.Duration(c.DremioJFRTimeSeconds()) * time.Second)
 	// do not "optimize". the recording first needs to be stopped for all processes before collecting the data.
-	simplelog.Infof("... stopping JFR %v", c.NodeName)
+	simplelog.Infof("... stopping JFR %v", c.NodeName())
 	w = bytes.Buffer{}
-	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", c.DremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.dump name=\"DREMIO_JFR\"", c.DremioPID())); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
-	simplelog.Debugf("node: %v - jfr dump output %v", c.NodeName, w.String())
+	simplelog.Debugf("node: %v - jfr dump output %v", c.NodeName(), w.String())
 	w = bytes.Buffer{}
-	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.stop name=\"DREMIO_JFR\"", c.DremioPID)); err != nil {
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v JFR.stop name=\"DREMIO_JFR\"", c.DremioPID())); err != nil {
 		return fmt.Errorf("unable to dump JFR due to error %v", err)
 	}
-	simplelog.Debugf("node: %v - jfr stop output %v", c.NodeName, w.String())
+	simplelog.Debugf("node: %v - jfr stop output %v", c.NodeName(), w.String())
 
 	return nil
 }
@@ -713,9 +714,15 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
-		c, err := conf.ReadConf()
+		overrides := make(map[string]*pflag.Flag)
+		//if a cli flag was set go ahead and use those values to override the viper configuration
+		cmd.Flags().Visit(func(flag *pflag.Flag) {
+			overrides[flag.Name] = flag
+			simplelog.Warningf("overriding yaml with cli flag %v and value %v", flag.Name, flag.Value.String())
+		})
+		c, err := conf.ReadConfFromExecLocation(overrides)
 		if err != nil {
-			fmt.Errorf("unable to read configuration %v", err)
+			simplelog.Errorf("unable to read configuration %v", err)
 			os.Exit(1)
 		}
 		if !c.AcceptCollectionConsent() {
@@ -822,33 +829,28 @@ func TarGzDir(srcDir, dest string) error {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	//wire up override flags
 
 	// consent form
-	localCollectCmd.Flags().BoolVar(&acceptCollectionConsent, "accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
+	localCollectCmd.Flags().Bool("accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity
-	localCollectCmd.Flags().CountVarP(&verbose, "verbose", "v", "Logging verbosity")
-	localCollectCmd.Flags().BoolVar(&collectAccelerationLogs, "collect-acceleration-log", false, "Run the Collect Acceleration Log collector")
-	localCollectCmd.Flags().BoolVar(&collectAccessLogs, "collect-access-log", false, "Run the Collect Access Log collector")
-	localCollectCmd.Flags().StringVar(&gcLogsDir, "dremio-gclogs-dir", "", "by default will read from the Xloggc flag, otherwise you can override it here")
-	localCollectCmd.Flags().StringVar(&dremioLogDir, "dremio-log-dir", "", "directory with application logs on dremio")
-	localCollectCmd.Flags().IntVarP(&numberThreads, "number-threads", "t", 0, "control concurrency in the system")
+	localCollectCmd.Flags().CountP("verbose", "v", "Logging verbosity")
+	localCollectCmd.Flags().Bool("collect-acceleration-log", false, "Run the Collect Acceleration Log collector")
+	localCollectCmd.Flags().Bool("collect-access-log", false, "Run the Collect Access Log collector")
+	localCollectCmd.Flags().String("dremio-gclogs-dir", "", "by default will read from the Xloggc flag, otherwise you can override it here")
+	localCollectCmd.Flags().String("dremio-log-dir", "", "directory with application logs on dremio")
+	localCollectCmd.Flags().IntP("number-threads", "t", 0, "control concurrency in the system")
 	// Add flags for Dremio connection information
-	localCollectCmd.Flags().StringVar(&dremioEndpoint, "dremio-endpoint", "", "Dremio REST API endpoint")
-	localCollectCmd.Flags().StringVar(&dremioUsername, "dremio-username", "", "Dremio username")
-	localCollectCmd.Flags().StringVar(&dremioPATToken, "dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
-	localCollectCmd.Flags().StringVar(&dremioRocksDBDir, "dremio-rocksdb-dir", "", "Path to Dremio RocksDB directory")
-	localCollectCmd.Flags().StringVar(&dremioConfDir, "dremio-conf-dir", "", "Directory where to find the configuration files")
-	localCollectCmd.Flags().BoolVar(&collectDremioConfiguration, "collect-dremio-configuration", true, "Collect Dremio Configuration collector")
-	localCollectCmd.Flags().IntVar(&numberJobProfilesToCollect, "number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
-	localCollectCmd.Flags().BoolVar(&captureHeapDump, "capture-heap-dump", false, "Run the Heap Dump collector")
+	localCollectCmd.Flags().String("dremio-endpoint", "", "Dremio REST API endpoint")
+	localCollectCmd.Flags().String("dremio-username", "", "Dremio username")
+	localCollectCmd.Flags().String("dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
+	localCollectCmd.Flags().String("dremio-rocksdb-dir", "", "Path to Dremio RocksDB directory")
+	localCollectCmd.Flags().String("dremio-conf-dir", "", "Directory where to find the configuration files")
+	localCollectCmd.Flags().Bool("collect-dremio-configuration", true, "Collect Dremio Configuration collector")
+	localCollectCmd.Flags().Int("number-job-profiles", 0, "Randomly retrieve number job profiles from the server based on queries.json data but must have --dremio-pat-token set to use")
+	localCollectCmd.Flags().Bool("capture-heap-dump", false, "Run the Heap Dump collector")
 
 	rootCmd.AddCommand(localCollectCmd)
-}
-
-func initConfig() {
-
-	//TODO put init config here
 }
 
 // ### Helper functions

@@ -29,7 +29,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
 	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
+	"github.com/spf13/pflag"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -47,18 +49,50 @@ type JobAPIResponse struct {
 	ID string `json:"id"`
 }
 
-var dremioTestPort int
+var c *conf.CollectConf
 
 func cleanupOutput() {
-	if err := os.RemoveAll(outputDir); err != nil {
-		log.Printf("WARN unable to remove %v it may have to be manually cleaned up", outputDir)
+	if err := os.RemoveAll(c.OutputDir()); err != nil {
+		log.Printf("WARN unable to remove %v it may have to be manually cleaned up", c.OutputDir())
 	}
+}
+
+func writeConf(patToken, dremioEndpoint, tmpOutputDir string) string {
+	testDDCYaml := filepath.Join("testdata", "output", "conf", "ddc.yaml")
+	w, err := os.Create(testDDCYaml)
+	if err != nil {
+		log.Fatal(err)
+	}
+	yamlText := fmt.Sprintf(`verbose: vvvv
+collect-acceleration-log: true
+collect-access-log: true
+dremio-gclogs-dir: "" # if left blank detection is used to find the gc log dir
+dremio-log-dir: "/opt/dremio/data/logs" # where the dremio log is located
+dremio-conf-dir: "/opt/dremio/conf" #where the dremio conf files are located
+dremio-rocksdb-dir: /opt/dremio/data/db # used for locating Dremio's KV Metastore
+number-threads: 2 #number of threads to use for collection
+dremio-endpoint: "%v" # dremio endpoint on each node to use for collecting Workload Manager, KV Report and Job Profiles
+dremio-username: "dremio" # dremio user to for collecting Workload Manager, KV Report and Job Profiles 
+dremio-pat-token: "%v" # when set will attempt to collect Workload Manager, KV report and Job Profiles. Dremio PATs can be enabled by the support key auth.personal-access-tokens.enabled
+collect-dremio-configuration: true # will collect dremio.conf, dremio-env, logback.xml and logback-access.xml
+number-job-profiles: 0 # need to have the dremio-pat-token set to work
+capture-heap-dump: false # when true a heap dump will be captured on each node that the collector is run against
+accept-collection-consent: true # when true you accept consent to collect data on each node, if false collection will fail
+tmp-output-dir: "%v
+node-metrics-collect-duration-seconds: 10
+"
+`, dremioEndpoint, patToken, tmpOutputDir)
+	if _, err := io.WriteString(w, yamlText); err != nil {
+		log.Fatal(err)
+	}
+	return testDDCYaml
 }
 
 // TestMain setups up a docker runtime and we use this to spin up dremio https://github.com/ory/dockertest
 func TestMain(m *testing.M) {
 	exitCode := func() (exitCode int) {
 		ctx := context.Background()
+
 		pwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("failed to get working directory: %s", err)
@@ -91,7 +125,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("could not get dremio port: %s", err)
 		}
-		dremioTestPort = dremioTestPortRaw.Int()
+		dremioTestPort := dremioTestPortRaw.Int()
 		exit, _, err := dremioC.Exec(context.Background(), []string{"mkdir", "/tmp/dremio-source"})
 		if err != nil {
 			log.Fatalf("could not make dremio source: %s", err)
@@ -100,10 +134,9 @@ func TestMain(m *testing.M) {
 			log.Fatalf("unable to make dremio source due to exit code %d", exit)
 		}
 
-		requestURL := fmt.Sprintf("http://localhost:%v", dremioTestPort)
-		dremioEndpoint = requestURL
+		dremioEndpoint := fmt.Sprintf("http://localhost:%v", dremioTestPort)
 
-		res, err := http.Get(requestURL) //nolint
+		res, err := http.Get(dremioEndpoint) //nolint
 		if err != nil {
 			log.Fatalf("error making http request: %s\n", err)
 		}
@@ -121,7 +154,6 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != 204 {
 			log.Fatalf("expected status code 204 but instead got %v while trying to accept EULA", res.StatusCode)
 		}
-		dremioUsername = "dremio"
 		authRequest := &AuthRequest{
 			Username: "dremio",
 			Password: "dremio123",
@@ -153,7 +185,7 @@ func TestMain(m *testing.M) {
 			log.Printf("body was %s", string(text))
 			log.Fatalf("fatal attempt to decode body from dremio auth %v", err)
 		}
-		dremioPATToken = authResponse.Token
+		dremioPATToken := authResponse.Token
 
 		nasSource := `{
 			"metadataPolicy": {
@@ -186,7 +218,12 @@ func TestMain(m *testing.M) {
 		if res.StatusCode != 200 {
 			log.Fatalf("expected status code 200 but instead got %v while trying to create source", res.StatusCode)
 		}
-		outputDir = "testdata/output"
+		yamlLocation := writeConf(dremioPATToken, dremioEndpoint, filepath.Join("testdata", "output"))
+		c, err = conf.ReadConf(make(map[string]*pflag.Flag), filepath.Join("testdata", filepath.Dir(yamlLocation)))
+		if err != nil {
+			log.Fatalf("reading config %v", err)
+		}
+
 		return m.Run()
 	}()
 
@@ -201,30 +238,31 @@ func TestMain(m *testing.M) {
 }
 
 func TestCreateAllDirs(t *testing.T) {
-	err := createAllDirs()
+	err := createAllDirs(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCollectWlm(t *testing.T) {
-	err := runCollectWLM()
+	err := runCollectWLM(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCollectKVReport(t *testing.T) {
-	err := os.MkdirAll("testdata/output/kvstore/", 0755)
+	kvStoreDir := c.KVstoreOutDir()
+	err := os.MkdirAll(kvStoreDir, 0755)
 	if err != nil {
 		t.Errorf("unable to make kvstore output dir: %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll("testdata/output/kvstore"); err != nil {
+		if err := os.RemoveAll(kvStoreDir); err != nil {
 			t.Logf("error removing kvstore out dir %v", err)
 		}
 	}()
-	err = runCollectKvReport()
+	err = runCollectKvReport(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -242,12 +280,12 @@ func TestDownloadJobProfile(t *testing.T) {
 	sql := `{
 		"sql": "CREATE TABLE tester.table1 AS SELECT \"a\", \"b\" FROM (values (CAST(1 AS INTEGER), CAST(2 AS INTEGER))) as t(\"a\", \"b\")"
 	}`
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/api/v3/sql/", dremioTestPort), bytes.NewBuffer([]byte(sql)))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/api/v3/sql/", c.DremioEndpoint()), bytes.NewBuffer([]byte(sql)))
 	if err != nil {
 		t.Fatalf("unable to create table request %v", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "_dremio"+dremioPATToken)
+	req.Header.Add("Authorization", "_dremio"+c.DremioPATToken())
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("unable to create table %v", err)
@@ -273,37 +311,36 @@ func TestDownloadJobProfile(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 	jobid := jobResponse.ID
-	err = downloadJobProfile(jobid)
+	err = downloadJobProfile(c, jobid)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestValidateAPICredentials(t *testing.T) {
-	err := validateAPICredentials()
+	err := validateAPICredentials(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestValidateCollectJobProfiles(t *testing.T) {
-	err := runCollectJobProfiles()
+	err := runCollectJobProfiles(c)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
 }
 
 func TestCaptureSystemMetrics(t *testing.T) {
-	outputDir := filepath.Join("testdata", "output", "node-info")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(c.NodeInfoOutDir(), 0755); err != nil {
 		t.Errorf("cannot make output dir due to error %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll(outputDir); err != nil {
-			t.Logf("error cleaning up dir %v due to error %v", outputDir, err)
+		if err := os.RemoveAll(c.NodeInfoOutDir()); err != nil {
+			t.Logf("error cleaning up dir %v due to error %v", c.NodeInfoOutDir(), err)
 		}
 	}()
-	if err := runCollectNodeMetrics(); err != nil {
+	if err := runCollectNodeMetrics(c); err != nil {
 		t.Errorf("expected no errors but had %v", err)
 	}
 	metricsFile := filepath.Join("testdata", "output", "node-info", "metrics.json")
@@ -328,11 +365,11 @@ func TestCaptureSystemMetrics(t *testing.T) {
 		}
 		rows = append(rows, row)
 	}
-	if len(rows) > 65 {
-		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 60", len(rows))
+	if len(rows) > 12 {
+		t.Errorf("%v rows created by metrics file, this is too many and the default should be around 10", len(rows))
 	}
-	if len(rows) < 55 {
-		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 60", len(rows))
+	if len(rows) < 8 {
+		t.Errorf("%v rows created by metrics file, this is too few and the default should be around 10", len(rows))
 	}
 	t.Logf("%v rows of metrics captured", len(rows))
 }

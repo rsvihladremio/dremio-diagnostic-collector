@@ -51,8 +51,8 @@ type SystemMetricsRow struct {
 	CachedRAMMB         float64   `json:"cachedRAMMB"`
 }
 
-func collectSystemMetrics() (rows []SystemMetricsRow, err error) {
-	iterations := 60
+func collectSystemMetrics(seconds int) (rows []SystemMetricsRow, err error) {
+	iterations := seconds
 	interval := time.Second
 
 	prevDiskIO, _ := disk.IOCounters()
@@ -159,8 +159,8 @@ func writeSystemMetrics(useTabWriter bool, nodeMetricsFile string, header string
 	return w.Close()
 }
 
-func SystemMetrics(nodeMetricsFile, nodeMetricsJSONFile string) error {
-	rows, err := collectSystemMetrics()
+func SystemMetrics(secondsToCollect int, nodeMetricsFile, nodeMetricsJSONFile string) error {
+	rows, err := collectSystemMetrics(secondsToCollect)
 	if err != nil {
 		return fmt.Errorf("unable to collect system metrics with error %v", err)
 	}
