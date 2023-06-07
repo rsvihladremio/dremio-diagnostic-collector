@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 type CmdExecutor interface {
@@ -82,38 +82,48 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	}
 	stdErrScanner := bufio.NewScanner(stderr)
 
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
-	}
+	startScan := make(chan struct{})
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
+
 	// Asynchronously read the output from the command line by line
 	// and pass it to the outputHandler. This runs in a goroutine
 	// so that we can also read the error output at the same time.
 	go func() {
+		<-startScan // Wait for signal to start scanning
 		for stdOutScanner.Scan() {
 			outputHandler(stdOutScanner.Text())
 		}
 		wg.Done()
 	}()
-	wg.Add(1)
+
 	// Asynchronously read the error output from the command line by line
 	// and pass it to the outputHandler.
 	go func() {
+		<-startScan // Wait for signal to start scanning
 		for stdErrScanner.Scan() {
 			outputHandler(stdErrScanner.Text())
 		}
 		wg.Done()
 	}()
 
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
+
+	// Signal the goroutines to start scanning
+	close(startScan)
+
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
+
 	//wait for the wait group too so that we can finish writing the text
 	wg.Wait()
+
 	// If there was no error, return nil
 	return nil
 }

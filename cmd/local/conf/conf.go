@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/google/uuid"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )

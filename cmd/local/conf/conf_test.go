@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf"
 )
 
 var _ = Describe("Conf", func() {

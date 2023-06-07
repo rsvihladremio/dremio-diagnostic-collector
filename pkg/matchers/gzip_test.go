@@ -17,9 +17,9 @@ package matchers_test
 import (
 	"path/filepath"
 
+	. "github.com/dremio/dremio-diagnostic-collector/pkg/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/rsvihladremio/dremio-diagnostic-collector/pkg/matchers"
 )
 
 var _ = Describe("Gzip Matchers", func() {

@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 var expectedOutput string

@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 type ErrorlessStringBuilder struct {

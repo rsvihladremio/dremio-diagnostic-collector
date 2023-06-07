@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 var secretK8sKeywords = []string{
