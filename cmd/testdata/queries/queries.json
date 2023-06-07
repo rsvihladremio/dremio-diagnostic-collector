@@ -1,0 +1,3 @@
+{"queryId":"123456","start":100,"outcome":"COMPLETED","queryType":"METADATA_REFRESH","queryCost":9000,"planningTime":0,"executionPlanningTime":440,"runningTime":10}
+{"queryId":"abcdef","start":200,"outcome":"FAILED","queryType":"ODBC","queryCost":9001,"planningTime":1,"executionPlanningTime":350,"runningTime":5}
+{"queryId":"dremio","start":300,"outcome":"CANCELLED","queryType":"REST","queryCost":9002,"planningTime":2,"executionPlanningTime":340,"runningTime":1235}
