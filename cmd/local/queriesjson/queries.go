@@ -103,8 +103,9 @@ func ReadGzFile(filename string) ([]QueriesRow, error) {
 		row, err := parseLine(line, i)
 		if err != nil {
 			fmt.Println(err.Error() + `: ` + filename)
+		} else {
+			queriesrows = append(queriesrows, row)
 		}
-		queriesrows = append(queriesrows, row)
 		i++
 	}
 	return queriesrows, err
@@ -126,8 +127,9 @@ func ReadJSONFile(filename string) ([]QueriesRow, error) {
 		row, err := parseLine(line, i)
 		if err != nil {
 			fmt.Println(err.Error() + `: ` + filename)
+		} else {
+			queriesrows = append(queriesrows, row)
 		}
-		queriesrows = append(queriesrows, row)
 		i++
 	}
 	return queriesrows, err
@@ -137,17 +139,44 @@ func parseLine(line string, i int) (QueriesRow, error) {
 	dat := make(map[string]interface{})
 	err := json.Unmarshal([]byte(line), &dat)
 	if err != nil {
-		log.Println(err)
-		log.Println("queries.json line #", i, line)
+		return *new(QueriesRow), fmt.Errorf("queries.json line #%v: %v - error: %v", i, line, err)
 	}
 	var row = new(QueriesRow)
-	row.QueryID = dat["queryId"].(string)
-	row.QueryType = dat["queryType"].(string)
-	row.QueryCost = dat["queryCost"].(float64)
-	row.ExecutionPlanningTime = dat["executionPlanningTime"].(float64)
-	row.RunningTime = dat["runningTime"].(float64)
-	row.Start = dat["start"].(float64)
-	row.Outcome = dat["outcome"].(string)
+	if val, ok := dat["queryId"]; ok {
+		row.QueryID = val.(string)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'queryId'")
+	}
+	if val, ok := dat["queryType"]; ok {
+		row.QueryType = val.(string)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'queryType'")
+	}
+	if val, ok := dat["queryCost"]; ok {
+		row.QueryCost = val.(float64)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'queryCost'")
+	}
+	if val, ok := dat["executionPlanningTime"]; ok {
+		row.ExecutionPlanningTime = val.(float64)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'executionPlanningTime'")
+	}
+	if val, ok := dat["runningTime"]; ok {
+		row.RunningTime = val.(float64)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'runningTime'")
+	}
+	if val, ok := dat["start"]; ok {
+		row.Start = val.(float64)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'start'")
+	}
+	if val, ok := dat["outcome"]; ok {
+		row.Outcome = val.(string)
+	} else {
+		return *new(QueriesRow), fmt.Errorf("missing field 'outcome'")
+	}
 	queriesrow := *row
 	return queriesrow, err
 }

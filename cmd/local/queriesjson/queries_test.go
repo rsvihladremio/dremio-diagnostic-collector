@@ -16,18 +16,19 @@
 package queriesjson
 
 import (
+	"os"
+	"path"
 	"testing"
 )
 
-// func TestGetSlowExecJobs_empty(t *testing.T) {
-// 	queriesrows_empty := []QueriesRow{}
-// 	numSlowExecJobs_empty := 10
-// 	slowexecqueriesrows_empty := getSlowExecJobs(queriesrows_empty, numSlowExecJobs_empty)
-// 	log.Println(slowexecqueriesrows_empty)
-// 	if len(slowexecqueriesrows_empty) != 0 {
-// 		t.Errorf("Error")
-// 	}
-// }
+func TestGetSlowExecJobs_empty(t *testing.T) {
+	queriesRowsEmpty := []QueriesRow{}
+	numSlowExecJobsEmpty := 10
+	slowExecQueriesRowsEmpty := GetSlowExecJobs(queriesRowsEmpty, numSlowExecJobsEmpty)
+	if len(slowExecQueriesRowsEmpty) != 0 {
+		t.Errorf("Error")
+	}
+}
 
 func TestGetSlowExecJobs_small(t *testing.T) {
 	var row1 = new(QueriesRow)
@@ -159,5 +160,155 @@ func TestGetSlowExecJobs_small(t *testing.T) {
 	}
 	if errorqueriesrows[1] != *row2 {
 		t.Errorf("Error")
+	}
+}
+
+func TestParseLine(t *testing.T) {
+	s := "123"
+	actual, err := parseLine(s, 1)
+	if err == nil {
+		t.Errorf("There should be an error here")
+	}
+	expected := *new(QueriesRow)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestParseLine_Empty(t *testing.T) {
+	s := ""
+	actual, err := parseLine(s, 1)
+	if err == nil {
+		t.Errorf("There should be an error here")
+	}
+	expected := *new(QueriesRow)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestParseLine_ValidJson(t *testing.T) {
+	s := `{
+		"queryId":"1b9b9629-8289-b46c-c765-455d24da7800",
+		"start":100,
+		"outcome":"COMPLETED",
+		"queryType":"METADATA_REFRESH",
+		"queryCost":5.1003501E7,
+		"planningTime":0,
+		"executionPlanningTime":340,
+		"runningTime":4785
+	}`
+	actual, err := parseLine(s, 1)
+	if err != nil {
+		t.Errorf("There should not be an error here")
+	}
+	var expected = new(QueriesRow)
+	expected.QueryID = "1b9b9629-8289-b46c-c765-455d24da7800"
+	expected.QueryType = "METADATA_REFRESH"
+	expected.QueryCost = 5.1003501e7
+	expected.ExecutionPlanningTime = 340
+	expected.RunningTime = 4785
+	expected.Start = 100
+	expected.Outcome = "COMPLETED"
+	if *expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestParseLine_EmptyJson(t *testing.T) {
+	s := "{}"
+	actual, err := parseLine(s, 1)
+	if err == nil {
+		t.Errorf("There should be an error here")
+	}
+	expected := *new(QueriesRow)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestParseLine_ValidJsonWithMissingFields(t *testing.T) {
+	s := `{
+		"queryId":"1b9b9629-8289-b46c-c765-455d24da7800"
+	}`
+	actual, err := parseLine(s, 1)
+	if err == nil {
+		t.Errorf("There should be an error here")
+	}
+	expected := *new(QueriesRow)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestMin(t *testing.T) {
+	actual := min(1, 2)
+	expected := 1
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+	actual = min(2, 1)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+	actual = min(1, 1)
+	if expected != actual {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestReadJSONFile(t *testing.T) {
+	filename := "../../testdata/queries/bad_queries.json"
+	actual, err := ReadJSONFile(filename)
+	if err != nil {
+		t.Errorf("There should not be an error here")
+	}
+	if len(actual) != 0 {
+		t.Errorf("The bad_queries.json should produce 0 valid entries")
+	}
+}
+
+func TestReadGzippedJSONFile(t *testing.T) {
+	filename := "../../testdata/queries/queries.json.gz"
+	actual, err := ReadGzFile(filename)
+	if err != nil {
+		t.Errorf("There should not be an error here")
+	}
+	if len(actual) != 3 {
+		t.Errorf("The zipped queries.json should produce 3 entries")
+	}
+	expectedStartOfIndex0 := 100.0
+	if actual[0].Start != expectedStartOfIndex0 {
+		t.Errorf("ERROR")
+	}
+}
+
+func TestCollectQueriesJSON(t *testing.T) {
+	queriesDir := "../../testdata/queries/"
+	files, err := os.ReadDir(queriesDir)
+	if err != nil {
+		t.Errorf("There should not be an error here")
+	}
+	queriesjsons := []string{}
+	for _, file := range files {
+		queriesjsons = append(queriesjsons, path.Join(queriesDir, file.Name()))
+	}
+	numValidEntries := 6
+	queriesrows := CollectQueriesJSON(queriesjsons)
+	if len(queriesrows) != numValidEntries {
+		t.Errorf("The queries files in testdata should produce %v entries", numValidEntries)
+	}
+
+	// Testing AddRowsToSet with the data
+	profilesToCollect := map[string]string{}
+	AddRowsToSet(queriesrows, profilesToCollect)
+	if len(profilesToCollect) != numValidEntries {
+		t.Errorf("The profiles to collect should be %v entries", numValidEntries)
+	}
+	if _, ok := profilesToCollect["1b9b9629-8289-b46c-c765-455d24da7800"]; !ok {
+		t.Errorf("The profile ID is missing")
+	}
+	if _, ok := profilesToCollect["123456"]; !ok {
+		t.Errorf("The profile ID is missing")
 	}
 }
