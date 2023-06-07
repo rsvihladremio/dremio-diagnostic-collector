@@ -82,23 +82,23 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	var wg sync.WaitGroup
 
 	wg.Add(1)
+	stdOutScanner := bufio.NewScanner(stdout)
 	// Asynchronously read the output from the command line by line
 	// and pass it to the outputHandler. This runs in a goroutine
 	// so that we can also read the error output at the same time.
 	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			outputHandler(scanner.Text())
+		for stdOutScanner.Scan() {
+			outputHandler(stdOutScanner.Text())
 		}
 		wg.Done()
 	}()
 	wg.Add(1)
+	stdErrScanner := bufio.NewScanner(stderr)
 	// Asynchronously read the error output from the command line by line
 	// and pass it to the outputHandler.
 	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			outputHandler(scanner.Text())
+		for stdErrScanner.Scan() {
+			outputHandler(stdErrScanner.Text())
 		}
 		wg.Done()
 	}()
