@@ -15,8 +15,20 @@
 // main is the standard go entry point for the application
 package main
 
-import "github.com/rsvihladremio/dremio-diagnostic-collector/cmd"
+import (
+	"log"
+
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd"
+	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+)
 
 func main() {
+	//initial logger before verbosity is parsed
+	simplelog.InitLogger(3)
+	defer func() {
+		if err := simplelog.Close(); err != nil {
+			log.Printf("unable to close log due to error %v", err)
+		}
+	}()
 	cmd.Execute()
 }
