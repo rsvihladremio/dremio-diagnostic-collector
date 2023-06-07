@@ -16,14 +16,16 @@
 package queriesjson
 
 import (
+	"os"
+	"path"
 	"testing"
 )
 
 func TestGetSlowExecJobs_empty(t *testing.T) {
-	queriesrows_empty := []QueriesRow{}
-	numSlowExecJobs_empty := 10
-	slowexecqueriesrows_empty := GetSlowExecJobs(queriesrows_empty, numSlowExecJobs_empty)
-	if len(slowexecqueriesrows_empty) != 0 {
+	queriesRowsEmpty := []QueriesRow{}
+	numSlowExecJobsEmpty := 10
+	slowExecQueriesRowsEmpty := GetSlowExecJobs(queriesRowsEmpty, numSlowExecJobsEmpty)
+	if len(slowExecQueriesRowsEmpty) != 0 {
 		t.Errorf("Error")
 	}
 }
@@ -165,7 +167,7 @@ func TestParseLine(t *testing.T) {
 	s := "123"
 	actual, err := parseLine(s, 1)
 	if err == nil {
-		t.Errorf("ERROR")
+		t.Errorf("There should be an error here")
 	}
 	expected := *new(QueriesRow)
 	if expected != actual {
@@ -177,7 +179,7 @@ func TestParseLine_Empty(t *testing.T) {
 	s := ""
 	actual, err := parseLine(s, 1)
 	if err == nil {
-		t.Errorf("ERROR")
+		t.Errorf("There should be an error here")
 	}
 	expected := *new(QueriesRow)
 	if expected != actual {
@@ -198,7 +200,7 @@ func TestParseLine_ValidJson(t *testing.T) {
 	}`
 	actual, err := parseLine(s, 1)
 	if err != nil {
-		t.Errorf("There should be no error here")
+		t.Errorf("There should not be an error here")
 	}
 	var expected = new(QueriesRow)
 	expected.QueryID = "1b9b9629-8289-b46c-c765-455d24da7800"
@@ -217,7 +219,7 @@ func TestParseLine_EmptyJson(t *testing.T) {
 	s := "{}"
 	actual, err := parseLine(s, 1)
 	if err == nil {
-		t.Errorf("ERROR")
+		t.Errorf("There should be an error here")
 	}
 	expected := *new(QueriesRow)
 	if expected != actual {
@@ -255,18 +257,14 @@ func TestMin(t *testing.T) {
 	}
 }
 
-func TestAddRowsToSet(t *testing.T) {
-	// TODO
-}
-
 func TestReadJSONFile(t *testing.T) {
 	filename := "../../testdata/queries/bad_queries.json"
 	actual, err := ReadJSONFile(filename)
 	if err != nil {
-		t.Errorf("There should be an error here")
+		t.Errorf("There should not be an error here")
 	}
 	if len(actual) != 0 {
-		t.Errorf("ERROR")
+		t.Errorf("The bad_queries.json should produce 0 valid entries")
 	}
 }
 
@@ -279,8 +277,38 @@ func TestReadGzippedJSONFile(t *testing.T) {
 	if len(actual) != 3 {
 		t.Errorf("The zipped queries.json should produce 3 entries")
 	}
-	expected_start_of_index0 := 100.0
-	if actual[0].Start != expected_start_of_index0 {
+	expectedStartOfIndex0 := 100.0
+	if actual[0].Start != expectedStartOfIndex0 {
 		t.Errorf("ERROR")
+	}
+}
+
+func TestCollectQueriesJSON(t *testing.T) {
+	queriesDir := "../../testdata/queries/"
+	files, err := os.ReadDir(queriesDir)
+	if err != nil {
+		t.Errorf("There should not be an error here")
+	}
+	queriesjsons := []string{}
+	for _, file := range files {
+		queriesjsons = append(queriesjsons, path.Join(queriesDir, file.Name()))
+	}
+	numValidEntries := 6
+	queriesrows := CollectQueriesJSON(queriesjsons)
+	if len(queriesrows) != numValidEntries {
+		t.Errorf("The queries files in testdata should produce %v entries", numValidEntries)
+	}
+
+	// Testing AddRowsToSet with the data
+	profilesToCollect := map[string]string{}
+	AddRowsToSet(queriesrows, profilesToCollect)
+	if len(profilesToCollect) != numValidEntries {
+		t.Errorf("The profiles to collect should be %v entries", numValidEntries)
+	}
+	if _, ok := profilesToCollect["1b9b9629-8289-b46c-c765-455d24da7800"]; !ok {
+		t.Errorf("The profile ID is missing")
+	}
+	if _, ok := profilesToCollect["123456"]; !ok {
+		t.Errorf("The profile ID is missing")
 	}
 }
