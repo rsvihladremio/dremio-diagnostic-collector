@@ -94,7 +94,6 @@ func ReadConfFromExecLocation(overrides map[string]*pflag.Flag) (*CollectConf, e
 }
 
 func ReadConf(overrides map[string]*pflag.Flag, configDir string) (*CollectConf, error) {
-	simplelog.InitLogger(3)
 	defaultThreads := autodetect.GetThreads()
 	defaultCaptureSeconds := 60
 	// set node name

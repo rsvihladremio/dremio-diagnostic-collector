@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -715,12 +714,7 @@ var localCollectCmd = &cobra.Command{
 	Short: "retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support",
 	Long:  `Retrieves all the dremio logs and diagnostics for the local node and saves the results in a compatible format for Dremio support. This subcommand needs to be run with enough permissions to read the /proc filesystem, the dremio logs and configuration files`,
 	Run: func(cmd *cobra.Command, args []string) {
-		simplelog.InitLogger(4)
-		defer func() {
-			if err := simplelog.Close(); err != nil {
-				log.Printf("unable to close log due to error %v", err)
-			}
-		}()
+
 		simplelog.Infof("ddc local-collect version: %v", getVersion())
 		simplelog.Infof("args: %v", strings.Join(args, " "))
 		overrides := make(map[string]*pflag.Flag)
@@ -839,7 +833,6 @@ func TarGzDir(srcDir, dest string) error {
 
 func init() {
 	//wire up override flags
-	simplelog.InitLogger(3)
 	// consent form
 	localCollectCmd.Flags().Bool("accept-collection-consent", false, "consent for collection of files, if not true, then collection will stop and a log message will be generated")
 	// command line flags ..default is set at runtime due to the CountVarP not having this capacity

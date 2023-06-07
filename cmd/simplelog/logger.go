@@ -32,6 +32,7 @@ const (
 )
 
 var logger *Logger
+var internalDebugLogger *log.Logger
 var ddcLog *os.File
 var mut = &sync.Mutex{}
 
@@ -44,6 +45,7 @@ type Logger struct {
 
 func init() {
 	logger = newLogger(LevelError)
+	internalDebugLogger = log.New(os.Stdout, "LOG_DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
 func InitLogger(level int) {
@@ -61,8 +63,18 @@ func Close() error {
 	}
 	return nil
 }
-
+func internalDebug(level int, text string) {
+	if level > 2 {
+		internalDebugLogger.Print(text)
+	}
+}
 func newLogger(level int) *Logger {
+	//cap out logging level because we rely on switch case below to match logging level
+	adjustedLevel := level
+	if adjustedLevel > 3 {
+		adjustedLevel = 3
+	}
+
 	debugOut, infoOut, warningOut, errorOut := io.Discard, io.Discard, io.Discard, io.Discard
 	ddcLoc, err := os.Executable()
 	if err != nil {
@@ -70,21 +82,31 @@ func newLogger(level int) *Logger {
 	}
 	mut.Lock()
 	if ddcLog != nil {
-		log.Printf("closing log")
+		internalDebug(adjustedLevel, "closing log")
 		if err := Close(); err != nil {
-			log.Printf("WARN: unable to close log %v", err)
+			internalDebug(adjustedLevel, fmt.Sprintf("unable to close log %v", err))
 		}
 	}
-	log.Print("initialized log")
 	ddcLog, err = os.OpenFile(path.Join(path.Dir(ddcLoc), "ddc.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Fatal(err)
 	}
 	mut.Unlock()
-	adjustedLevel := level
-	if adjustedLevel > 3 {
-		adjustedLevel = 3
+
+	var stringLevelText = "UNKNOWN"
+	switch adjustedLevel {
+	case LevelDebug:
+		stringLevelText = "DEBUG"
+	case LevelInfo:
+		stringLevelText = "INFO"
+	case LevelWarning:
+		stringLevelText = "WARN"
+	case LevelError:
+		stringLevelText = "ERROR"
 	}
+	internalDebug(adjustedLevel, fmt.Sprintf("initialized log with level %v", stringLevelText))
+
+	//set logger levels because we rely on fall through we cannot use the above switch easily
 	switch adjustedLevel {
 	case LevelDebug:
 		debugOut = io.MultiWriter(os.Stdout, ddcLog)
