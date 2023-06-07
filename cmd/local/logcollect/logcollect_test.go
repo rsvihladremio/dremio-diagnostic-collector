@@ -20,13 +20,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/logcollect"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/ddcio"
+	. "github.com/dremio/dremio-diagnostic-collector/pkg/matchers"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/tests"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/logcollect"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
-	. "github.com/rsvihladremio/dremio-diagnostic-collector/pkg/matchers"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 func cleanUp(dirs ...string) {

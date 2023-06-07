@@ -34,17 +34,17 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/consent"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/logcollect"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/queriesjson"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/restclient"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/consent"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/logcollect"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/nodeinfocollect"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/queriesjson"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/restclient"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/threading"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/ddcio"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/threading"
 )
 
 func createAllDirs(c *conf.CollectConf) error {

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
+	"github.com/dremio/dremio-diagnostic-collector/helpers"
 )
 
 type SummaryInfo struct {

@@ -35,7 +35,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 func TestKubectlExec(t *testing.T) {

@@ -22,7 +22,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
 // findGCLogLocation retrieves the gc log location with a search string to greedily retrieve everything by prefix

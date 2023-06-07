@@ -21,8 +21,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/masking"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
 )
 
 var _ = Describe("K8s Masking", func() {

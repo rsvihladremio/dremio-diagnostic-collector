@@ -22,12 +22,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/versions"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/collection"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/kubernetes"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/ssh"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/versions"
+	"github.com/dremio/dremio-diagnostic-collector/collection"
+	"github.com/dremio/dremio-diagnostic-collector/helpers"
+	"github.com/dremio/dremio-diagnostic-collector/kubernetes"
+	"github.com/dremio/dremio-diagnostic-collector/ssh"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

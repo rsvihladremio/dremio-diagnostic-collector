@@ -19,9 +19,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/dremio/dremio-diagnostic-collector/cli"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
 )
 
 var _ = Describe("Cli", func() {

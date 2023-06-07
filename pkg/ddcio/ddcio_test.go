@@ -17,9 +17,9 @@ package ddcio_test
 import (
 	"testing"
 
+	"github.com/dremio/dremio-diagnostic-collector/pkg/ddcio"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
 func TestCompareFiles(t *testing.T) {

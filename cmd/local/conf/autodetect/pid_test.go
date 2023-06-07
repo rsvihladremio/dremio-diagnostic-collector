@@ -15,9 +15,9 @@
 package autodetect_test
 
 import (
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
 )
 
 var _ = Describe("DremioPID", func() {

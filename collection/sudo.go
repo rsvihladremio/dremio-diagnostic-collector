@@ -16,8 +16,8 @@
 package collection
 
 import (
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cli"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 // Adds the sudo part into the HostExecute call
