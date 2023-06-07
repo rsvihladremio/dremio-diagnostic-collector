@@ -63,7 +63,7 @@ type Cli struct {
 // be returned as an error from this function.
 func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string) error {
 	// Log the command that's about to be run
-	fmt.Printf("args: %v\n", strings.Join(args, " "))
+	simplelog.Infof("args: %v\n", strings.Join(args, " "))
 
 	// Create the command based on the passed arguments
 	cmd := exec.Command(args[0], args[1:]...)
@@ -73,16 +73,22 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	if err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
+	stdOutScanner := bufio.NewScanner(stdout)
 
 	// Create a pipe to get the error output from the command
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
-	var wg sync.WaitGroup
+	stdErrScanner := bufio.NewScanner(stderr)
 
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
+
+	var wg sync.WaitGroup
 	wg.Add(1)
-	stdOutScanner := bufio.NewScanner(stdout)
 	// Asynchronously read the output from the command line by line
 	// and pass it to the outputHandler. This runs in a goroutine
 	// so that we can also read the error output at the same time.
@@ -93,7 +99,6 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 		wg.Done()
 	}()
 	wg.Add(1)
-	stdErrScanner := bufio.NewScanner(stderr)
 	// Asynchronously read the error output from the command line by line
 	// and pass it to the outputHandler.
 	go func() {
@@ -102,11 +107,6 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 		}
 		wg.Done()
 	}()
-
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
-	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -119,7 +119,6 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 }
 
 func (c *Cli) Execute(args ...string) (string, error) {
-	//log.Printf("args: %v", args) // useful for debugging
 	simplelog.Infof("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
@@ -131,7 +130,6 @@ func (c *Cli) Execute(args ...string) (string, error) {
 }
 
 func (c *Cli) ExecuteBytes(args ...string) ([]byte, error) {
-	//log.Printf("args: %v", args) // useful for debugging
 	simplelog.Infof("args: %v", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
