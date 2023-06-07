@@ -29,9 +29,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
+	"github.com/dremio/dremio-diagnostic-collector/cli"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/helpers"
 )
 
 var DirPerms fs.FileMode = 0750

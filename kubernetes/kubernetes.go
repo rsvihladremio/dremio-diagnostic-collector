@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+	"github.com/dremio/dremio-diagnostic-collector/cli"
 )
 
 // NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct

@@ -15,7 +15,7 @@
 // package tests provides helper functions and mocks for running tests
 package tests
 
-import "github.com/rsvihladremio/dremio-diagnostic-collector/cli"
+import "github.com/dremio/dremio-diagnostic-collector/cli"
 
 type MockCli struct {
 	Calls          [][]string

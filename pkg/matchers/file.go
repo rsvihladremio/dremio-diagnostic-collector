@@ -17,8 +17,8 @@ package matchers
 import (
 	"fmt"
 
+	"github.com/dremio/dremio-diagnostic-collector/pkg/ddcio"
 	"github.com/onsi/gomega/types"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/ddcio"
 )
 
 // MatchFile checks if a file has the expected content by comparing its content with the provided file.

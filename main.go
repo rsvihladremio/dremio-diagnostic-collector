@@ -18,8 +18,8 @@ package main
 import (
 	"log"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cmd/simplelog"
+	"github.com/dremio/dremio-diagnostic-collector/cmd"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/simplelog"
 )
 
 func main() {

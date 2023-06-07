@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/threading"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/threading"
 )
 
 var _ = Describe("Threading", func() {

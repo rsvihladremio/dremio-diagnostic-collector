@@ -111,15 +111,15 @@
 
 ### Fixed
 
-* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/80 now releases that are not linux contain an extra binary and example ddc.yaml file editing the file will change the parameters that run remotely on the server
-* fixed  https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/86 local capture metrics were not working
+* fixes https://github.com/dremio/dremio-diagnostic-collector/issues/80 now releases that are not linux contain an extra binary and example ddc.yaml file editing the file will change the parameters that run remotely on the server
+* fixed  https://github.com/dremio/dremio-diagnostic-collector/issues/86 local capture metrics were not working
 * old thread pool was buggy, wrote new one by hand, works well
 * removed a lot of code around capture and collection as it is no longer needed
 * logging to two sources, and now includes logs in the final tarball
-* local-collect will archive what is had now fixed https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/84
-* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/77 removing k8s from local-collect
-* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/78 consent formatting
-* fixes https://github.com/rsvihladremio/dremio-diagnostic-collector/issues/79 consent was backwards now works as expected
+* local-collect will archive what is had now fixed https://github.com/dremio/dremio-diagnostic-collector/issues/84
+* fixes https://github.com/dremio/dremio-diagnostic-collector/issues/77 removing k8s from local-collect
+* fixes https://github.com/dremio/dremio-diagnostic-collector/issues/78 consent formatting
+* fixes https://github.com/dremio/dremio-diagnostic-collector/issues/79 consent was backwards now works as expected
 
 
 ## [0.3.0-beta1] - 2023-05-15
@@ -226,20 +226,20 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
-[0.3.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-rc1...v0.3.0
-[0.3.0-rc1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta5...v0.3.0-rc1
-[0.3.0-beta5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5
-[0.3.0-beta4]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta3...v0.3.0-beta4
-[0.3.0-beta3]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta2...v0.3.0-beta3
-[0.3.0-beta2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2
-[0.3.0-beta1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
-[0.2.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.1...v0.2.2
-[0.2.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.5...v0.2.0
-[0.1.5]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.4...v0.1.5
-[0.1.4]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/rsvihladremio/dremio-diagnostic-collector/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/rsvihladremio/dremio-diagnostic-collector/releases/tag/v0.1.0
+[0.3.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-rc1...v0.3.0
+[0.3.0-rc1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-beta5...v0.3.0-rc1
+[0.3.0-beta5]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-beta4...v0.3.0-beta5
+[0.3.0-beta4]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-beta3...v0.3.0-beta4
+[0.3.0-beta3]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-beta2...v0.3.0-beta3
+[0.3.0-beta2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.3.0-beta1...v0.3.0-beta2
+[0.3.0-beta1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.2.2...v0.3.0-beta1
+[0.2.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.5...v0.2.0
+[0.1.5]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/dremio/dremio-diagnostic-collector/releases/tag/v0.1.0

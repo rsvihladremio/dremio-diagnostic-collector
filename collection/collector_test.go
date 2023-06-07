@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rsvihladremio/dremio-diagnostic-collector/cli"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/helpers"
-	"github.com/rsvihladremio/dremio-diagnostic-collector/pkg/tests"
+	"github.com/dremio/dremio-diagnostic-collector/cli"
+	"github.com/dremio/dremio-diagnostic-collector/helpers"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/tests"
 )
 
 type MockCopyStrategy struct {
