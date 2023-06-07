@@ -12,4 +12,5 @@ echo "executing golangci-lint run"
 golangci-lint run -E exportloopref,revive,gofmt -D structcheck
 
 echo "executing license-header-checker"
-$HOME/bin/license-header-checker license_header.txt . go
+BINDIR=${BINDIR:-$HOME/bin}
+$BINDIR/license-header-checker license_header.txt . go
