@@ -1,6 +1,13 @@
-[![Build Status](https://github.com/dremio/dremio-diagnostic-collector/actions/workflows/go.yml/badge.svg)](https://github.com/dremio/dremio-diagnostic-collector/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dremio/dremio-diagnostic-collector)](https://goreportcard.com/report/github.com/dremio/dremio-diagnostic-collector)
-![Coverage Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fdremio%2Fbaa5764cecee421db0f533239258c064%2Fraw%2Fdremio-diagnostic-collector-go-coverage.json)
+
+# ATTENTION
+
+This repository has been moved to an official dremio repository https://github.com/dremio/dremio-diagnostic-collector
+
+
+
+
+## OLD DOCS below
 
 # dremio-diagnostic-collector
 
