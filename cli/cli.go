@@ -79,11 +79,6 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	if err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
-
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
-	}
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -91,28 +86,33 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	// and pass it to the outputHandler. This runs in a goroutine
 	// so that we can also read the error output at the same time.
 	go func() {
-		defer wg.Done()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			outputHandler(scanner.Text())
 		}
+		wg.Done()
 	}()
 	wg.Add(1)
 	// Asynchronously read the error output from the command line by line
 	// and pass it to the outputHandler.
 	go func() {
-		defer wg.Done()
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			outputHandler(scanner.Text())
 		}
+		wg.Done()
 	}()
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
-	//wait for the wait group too so tha we can finish writing the text
+	//wait for the wait group too so that we can finish writing the text
 	wg.Wait()
 	// If there was no error, return nil
 	return nil
