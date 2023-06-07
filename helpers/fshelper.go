@@ -1,10 +1,10 @@
-//  Copyright 2023 Dremio Corporation
+//	Copyright 2023 Dremio Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// fshelper provides functions to wrapper os file system calls
-// to better facilitate testing
-
+// helpers package provides different functionality
 package helpers
 
 import (
@@ -24,6 +22,8 @@ import (
 	"path/filepath"
 )
 
+// fshelper provides functions to wrapper os file system calls
+// to better facilitate testing
 type Filesystem interface {
 	Stat(name string) (os.FileInfo, error)
 	Create(name string) (File, error)
