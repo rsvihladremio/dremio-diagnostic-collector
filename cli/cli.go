@@ -79,11 +79,6 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 	if err != nil {
 		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
 	}
-
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
-	}
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -107,6 +102,11 @@ func (c *Cli) ExecuteAndStreamOutput(outputHandler OutputHandler, args ...string
 		}
 		wg.Done()
 	}()
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return UnableToStartErr{Err: err, Cmd: strings.Join(args, " ")}
+	}
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
