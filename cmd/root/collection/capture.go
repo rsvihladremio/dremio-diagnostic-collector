@@ -65,22 +65,23 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outp
 				Path: localDDCPath,
 				Err:  fmt.Errorf("unable to copy local ddc to remote path due to error: '%v' with output '%v'", err, out),
 			})
-		} else {
-			simplelog.Infof("successfully copied ddc to host %v at %v", host, pathToDDC)
-			defer func() {
-				// clear out when done
-				if out, err := ComposeExecute(conf, []string{"rm", pathToDDC}); err != nil {
-					simplelog.Warningf("on host %v unable to remove ddc due to error '%v' with output '%v'", host, err, out)
-				}
-			}()
-			defer func() {
-				// clear out when done
-				if out, err := ComposeExecute(conf, []string{"rm", pathToDDC + ".log"}); err != nil {
-					simplelog.Warningf("on host %v unable to remove ddc.log due to error '%v' with output '%v'", host, err, out)
-				}
-			}()
-
+			//this is a critical error so it is safe to exit
+			return
 		}
+		simplelog.Infof("successfully copied ddc to host %v at %v", host, pathToDDC)
+		defer func() {
+			// clear out when done
+			if out, err := ComposeExecute(conf, []string{"rm", pathToDDC}); err != nil {
+				simplelog.Warningf("on host %v unable to remove ddc due to error '%v' with output '%v'", host, err, out)
+			}
+		}()
+		defer func() {
+			// clear out when done
+			if out, err := ComposeExecute(conf, []string{"rm", pathToDDC + ".log"}); err != nil {
+				simplelog.Warningf("on host %v unable to remove ddc.log due to error '%v' with output '%v'", host, err, out)
+			}
+		}()
+
 		//make  exec TransferDir
 		if out, err := ComposeExecute(conf, []string{"chmod", "+x", pathToDDC}); err != nil {
 			simplelog.Errorf("host %v unable to make ddc exec %v and cannot proceed with capture due to error '%v' with output '%v'", host, pathToDDC, err, out)
@@ -93,15 +94,16 @@ func Capture(conf HostCaptureConfiguration, localDDCPath, localDDCYamlPath, outp
 			Path: localDDCYamlPath,
 			Err:  fmt.Errorf("unable to copy local ddc yaml to remote path due to error: '%v' with output '%v'", err, out),
 		})
-	} else {
-		simplelog.Infof("successfully copied ddc.yaml to host %v at %v", host, pathToDDCYAML)
-		defer func() {
-			// clear out when done
-			if out, err := ComposeExecute(conf, []string{"rm", pathToDDCYAML}); err != nil {
-				simplelog.Warningf("on host %v unable to do initial cleanup capture due to error '%v' with output '%v'", host, err, out)
-			}
-		}()
+		//this is a critical step and will not work without it so exit
+		return
 	}
+	simplelog.Infof("successfully copied ddc.yaml to host %v at %v", host, pathToDDCYAML)
+	defer func() {
+		// clear out when done
+		if out, err := ComposeExecute(conf, []string{"rm", pathToDDCYAML}); err != nil {
+			simplelog.Warningf("on host %v unable to do initial cleanup capture due to error '%v' with output '%v'", host, err, out)
+		}
+	}()
 	//execute local-collect with a tarball-out-dir flag it must match our transfer-dir flag
 	localCollectArgs := []string{pathToDDC, "local-collect", "--tarball-out-dir", conf.TransferDir}
 	if skipRESTCollect {
