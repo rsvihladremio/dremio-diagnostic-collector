@@ -15,6 +15,7 @@
 package ssh
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -280,7 +281,7 @@ dremio-jfr-time-seconds: 10
 func getHostName(ip string, sshKey string, sshConf SSHTestConf) (string, error) {
 	var stdOut bytes.Buffer
 	var stdErr bytes.Buffer
-	c := exec.Command("ssh", "-i", sshKey, fmt.Sprintf("%v@%v", sshConf.User, ip), "hostname")
+	c := exec.Command("ssh", "-i", sshKey, fmt.Sprintf("%v@%v", sshConf.User, ip), "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "hostname")
 	c.Stdout = &stdOut
 	c.Stderr = &stdErr
 	if err := c.Start(); err != nil {
@@ -290,8 +291,17 @@ func getHostName(ip string, sshKey string, sshConf SSHTestConf) (string, error) 
 		return "", fmt.Errorf("getting hostname for ip %v failed with stderr out of %v and stdout of %v and go error of %v", ip, stdErr.String(), stdOut.String(), err)
 	}
 
-	if stdOut.String() == "" {
+	scanner := bufio.NewScanner(&stdOut)
+	txt := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "Warning") {
+			continue
+		}
+		txt += line
+	}
+	if txt == "" {
 		return "", fmt.Errorf("no host name present: stderror was %v", stdErr.String())
 	}
-	return strings.TrimSpace(stdOut.String()), nil
+	return strings.TrimSpace(txt), nil
 }
