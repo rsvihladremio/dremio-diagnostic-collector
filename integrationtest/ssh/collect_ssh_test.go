@@ -142,11 +142,11 @@ dremio-jfr-time-seconds: 10
 	}
 	tests.AssertFileHasContent(t, filepath.Join(testOut, "summary.json"))
 
-	coordinator, err := getHostName(sshConf.Coordinator, sshConf)
+	coordinator, err := getHostName(sshConf.Coordinator, privateKey, sshConf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	executor, err := getHostName(sshConf.Executor, sshConf)
+	executor, err := getHostName(sshConf.Executor, privateKey, sshConf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,10 +277,10 @@ dremio-jfr-time-seconds: 10
 	}
 }
 
-func getHostName(ip string, sshConf SSHTestConf) (string, error) {
+func getHostName(ip string, sshKey string, sshConf SSHTestConf) (string, error) {
 	var stdOut bytes.Buffer
 	var stdErr bytes.Buffer
-	c := exec.Command("ssh", "-i", sshConf.Private, fmt.Sprintf("%v@%v", sshConf.User, ip), "hostname")
+	c := exec.Command("ssh", "-i", sshKey, fmt.Sprintf("%v@%v", sshConf.User, ip), "hostname")
 	c.Stdout = &stdOut
 	c.Stderr = &stdErr
 	if err := c.Start(); err != nil {
