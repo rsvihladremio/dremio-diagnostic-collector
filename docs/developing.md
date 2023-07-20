@@ -2,9 +2,32 @@
 
 ### Dependency
 
-Kubernetes cluster with at least 4 cpus and 8192Mi of ram free. Should be a recent enough version. Can be local or remote it doesn't matter. It should not be a production cluster, although it will create random namespaces to avoid clobbering anything in prod.
+* Kubernetes cluster with at least 4 cpus and 8192Mi of ram free. Should be a recent enough version. Can be local or remote it doesn't matter. It should not be a production cluster, although it will create random namespaces to avoid clobbering anything in prod. NOTE: this means whenever you run tests it will be creating and delete resources on k8s
+* 2 VMs or on Prem nodes with ssh access.
 
-NOTE: this means whenever you run tests it will be creating and delete resources on k8s
+#### Steps to setup the SSH nodes
+* setup 2 vms
+* install dremio enterprise (version 24 ideally)
+* setup ssh public key auth
+* setup a pat
+* setup this file ./integration_test/ssh/testdata/ssh.json with a template like this (only use real values for all the fields)
+{   
+    "sudo_user": "dremio",
+    "user": "myuser", 
+    "public": "ssh-ed25519 publickey", 
+    "private":"-----BEGIN OPENSSH PRIVATE KEY-----\nprivatekey\n-----END OPENSSH PRIVATE KEY-----\n",
+    "coordinator": "coordinator-ip",
+    "executor": "executor1",
+    "dremio-log-dir": "/opt/dremio/log",
+    "dremio-conf-dir": "/opt/dremio/conf",
+    "dremio-rocksdb-dir": "/opt/dremio/cm/db/",
+    "dremio-username": "dremio",
+    "dremio-pat": "mytoken",
+    "dremio-endpoint": "http://localhost:9047",
+    "is-enterprise": true
+}
+
+
 
 ### Scripts
 
