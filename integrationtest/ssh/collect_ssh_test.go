@@ -53,7 +53,7 @@ func TestSSHBasedRemoteCollect(t *testing.T) {
 
 	b, err := os.ReadFile(filepath.Join("testdata", "ssh.json"))
 	if err != nil {
-		t.Fatalf(`unable to read ssh.json in integration_test/testdata/ssh.json
+		t.Fatalf(`unable to read ssh.json in ./integration_test/ssh/testdata/ssh.json
 you must make one with the following format:
 {
     "sudo_user": "dremio",
