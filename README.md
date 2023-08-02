@@ -23,7 +23,7 @@ The ddc.yaml file is located next to your ddc binary. The defaults for the ddc.y
 
 # please set these to match your environment
 dremio-log-dir: "/var/log/dremio" # where the dremio log is located
-dremio-conf-dir: "/opt/dremio/conf/..data" #where the dremio conf files are located
+dremio-conf-dir: "/opt/dremio/conf" #where the dremio conf files are located
 dremio-rocksdb-dir: /opt/dremio/data/db # used for locating Dremio's KV Metastore
 
 ## these are optional
