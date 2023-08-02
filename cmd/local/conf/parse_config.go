@@ -27,7 +27,7 @@ func ParseConfig(configDir string, overrides map[string]string) (map[string]inte
 
 	data := make(map[string]interface{})
 	expectedLoc := filepath.Join(configDir, "ddc.yaml")
-	confFile, err := os.ReadFile(expectedLoc)
+	confFile, err := os.ReadFile(filepath.Clean(expectedLoc))
 	if err != nil {
 		return data, fmt.Errorf("conf %v not found, and cannot read directory %v due to error %w", expectedLoc, configDir, err)
 	}
