@@ -127,7 +127,7 @@ As of the today the following is collected
 
 ### By default
 
-* Linux perf metrics (io, cpu, bytes read and written, io wait, etc)
+* Perf metrics (cpu and GC usage by thread)
 * System disk usage
 * Java Flight Recorder recording of 60 seconds
 * Jstack thread dump every second for approximately 60 seconds
