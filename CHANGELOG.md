@@ -159,7 +159,7 @@
 * default gclog directory is now empty in ddc.yaml this should usually
   not need to be set
 * matcher on gc logs now will match .current files
-* beta enchanced AWSE detection, may still have to manually collect with local-collect in some cases
+* beta enhanced AWSE detection, may still have to manually collect with local-collect in some cases
 
 ## [0.3.0-rc1]
 
