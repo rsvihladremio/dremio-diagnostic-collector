@@ -4,8 +4,8 @@
 
 ### Fixed 
 
-* fixed ttop collection on premish
-* NOTICE file is now present which includes dependecies authors and their copyrights
+* fixed ttop collection on premise
+* NOTICE file is now present which includes dependencies authors and their copyrights
 
 ### Changed
 
@@ -37,12 +37,12 @@
 
 ### Added
 
-* flag to specify the dremio pid
+* flag to specify the Dremio pid
 * flag to control collection of jvm flags
 * flag to control os information collection
 * flag to pick up ddc.yaml from a specified directory when running the remote collecting `ddc` command
 * flag to disable rest api calls
-* ddc awselogs - automates log collection for awse instead of requiring remote connections one can run just this one command from any node where the /var/efs/logs diretory is located and get all logs for each node
+* ddc awselogs - automates log collection for awse instead of requiring remote connections one can run just this one command from any node where the /var/efs/logs directory is located and get all logs for each node
 * we now store the output of kubectl log from each container on all pods that are matched
 * added --transfer-flag to change the output directory for ddc and tarball captures. This should allow dealing with limits in partition size to be dealt with
 
@@ -131,7 +131,7 @@
 ### Changed
 
 * if unable to detect any dremio PID process we will now exit with an error that states one must run sudo to run collections
-* several warnings have the text error in them, this was leading to people thinking there was an error when really it is just a warning that may or may not be signficant
+* several warnings have the text error in them, this was leading to people thinking there was an error when really it is just a warning that may or may not be significant
 * REST calls now only occur on the first coordinator and will not occur on subsequent nodes
 
 ## [0.3.0]
@@ -209,7 +209,7 @@
 
 ### Fixed
 * jstack was not pausing long enough between iterations
-* dont delete jfr after capturing it. fixes #100
+* don't delete jfr after capturing it. fixes #100
 * removed old $ variables fixes #102
 * verbosity was broken, now works even if someone asks for more verbosity than we have
 * defaults were not set for WLM, export system tables and kvm store report
@@ -217,7 +217,7 @@
 * command line flags are only bound to viper if they are passed
 * command line flag variables are now parsed directly from viper, this allows configuration to override the flags fixed #103
 * if archive folder is not available just log an error and skip it
-* cli flags take precidence
+* cli flags take precedence
 
 ## [0.3.0-beta2]
 
@@ -272,7 +272,7 @@
 
 ### Added
 
-- Support for healthcheck format
+- Support for health check format
 - Support for basic format and other future formats
 - Kubernetes cluster level config collection
 
@@ -301,8 +301,8 @@
 
 - newer version of golang ci
 - moved errors to defer calls
-- running ddc from windows sent the wrong path seperator to pods
-- running ddc from windows causes syntaxual issues with drive letter notation
+- running ddc from windows sent the wrong path separator to pods
+- running ddc from windows causes syntax issues with drive letter notation
 
 
 ## [0.1.3] - 2022-10-14
