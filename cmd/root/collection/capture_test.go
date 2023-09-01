@@ -15,7 +15,9 @@
 // collection package provides the interface for collection implementation and the actual collection execution
 package collection
 
-import "github.com/dremio/dremio-diagnostic-collector/cmd/root/cli"
+import (
+	"github.com/dremio/dremio-diagnostic-collector/cmd/root/cli"
+)
 
 type MockCollector struct {
 	Returns     [][]interface{}
