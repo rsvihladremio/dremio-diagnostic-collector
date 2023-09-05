@@ -38,20 +38,24 @@ func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesyste
 			out, err := clusterExecuteBytes(namespace, resource, c, k)
 			if err != nil {
 				simplelog.Errorf("when getting cluster config, error was %v", err)
+				return
 			}
 			text, err := masking.RemoveSecretsFromK8sJSON(string(out))
 			if err != nil {
 				simplelog.Errorf("unable to mask secrets for %v in namespace %v returning am empty text due to error '%v'", k, namespace, err)
+				return
 			}
 			p, err := cs.CreatePath("kubernetes", "dremio-master", "")
 			if err != nil {
 				simplelog.Errorf("trying to construct cluster config path %v with error %v", p, err)
+				return
 			}
 			path := strings.TrimSuffix(p, "dremio-master")
 			filename := filepath.Join(path, resource+".json")
 			err = ddfs.WriteFile(filename, []byte(text), DirPerms)
 			if err != nil {
 				simplelog.Errorf("trying to write file %v, error was %v", filename, err)
+				return
 			}
 		}(cmd)
 	}
@@ -60,7 +64,6 @@ func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesyste
 }
 
 func GetClusterLogs(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, k string, pods []string) error {
-	var m sync.Mutex
 	var wg sync.WaitGroup
 	path, err := cs.CreatePath("kubernetes", "container-logs", "")
 	if err != nil {
@@ -82,9 +85,7 @@ func GetClusterLogs(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, 
 			// Loop over each container, construct a path and log file name
 			// write the output of the kubectl logs command to a file
 			for _, container := range strings.Split(containers, " ") {
-				m.Lock()
 				copyContainerLog(cs, ddfs, k, container, namespace, path, podname)
-				m.Unlock()
 			}
 		}(pod)
 	}
