@@ -30,6 +30,11 @@ import (
 func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesystem, c Collector, k string) error {
 	cmds := []string{"nodes", "sc", "pvc", "pv", "service", "endpoints", "pods", "deployments", "statefulsets", "daemonset", "replicaset", "cronjob", "job", "events", "ingress", "limitrange", "resourcequota", "hpa", "pdb", "pc"}
 	var wg sync.WaitGroup
+	p, err := cs.CreatePath("kubernetes", "dremio-master", "")
+	if err != nil {
+		simplelog.Errorf("trying to construct cluster config path %v with error %v", p, err)
+		return err
+	}
 	for _, cmd := range cmds {
 		wg.Add(1)
 		go func(cmdname string) {
@@ -45,11 +50,7 @@ func ClusterK8sExecute(namespace string, cs CopyStrategy, ddfs helpers.Filesyste
 				simplelog.Errorf("unable to mask secrets for %v in namespace %v returning am empty text due to error '%v'", k, namespace, err)
 				return
 			}
-			p, err := cs.CreatePath("kubernetes", "dremio-master", "")
-			if err != nil {
-				simplelog.Errorf("trying to construct cluster config path %v with error %v", p, err)
-				return
-			}
+
 			path := strings.TrimSuffix(p, "dremio-master")
 			filename := filepath.Join(path, resource+".json")
 			err = ddfs.WriteFile(filename, []byte(text), DirPerms)
