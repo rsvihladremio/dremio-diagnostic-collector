@@ -20,6 +20,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf"
 )
 
 // fshelper provides functions to wrapper os file system calls
@@ -113,8 +115,12 @@ func (f RealFileSystem) Mkdir(name string, perms os.FileMode) error {
 }
 
 // MkdirTemp
-func (f RealFileSystem) MkdirTemp(name string, pattern string) (string, error) {
-	dir, err := os.MkdirTemp(name, pattern)
+func (f RealFileSystem) MkdirTemp(name string, pattern string) (dir string, err error) {
+	if conf.KeyTmpOutputDir == "" {
+		dir, err = os.MkdirTemp(name, pattern)
+	} else {
+		dir = conf.KeyTmpOutputDir
+	}
 	return dir, err
 }
 
