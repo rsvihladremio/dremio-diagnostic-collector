@@ -362,6 +362,8 @@ func Execute(args []string, overrides map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("unable to read configuration %w", err)
 	}
+	defer simplelog.LogEndMessage()
+
 	if !c.AcceptCollectionConsent() {
 		fmt.Println(consent.OutputConsent(c))
 		return errors.New("no consent given")
@@ -372,12 +374,10 @@ func Execute(args []string, overrides map[string]string) error {
 	if err := collect(c); err != nil {
 		return fmt.Errorf("unable to collect: %w", err)
 	}
-	ddcLoc, err := os.Executable()
-	if err != nil {
-		simplelog.Warningf("unable to find ddc itself..so can't copy it's log due to error %v", err)
-	} else {
-		ddcDir := filepath.Dir(ddcLoc)
-		if err := ddcio.CopyFile(filepath.Join(ddcDir, "ddc.log"), filepath.Join(c.OutputDir(), fmt.Sprintf("ddc-%v.log", c.NodeName()))); err != nil {
+
+	logLoc := simplelog.GetLogLoc()
+	if logLoc != "" {
+		if err := ddcio.CopyFile(simplelog.GetLogLoc(), filepath.Join(c.OutputDir(), fmt.Sprintf("ddc-%v.log", c.NodeName()))); err != nil {
 			simplelog.Warningf("uanble to copy log to archive due to error %v", err)
 		}
 	}
