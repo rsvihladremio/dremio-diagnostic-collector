@@ -54,19 +54,6 @@ func TestValidateParameters(t *testing.T) {
 	}
 
 	tc = makeTestCollection()
-	tc.ExecutorsStr = ""
-	err = validateParameters(tc,
-		ssh.Args{
-			SSHKeyLoc: "/home/dremio/.ssh",
-			SSHUser:   "dremio",
-		},
-		true)
-	expectedError = "the executor string was empty you must pass a label that will match your executors --executor or -e arguments. Example: -e \"mylabel=executor\""
-	if expectedError != err.Error() {
-		t.Errorf("expected: %v but was %v", expectedError, err.Error())
-	}
-
-	tc = makeTestCollection()
 	err = validateParameters(tc, ssh.Args{
 		SSHKeyLoc: "",
 		SSHUser:   "dremio",

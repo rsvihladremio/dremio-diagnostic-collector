@@ -88,7 +88,7 @@ func Execute(efsLogDir string, outDir string, outFile string) error {
 	overrides[conf.KeyDremioGCLogsDir] = filepath.Join(efsLogDir, coordinatorNode)
 	overrides[conf.KeyDremioLogDir] = filepath.Join(efsLogDir, coordinatorNode)
 
-	if err := local.Execute([]string{}, overrides); err != nil {
+	if _, err := local.Execute([]string{}, overrides); err != nil {
 		return fmt.Errorf("unable to collect entry %v due to error %w", coordinatorNode, err)
 	}
 	for _, entry := range entries {
@@ -112,7 +112,7 @@ func Execute(efsLogDir string, outDir string, outFile string) error {
 		overrides[conf.KeyDremioGCLogsDir] = filepath.Join(efsLogDir, "executor", entry.Name())
 		overrides[conf.KeyDremioLogDir] = filepath.Join(efsLogDir, "executor", entry.Name())
 
-		if err := local.Execute([]string{}, overrides); err != nil {
+		if _, err := local.Execute([]string{}, overrides); err != nil {
 			return fmt.Errorf("unable to collect entry %v due to error %w", entry.Name(), err)
 		}
 	}

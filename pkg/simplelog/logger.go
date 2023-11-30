@@ -50,17 +50,13 @@ type Logger struct {
 }
 
 func init() {
-	logger = newLogger(LevelError)
+	logger = newLogger()
 	internalDebugLogger = log.New(os.Stdout, "LOG_DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
 func InitLogger(level int) {
 	createLog(level)
-	adjustedLevel := level
-	if level > 3 {
-		adjustedLevel = LevelDebug
-	}
-	logger = newLogger(adjustedLevel)
+	logger = newLogger()
 }
 
 func LogStartMessage() {
@@ -107,7 +103,7 @@ func createLog(adjustedLevel int) {
 	defaultLog, err := getDefaultLogLoc()
 	if err != nil {
 		fallbackPath := filepath.Clean(filepath.Join(os.TempDir(), "ddc.log"))
-		fallbackLog, err := os.OpenFile(fallbackPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		fallbackLog, err := os.OpenFile(fallbackPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Println("falling back to standard out")
 		} else {
@@ -130,7 +126,7 @@ func getDefaultLogLoc() (*os.File, error) {
 		return nil, fmt.Errorf("unable to get absolute path of ddc log %v", err)
 	}
 	// abs has already cleaned this path so no need to ignore it again
-	f, err := os.OpenFile(ddcLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304
+	f, err := os.OpenFile(ddcLogPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("unable to open ddc log %v", err)
 	}
@@ -163,58 +159,58 @@ func internalDebug(level int, text string) {
 		internalDebugLogger.Print(text)
 	}
 }
-func newLogger(level int) *Logger {
-	//cap out logging level because we rely on switch case below to match logging level
-	adjustedLevel := level
-	if adjustedLevel > 3 {
-		adjustedLevel = 3
-	}
+func newLogger() *Logger {
+	// adjustedLevel := level
+	// if adjustedLevel > 3 {
+	// 	adjustedLevel = 3
+	// }
 
 	var debugOut io.Writer
 	var infoOut io.Writer
 	var warningOut io.Writer
 	var errorOut io.Writer
+	var hostOut io.Writer
 
-	var stringLevelText = "UNKNOWN"
-	switch adjustedLevel {
-	case LevelDebug:
-		stringLevelText = "DEBUG"
-	case LevelInfo:
-		stringLevelText = "INFO"
-	case LevelWarning:
-		stringLevelText = "WARN"
-	case LevelError:
-		stringLevelText = "ERROR"
-	}
-	internalDebug(adjustedLevel, fmt.Sprintf("initialized log with level %v", stringLevelText))
-	var output io.Writer
+	// var stringLevelText = "UNKNOWN"
+	// switch adjustedLevel {
+	// case LevelDebug:
+	// 	stringLevelText = "DEBUG"
+	// case LevelInfo:
+	// 	stringLevelText = "INFO"
+	// case LevelWarning:
+	// 	stringLevelText = "WARN"
+	// case LevelError:
+	// 	stringLevelText = "ERROR"
+	// }
+	// internalDebug(adjustedLevel, fmt.Sprintf("initialized log with level %v", stringLevelText))
+	// // var output io.Writer
 	mut.Lock()
 	if ddcLog != nil {
-		output = ddcLog
+		// output = ddcLog
 		// we log debug to log every time so we can figure out problems
-		debugOut, infoOut, warningOut, errorOut = ddcLog, ddcLog, ddcLog, ddcLog
+		hostOut, debugOut, infoOut, warningOut, errorOut = ddcLog, ddcLog, ddcLog, ddcLog, ddcLog
 	} else {
-		output = os.Stdout
+		// output = os.Stdout
 		// we are putting everything out to discard since there is no valid file to write too
-		debugOut, infoOut, warningOut, errorOut = io.Discard, io.Discard, io.Discard, io.Discard
+		hostOut, debugOut, infoOut, warningOut, errorOut = os.Stdout, os.Stdout, os.Stdout, os.Stdout, os.Stdout
 	}
 	mut.Unlock()
-	//set logger levels because we rely on fall through we cannot use the above switch easily
-	switch adjustedLevel {
-	case LevelDebug:
-		debugOut = io.MultiWriter(os.Stdout, output)
-		fallthrough
-	case LevelInfo:
-		infoOut = io.MultiWriter(os.Stdout, output)
-		fallthrough
-	case LevelWarning:
-		warningOut = io.MultiWriter(os.Stdout, output)
-		fallthrough
-	case LevelError:
-		errorOut = io.MultiWriter(os.Stdout, output)
-	}
+	// //set logger levels because we rely on fall through we cannot use the above switch easily
+	// switch adjustedLevel {
+	// case LevelDebug:
+	// 	debugOut = io.MultiWriter(os.Stdout, output)
+	// 	fallthrough
+	// case LevelInfo:
+	// 	infoOut = io.MultiWriter(os.Stdout, output)
+	// 	fallthrough
+	// case LevelWarning:
+	// 	warningOut = io.MultiWriter(os.Stdout, output)
+	// 	fallthrough
+	// case LevelError:
+	// 	errorOut = io.MultiWriter(os.Stdout, output)
+	// }
 	//always add this
-	hostOut := io.MultiWriter(os.Stdout, output)
+	// hostOut := io.MultiWriter(os.Stdout, output)
 	return &Logger{
 		debugLogger:   log.New(debugOut, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile),
 		infoLogger:    log.New(infoOut, "INFO:  ", log.Ldate|log.Ltime|log.Lshortfile),

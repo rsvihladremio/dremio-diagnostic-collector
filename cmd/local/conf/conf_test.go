@@ -358,3 +358,19 @@ func TestURLsuffix(t *testing.T) {
 	}
 
 }
+
+func TestClusterStatsDirectory(t *testing.T) {
+	genericConfSetup("")
+	cfg, err = conf.ReadConf(overrides, cfgFilePath)
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
+	if cfg == nil {
+		t.Error("invalid conf")
+	}
+	outDir := cfg.ClusterStatsOutDir()
+	expected := filepath.Join("cluster-stats", "node1")
+	if !strings.HasSuffix(outDir, expected) {
+		t.Errorf("expected %v to end with %v", outDir, expected)
+	}
+}

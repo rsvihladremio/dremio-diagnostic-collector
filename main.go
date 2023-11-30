@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -31,5 +32,8 @@ func main() {
 			log.Printf("unable to close log due to error %v", err)
 		}
 	}()
-	cmd.Execute(os.Args)
+	if err := cmd.Execute(os.Args); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

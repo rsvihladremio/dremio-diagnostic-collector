@@ -429,7 +429,10 @@ dremio-jfr-time-seconds: 10
 	}
 
 	args := []string{"ddc", "-k", "-n", namespace, "-c", "app=dremio-coordinator", "-e", "app=dremio-executor", "--ddc-yaml", localYamlFile, "--transfer-dir", transferDir, "--output-file", tgzFile}
-	cmd.Execute(args)
+	err = cmd.Execute(args)
+	if err != nil {
+		t.Fatalf("unable to run collect: %v", err)
+	}
 	simplelog.Info("remote collect complete now verifying the results")
 	testOut := filepath.Join(t.TempDir(), "ddcout")
 	err = os.Mkdir(testOut, 0700)

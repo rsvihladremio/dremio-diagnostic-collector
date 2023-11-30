@@ -16,14 +16,20 @@
 package conf
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf/autodetect"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/ddcio"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/local/restclient"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/dirs"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/google/uuid"
 	"github.com/spf13/cast"
@@ -197,20 +203,12 @@ func ReadConf(overrides map[string]string, ddcYamlLoc string) (*CollectConf, err
 		}
 	}
 	// now we can setup verbosity as we are parsing it in the ParseConfig function
+	// TODO REMOVE OR CHANGE MEANING
 	verboseString := GetString(confData, "verbose")
 	verbose := strings.Count(verboseString, "v")
-	if verbose >= 3 {
-		fmt.Println("verbosity level DEBUG")
-	} else if verbose == 2 {
-		fmt.Println("verbosity level INFO")
-	} else if verbose == 1 {
-		fmt.Println("verbosity level WARNING")
-	} else {
-		fmt.Println("verbosity level ERROR")
-	}
 	simplelog.InitLogger(verbose)
-	simplelog.LogStartMessage()
-
+	// we use dremio cloud option here to know if we should validate the log and conf dirs or not
+	c.isDremioCloud = GetBool(confData, KeyIsDremioCloud)
 	c.dremioPIDDetection = GetBool(confData, KeyDremioPidDetection)
 	c.dremioPID = GetInt(confData, KeyDremioPid)
 	if c.dremioPID < 1 && c.dremioPIDDetection {
@@ -224,14 +222,107 @@ func ReadConf(overrides map[string]string, ddcYamlLoc string) (*CollectConf, err
 	}
 	dremioPIDIsValid := c.dremioPID > 0
 
+	if dremioPIDIsValid {
+		dremioConfig, err := GetConfiguredDremioValuesFromPID(c.dremioPID)
+		if err != nil {
+			simplelog.Errorf("unable to retrieve configuration from pid %v: %v", c.dremioPID, err)
+		} else {
+			c.dremioConfDir = dremioConfig.ConfDir
+			c.dremioLogDir = dremioConfig.LogDir
+			content, err := os.ReadFile(filepath.Join(c.dremioConfDir, "dremio.conf"))
+			if err != nil {
+				simplelog.Errorf("configuration directory incorrect : %v", err)
+			}
+			confValues, err := parseAndResolveConfig(string(content), dremioConfig.Home)
+			if err != nil {
+				simplelog.Errorf("configuration directory incorrect : %v", err)
+			}
+			//searching rocksdb
+			var rocksDBDir string
+			if value, ok := confValues["db"]; ok {
+				rocksDBDir = value
+			} else {
+				rocksDBDir = filepath.Join(dremioConfig.Home, "data", "db")
+			}
+			c.dremioRocksDBDir = rocksDBDir
+		}
+	}
+	//we do not want to validate configuration of logs for dremio cloud
+	if !c.isDremioCloud {
+		// which configuration is better
+		configuredLogDir := GetString(confData, KeyDremioLogDir)
+		if configuredLogDir != "" || configuredLogDir != c.dremioLogDir {
+			msg := fmt.Sprintf("configured log directory '%v' and detected directory '%v' disagree validating contents", configuredLogDir, c.dremioLogDir)
+			fmt.Println(msg)
+			simplelog.Warning(msg)
+			err := dirs.CheckDirectory(configuredLogDir, func(de []fs.DirEntry) bool {
+				// in a common misconfigured directory server.out will still be
+				if len(de) > 1 {
+					return true
+				}
+				simplelog.Debugf("log dir in ddc.yaml '%v' does not have more than one entry: '%#v'", configuredLogDir, de)
+				return false
+			})
+			if err == nil {
+				// no error so we can use the configured log dir instead
+				c.dremioLogDir = configuredLogDir
+			}
+			msg = fmt.Sprintf("using log dir '%v'", c.dremioLogDir)
+			simplelog.Info(msg)
+			fmt.Println(msg)
+		}
+		if err := dirs.CheckDirectory(c.dremioLogDir, func(de []fs.DirEntry) bool {
+			// in a common misconfigured directory server.out will still be present
+			return len(de) > 1
+		}); err != nil {
+			return &CollectConf{}, fmt.Errorf("invalid dremio log dir '%v', update ddc.yaml and fix it: %v", c.dremioLogDir, err)
+		}
+
+		configuredConfDir := GetString(confData, KeyDremioConfDir)
+		if configuredConfDir != "" && configuredConfDir != c.dremioConfDir {
+			simplelog.Warningf("configured conf directory '%v' and detected directory '%v' disagree validating contents", configuredConfDir, c.dremioConfDir)
+			err := dirs.CheckDirectory(configuredConfDir, func(de []fs.DirEntry) bool {
+				return len(de) > 0
+			})
+			if err == nil {
+				c.dremioConfDir = configuredConfDir
+			}
+			msg := fmt.Sprintf("using conf dir '%v'", c.dremioConfDir)
+			simplelog.Info(msg)
+			fmt.Println(msg)
+		}
+		if err := dirs.CheckDirectory(c.dremioConfDir, func(de []fs.DirEntry) bool {
+			return len(de) > 0
+		}); err != nil {
+			return &CollectConf{}, fmt.Errorf("invalid dremio config dir '%v', update ddc.yaml and fix it: %v", c.dremioConfDir, err)
+		}
+
+		configuredRocksDBDir := GetString(confData, KeyDremioRocksdbDir)
+		if configuredRocksDBDir != "" && configuredRocksDBDir != c.dremioRocksDBDir {
+			simplelog.Warningf("configured rocksdb directory '%v' and detected directory '%v' disagree validating contents", configuredRocksDBDir, c.dremioRocksDBDir)
+			err := dirs.CheckDirectory(configuredRocksDBDir, func(de []fs.DirEntry) bool {
+				return len(de) > 0
+			})
+			if err != nil {
+				simplelog.Warningf("configured rocksdb dir '%v' is VALID using it instead of detected log directory '%v'", configuredRocksDBDir, c.dremioRocksDBDir)
+				c.dremioRocksDBDir = configuredRocksDBDir
+			}
+		}
+		if err := dirs.CheckDirectory(c.dremioConfDir, func(de []fs.DirEntry) bool {
+			return len(de) > 0
+		}); err != nil {
+			simplelog.Warningf("only applies to coordinators - invalid rocksdb dir '%v', update ddc.yaml and fix it: %v", c.dremioConfDir, err)
+		}
+	}
+	// end discovering minimal configuration
+
 	c.acceptCollectionConsent = GetBool(confData, KeyAcceptCollectionConsent)
-	c.isDremioCloud = GetBool(confData, KeyIsDremioCloud)
 	c.dremioCloudProjectID = GetString(confData, KeyDremioCloudProjectID)
 	c.collectAccelerationLogs = GetBool(confData, KeyCollectAccelerationLog)
 	c.collectAccessLogs = GetBool(confData, KeyCollectAccessLog)
 	c.collectAuditLogs = GetBool(confData, KeyCollectAuditLog)
 	c.gcLogsDir = GetString(confData, KeyDremioGCLogsDir)
-	c.dremioLogDir = GetString(confData, KeyDremioLogDir)
+
 	c.nodeName = GetString(confData, KeyNodeName)
 	IsAWSEfromLogDirs, err := autodetect.IsAWSEfromLogDirs()
 	if err != nil {
@@ -291,20 +382,6 @@ func ReadConf(overrides map[string]string, ddcYamlLoc string) (*CollectConf, err
 	c.collectReflectionLogs = GetBool(confData, KeyCollectReflectionLog)
 	c.collectGCLogs = GetBool(confData, KeyCollectGCLogs)
 	c.gcLogsDir = GetString(confData, KeyDremioGCLogsDir)
-	parsedGCLogDir, err := autodetect.FindGCLogLocation()
-	if err != nil {
-		if c.gcLogsDir == "" {
-			simplelog.Warningf("Must set dremio-gclogs-dir manually since we are unable to retrieve gc log location from pid due to error %v", err)
-		}
-	}
-	if parsedGCLogDir != "" {
-		if c.gcLogsDir == "" {
-			simplelog.Debugf("setting gc logs to %v", parsedGCLogDir)
-		} else {
-			simplelog.Debugf("overriding gc logs location from %v to %v due to detection of gclog directory", c.gcLogsDir, parsedGCLogDir)
-		}
-		c.gcLogsDir = parsedGCLogDir
-	}
 
 	// jfr config
 	c.collectJFR = GetBool(confData, KeyCollectJFR) && dremioPIDIsValid
@@ -339,6 +416,114 @@ func ReadConf(overrides map[string]string, ddcYamlLoc string) (*CollectConf, err
 	c.jobProfilesNumSlowPlanning = jobProfilesNumSlowPlanning
 
 	return c, nil
+}
+
+// parseAndResolveConfig parses the dremio.conf content and resolves placeholders based on the provided DREMIO_HOME.
+func parseAndResolveConfig(confContent, dremioHome string) (map[string]string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(confContent))
+	config := make(map[string]string)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip empty lines and comments
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(trimmedLine, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.Trim(parts[1], " ,\"'")
+
+		// Replace DREMIO_HOME placeholder
+		value = strings.ReplaceAll(value, "${DREMIO_HOME}", dremioHome)
+
+		// Store in map
+		config[key] = value
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// Resolve any internal placeholders
+	for key, value := range config {
+		for configKey, configValue := range config {
+			placeholder := fmt.Sprintf("${%s}", configKey)
+			config[key] = strings.ReplaceAll(value, placeholder, configValue)
+		}
+	}
+
+	return config, nil
+}
+
+// DremioConfig represents the configuration details for Dremio.
+type DremioConfig struct {
+	Home    string
+	LogDir  string
+	ConfDir string
+}
+
+func GetConfiguredDremioValuesFromPID(dremioPID int) (DremioConfig, error) {
+	var w bytes.Buffer
+	err := ddcio.Shell(&w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", dremioPID))
+	if err != nil {
+		return DremioConfig{}, err
+	}
+	// Define the keys to search for
+	dremioHomeKey := "DREMIO_HOME="
+	dremioLogDirKey := "DREMIO_LOG_DIR="
+	dremioConfDirKey := "DREMIO_CONF_DIR="
+
+	// Find and extract the values
+	dremioHome, err := extractValue(w.String(), dremioHomeKey)
+	if err != nil {
+		return DremioConfig{}, err
+	}
+
+	dremioLogDir, err := extractValue(w.String(), dremioLogDirKey)
+	if err != nil {
+		return DremioConfig{}, err
+	}
+
+	dremioConfDir, err := extractValue(w.String(), dremioConfDirKey)
+	if err != nil {
+		return DremioConfig{}, err
+	}
+
+	return DremioConfig{
+		Home:    dremioHome,
+		LogDir:  dremioLogDir,
+		ConfDir: dremioConfDir,
+	}, nil
+}
+
+// extractValue searches for a key in the input string and extracts the corresponding value.
+func extractValue(input string, key string) (string, error) {
+	startIndex := strings.Index(input, key)
+	if startIndex == -1 {
+		return "", errors.New("key not found: " + key)
+	}
+
+	// Find the end of the value (space or end of string)
+	endIndex := strings.Index(input[startIndex:], " ")
+	if endIndex == -1 {
+		endIndex = len(input)
+	} else {
+		endIndex += startIndex
+	}
+
+	// Extract the value
+	value := input[startIndex+len(key) : endIndex]
+	if value == "" {
+		return "", fmt.Errorf("did not find %v in string %v", key, input)
+	}
+	return value, nil
 }
 
 func getOutputDir(now time.Time) string {
@@ -458,6 +643,11 @@ func (c *CollectConf) KVstoreOutDir() string {
 func (c *CollectConf) SystemTablesOutDir() string {
 	return filepath.Join(c.outputDir, "system-tables", c.nodeName)
 }
+
+func (c *CollectConf) ClusterStatsOutDir() string {
+	return filepath.Join(c.outputDir, "cluster-stats", c.nodeName)
+}
+
 func (c *CollectConf) WLMOutDir() string { return filepath.Join(c.outputDir, "wlm", c.nodeName) }
 
 // works on all nodes but includes node name in file name

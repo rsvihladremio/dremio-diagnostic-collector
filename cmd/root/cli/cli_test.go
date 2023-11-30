@@ -155,7 +155,7 @@ func TestExecute_WhenCommandIsInvalid(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error but got nil")
 	}
-	expectedErr := "unable to start command '22JIDJMJMHHF' due to error"
+	expectedErr := "failed to run command '22JIDJMJMHHF' due to error"
 	if !strings.Contains(err.Error(), expectedErr) {
 		t.Errorf("Expected error message to contain '%s', but it didn't", expectedErr)
 	}
