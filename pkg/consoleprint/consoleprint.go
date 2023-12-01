@@ -17,6 +17,7 @@ package consoleprint
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -83,6 +84,9 @@ func init() {
 	c = &CollectionStats{
 		nodeCaptureStats: make(map[string]*NodeCaptureStats),
 	}
+	if strings.HasSuffix(os.Args[0], ".test") {
+		clearCode = "CLEAR SCREEN"
+	}
 }
 
 // Update updates the CollectionStats fields in a thread-safe manner.
@@ -105,9 +109,11 @@ func UpdateNodeState(node string, status string) {
 	c.mu.Unlock()
 }
 
+var clearCode = "\033[H\033[2J"
+
 func PrintState() {
 	c.mu.Lock()
-	fmt.Print("\033[H\033[2J")
+	fmt.Print(clearCode)
 	total := c.totalTransfers
 	var keys []string
 	for k := range c.nodeCaptureStats {

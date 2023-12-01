@@ -51,6 +51,6 @@ zip ./bin/ddc.zip ./bin/ddc
 mv ./bin/ddc.zip ./cmd/root/ddcbinary/output/ddc.zip
 rm ./bin/ddc
 
-Cgo build -ldflags "$LDFLAGS" -o ./bin/ddc
+go build -ldflags "$LDFLAGS" -o ./bin/ddc
 
 cp ./default-ddc.yaml ./bin/ddc.yaml
