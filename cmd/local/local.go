@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -367,13 +368,30 @@ func parseVersionFromClassPath(classPath string) string {
 	return ""
 }
 
+func getClassPath(pid int) (string, error) {
+	var w bytes.Buffer
+	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v system_properties", pid)); err != nil {
+		return "", err
+	}
+	out := w.String()
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	buf := make([]byte, 0, 256*1024)
+	scanner.Buffer(buf, 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "java.class.path=") {
+			return line, nil
+		}
+	}
+	if scanner.Err() != nil {
+		return "", fmt.Errorf("error while scanning '%v' for version: %v", out, scanner.Err())
+	}
+	return "", fmt.Errorf("no matches for java.class.path= found in '%v'", pid)
+}
+
 func runCollectClusterStats(c *conf.CollectConf) error {
 	simplelog.Debugf("Collecting cluster stats")
-	sjk, err := jvmcollect.NewTtopService()
-	if err != nil {
-		return err
-	}
-	classPath, err := sjk.GetClasspath(c.DremioPID())
+	classPath, err := getClassPath(c.DremioPID())
 	if err != nil {
 		return err
 	}
