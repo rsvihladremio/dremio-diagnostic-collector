@@ -23,7 +23,6 @@ import (
 )
 
 func TestClearsScreen(t *testing.T) {
-	t.Skip()
 	out, err := output.CaptureOutput(func() {
 		consoleprint.PrintState()
 	})
