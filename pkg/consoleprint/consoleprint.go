@@ -16,12 +16,9 @@
 package consoleprint
 
 import (
-	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"sync"
-	"time"
 )
 
 // NodeCaptureStats represents stats for a node capture.
@@ -49,33 +46,33 @@ type CollectionStats struct {
 
 // Update updates the CollectionStats fields in a thread-safe manner.
 func UpdateRuntime(ddcVersion, logFile, ddcYaml, collectionType string, transfersComplete, totalTransfers int) {
-	c.mu.Lock()
-	c.ddcVersion = ddcVersion
-	c.logFile = logFile
-	c.ddcYaml = ddcYaml
-	c.TransfersComplete = transfersComplete
-	c.totalTransfers = totalTransfers
-	c.collectionType = collectionType
-	c.mu.Unlock()
+	// c.mu.Lock()
+	// c.ddcVersion = ddcVersion
+	// c.logFile = logFile
+	// c.ddcYaml = ddcYaml
+	// c.TransfersComplete = transfersComplete
+	// c.totalTransfers = totalTransfers
+	// c.collectionType = collectionType
+	// c.mu.Unlock()
 }
 
 func UpdateK8sFiles(fileName string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.k8sFilesCollected = append(c.k8sFilesCollected, fileName)
-	c.lastK8sFileCollected = fileName
+	// c.mu.Lock()
+	// defer c.mu.Unlock()
+	// c.k8sFilesCollected = append(c.k8sFilesCollected, fileName)
+	// c.lastK8sFileCollected = fileName
 }
 
 func UpdateTarballDir(tarballDir string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.tarball = tarballDir
+	// c.mu.Lock()
+	// defer c.mu.Unlock()
+	// c.tarball = tarballDir
 }
 
 func UpdateResult(result string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.result = result
+	// c.mu.Lock()
+	// defer c.mu.Unlock()
+	// c.result = result
 }
 
 var c *CollectionStats
@@ -91,74 +88,74 @@ func init() {
 
 // Update updates the CollectionStats fields in a thread-safe manner.
 func UpdateNodeState(node string, status string) {
-	c.mu.Lock()
-	if _, ok := c.nodeCaptureStats[node]; ok {
-		c.nodeCaptureStats[node].status = status
-		if status == "COMPLETED" || strings.HasPrefix(status, "FAILED") {
-			if c.nodeCaptureStats[node].endTime == 0 {
-				c.TransfersComplete++
-				c.nodeCaptureStats[node].endTime = time.Now().Unix()
-			}
-		}
-	} else {
-		c.nodeCaptureStats[node] = &NodeCaptureStats{
-			startTime: time.Now().Unix(),
-			status:    status,
-		}
-	}
-	c.mu.Unlock()
+	// c.mu.Lock()
+	// if _, ok := c.nodeCaptureStats[node]; ok {
+	// 	c.nodeCaptureStats[node].status = status
+	// 	if status == "COMPLETED" || strings.HasPrefix(status, "FAILED") {
+	// 		if c.nodeCaptureStats[node].endTime == 0 {
+	// 			c.TransfersComplete++
+	// 			c.nodeCaptureStats[node].endTime = time.Now().Unix()
+	// 		}
+	// 	}
+	// } else {
+	// 	c.nodeCaptureStats[node] = &NodeCaptureStats{
+	// 		startTime: time.Now().Unix(),
+	// 		status:    status,
+	// 	}
+	// }
+	// c.mu.Unlock()
 }
 
 var clearCode = "\033[H\033[2J"
 
 func PrintState() {
-	c.mu.Lock()
-	fmt.Print(clearCode)
-	total := c.totalTransfers
-	var keys []string
-	for k := range c.nodeCaptureStats {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var nodes strings.Builder
-	if c.lastK8sFileCollected != "" {
-		nodes.WriteString("Kubernetes:\n-----------\n")
-		nodes.WriteString(fmt.Sprintf("Last file collected   : %v\n", c.lastK8sFileCollected))
-		nodes.WriteString(fmt.Sprintf("files collected       : %v\n", len(c.k8sFilesCollected)))
-		nodes.WriteString("\n")
-	}
-	if len(c.nodeCaptureStats) > 0 {
-		nodes.WriteString("Nodes:\n------\n")
-	}
+	// 	c.mu.Lock()
+	// 	fmt.Print(clearCode)
+	// 	total := c.totalTransfers
+	// 	var keys []string
+	// 	for k := range c.nodeCaptureStats {
+	// 		keys = append(keys, k)
+	// 	}
+	// 	sort.Strings(keys)
+	// 	var nodes strings.Builder
+	// 	if c.lastK8sFileCollected != "" {
+	// 		nodes.WriteString("Kubernetes:\n-----------\n")
+	// 		nodes.WriteString(fmt.Sprintf("Last file collected   : %v\n", c.lastK8sFileCollected))
+	// 		nodes.WriteString(fmt.Sprintf("files collected       : %v\n", len(c.k8sFilesCollected)))
+	// 		nodes.WriteString("\n")
+	// 	}
+	// 	if len(c.nodeCaptureStats) > 0 {
+	// 		nodes.WriteString("Nodes:\n------\n")
+	// 	}
 
-	for i, key := range keys {
-		node := c.nodeCaptureStats[key]
-		var secondsElapsed int
-		if node.endTime > 0 {
-			secondsElapsed = int(node.endTime) - int(node.startTime)
-		} else {
-			secondsElapsed = int(time.Now().Unix()) - int(node.startTime)
-		}
-		nodes.WriteString(fmt.Sprintf("%v. node %v - elapsed %v secs - status %v \n", i+1, key, secondsElapsed, node.status))
-	}
+	// 	for i, key := range keys {
+	// 		node := c.nodeCaptureStats[key]
+	// 		var secondsElapsed int
+	// 		if node.endTime > 0 {
+	// 			secondsElapsed = int(node.endTime) - int(node.startTime)
+	// 		} else {
+	// 			secondsElapsed = int(time.Now().Unix()) - int(node.startTime)
+	// 		}
+	// 		nodes.WriteString(fmt.Sprintf("%v. node %v - elapsed %v secs - status %v \n", i+1, key, secondsElapsed, node.status))
+	// 	}
 
-	fmt.Printf(
-		`=================================
-== Dremio Diagnostic Collector ==
-=================================
-%v
+	// 	fmt.Printf(
+	// 		`=================================
+	// == Dremio Diagnostic Collector ==
+	// =================================
+	// %v
 
-Version              : %v
-Yaml                 : %v
-Log File             : %v
-Collection Type      : %v
-Transfers Complete   : %v/%v
-Tarball              : %v
-Result               : %v
+	// Version              : %v
+	// Yaml                 : %v
+	// Log File             : %v
+	// Collection Type      : %v
+	// Transfers Complete   : %v/%v
+	// Tarball              : %v
+	// Result               : %v
 
-%v
-`, time.Now().Format(time.RFC1123), strings.TrimSpace(c.ddcVersion), c.ddcYaml, c.logFile, c.collectionType, c.TransfersComplete, total,
-		c.tarball, c.result, nodes.String())
-	c.mu.Unlock()
+	// %v
+	// `, time.Now().Format(time.RFC1123), strings.TrimSpace(c.ddcVersion), c.ddcYaml, c.logFile, c.collectionType, c.TransfersComplete, total,
+	// 		c.tarball, c.result, nodes.String())
+	// 	c.mu.Unlock()
 
 }

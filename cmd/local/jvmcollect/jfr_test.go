@@ -30,24 +30,21 @@ import (
 )
 
 func TestJFRCapture(t *testing.T) {
+	logLoc := filepath.Join(t.TempDir(), "ddc.log")
+
+	simplelog.InitLoggerWithFile(4, logLoc)
 	jarLoc := filepath.Join("testdata", "demo.jar")
 	cmd := exec.Command("java", "-jar", "-Dmyflag=1", "-Xmx128M", jarLoc)
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("cmd.Start() failed with %s\n", err)
 	}
-	logLoc := simplelog.GetLogLoc()
-
-	err := simplelog.Close()
-	if err != nil {
-		t.Log(err)
-	}
-
-	err = os.Remove(logLoc)
-	if err != nil {
-		t.Fatalf("need to clean up file '%v': '%v'", logLoc, err)
-	}
-
-	logLoc = simplelog.GetLogLoc()
+	defer func() {
+		err := simplelog.Close()
+		if err != nil {
+			t.Log(err)
+		}
+		simplelog.InitLoggerWithFile(4, filepath.Join(os.TempDir(), "ddc.log"))
+	}()
 
 	defer func() {
 		//in windows we may need a bit more time to kill the process
@@ -118,20 +115,16 @@ dremio-jfr-time-seconds: 2
 }
 
 func TestJFRCaptureWithExistingJFR(t *testing.T) {
-	logLoc := simplelog.GetLogLoc()
+	logLoc := filepath.Join(t.TempDir(), "ddc.log")
 
-	err := simplelog.Close()
-	if err != nil {
-		t.Log(err)
-	}
-
-	err = os.Remove(logLoc)
-	if err != nil {
-		t.Fatalf("need to clean up file '%v': '%v'", logLoc, err)
-	}
-
-	logLoc = simplelog.GetLogLoc()
-
+	simplelog.InitLoggerWithFile(4, logLoc)
+	defer func() {
+		err := simplelog.Close()
+		if err != nil {
+			t.Log(err)
+		}
+		simplelog.InitLoggerWithFile(4, filepath.Join(os.TempDir(), "ddc.log"))
+	}()
 	jarLoc := filepath.Join("testdata", "demo.jar")
 	cmd := exec.Command("java", "-jar", "-Dmyflag=1", "-Xmx128M", jarLoc)
 	if err := cmd.Start(); err != nil {
