@@ -35,7 +35,6 @@ func TestJFRCapture(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("cmd.Start() failed with %s\n", err)
 	}
-	simplelog.InitLogger(3)
 	logLoc := simplelog.GetLogLoc()
 
 	err := simplelog.Close()
@@ -48,7 +47,6 @@ func TestJFRCapture(t *testing.T) {
 		t.Fatalf("need to clean up file '%v': '%v'", logLoc, err)
 	}
 
-	simplelog.InitLogger(3)
 	logLoc = simplelog.GetLogLoc()
 
 	defer func() {
@@ -120,7 +118,6 @@ dremio-jfr-time-seconds: 2
 }
 
 func TestJFRCaptureWithExistingJFR(t *testing.T) {
-	simplelog.InitLogger(3)
 	logLoc := simplelog.GetLogLoc()
 
 	err := simplelog.Close()
@@ -133,7 +130,6 @@ func TestJFRCaptureWithExistingJFR(t *testing.T) {
 		t.Fatalf("need to clean up file '%v': '%v'", logLoc, err)
 	}
 
-	simplelog.InitLogger(3)
 	logLoc = simplelog.GetLogLoc()
 
 	jarLoc := filepath.Join("testdata", "demo.jar")

@@ -204,7 +204,6 @@ func Execute(args []string) error {
 			}
 			sshKeyLoc = sshDefault
 		}
-		simplelog.InitLogger(2)
 		dremioPAT := ""
 		if promptForDremioPAT {
 			pat, err := masking.PromptForPAT()

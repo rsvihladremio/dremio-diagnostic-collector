@@ -60,7 +60,7 @@ type Logger struct {
 }
 
 func init() {
-	logger = newLogger()
+	InitLogger(4)
 	internalDebugLogger = log.New(os.Stdout, "LOG_DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
@@ -70,7 +70,7 @@ func InitLogger(level int) {
 	logger = newLogger()
 }
 
-func InitLoggerWIthFile(level int, fileName string) {
+func InitLoggerWithFile(level int, fileName string) {
 	createLog(level, fileName)
 	logger = newLogger()
 }

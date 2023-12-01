@@ -204,9 +204,9 @@ func ReadConf(overrides map[string]string, ddcYamlLoc string) (*CollectConf, err
 	}
 	// now we can setup verbosity as we are parsing it in the ParseConfig function
 	// TODO REMOVE OR CHANGE MEANING
-	verboseString := GetString(confData, "verbose")
-	verbose := strings.Count(verboseString, "v")
-	simplelog.InitLogger(verbose)
+	// verboseString := GetString(confData, "verbose")
+	// verbose := strings.Count(verboseString, "v")
+	// simplelog.InitLogger(verbose)
 	// we use dremio cloud option here to know if we should validate the log and conf dirs or not
 	c.isDremioCloud = GetBool(confData, KeyIsDremioCloud)
 

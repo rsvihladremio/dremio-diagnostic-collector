@@ -36,7 +36,6 @@ var AWSELogsCmd = &cobra.Command{
 	Short: "Log only collect of AWSE from the coordinator node",
 	Long:  `Log only collect of AWSE from the coordinator node`,
 	Run: func(cmd *cobra.Command, args []string) {
-		simplelog.InitLogger(2)
 		simplelog.LogStartMessage()
 		defer simplelog.LogEndMessage()
 		if err := Execute(EFSLogDir, OutDir, OutFile); err != nil {
