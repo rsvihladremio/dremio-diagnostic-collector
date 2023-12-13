@@ -93,7 +93,8 @@ If you want to do a log only collection of AWSE say from the coordinator the fol
 
 ### dremio cloud (Preview)
 Specify the following parameters in ddc.yaml
-```is-dremio-cloud: true
+```
+is-dremio-cloud: true
 dremio-endpoint: "[eu.]dremio.cloud"    # Specify whether EU Dremio Cloud or not
 dremio-cloud-project-id: "<PROJECT_ID>"
 dremio-pat-token: "<DREMIO_PAT>"
