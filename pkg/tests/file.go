@@ -40,6 +40,32 @@ func MatchFile(expectedFile, actualFile string) (success bool, err error) {
 	return expectedText == actualText, nil
 }
 
+func MatchLines(expectedLines []string, actualFile string) (success bool, err error) {
+
+	actualLines, err := readLines(actualFile)
+	if err != nil {
+		return false, err
+	}
+
+	// We take each expected line and check for matches
+	matches := 0
+	for _, expectedLine := range expectedLines {
+		for _, actualLine := range actualLines {
+			if strings.Contains(actualLine, expectedLine) {
+				matches = matches + 1
+			}
+		}
+	}
+	// We should ideally have the same number of matches
+	if len(expectedLines) == matches {
+		success = true
+	} else {
+		success = false
+	}
+
+	return success, nil
+}
+
 func readLines(filePath string) ([]string, error) {
 	file, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
@@ -71,5 +97,12 @@ func AssertFileHasContent(t *testing.T, filePath string) {
 		if !(f.Size() > 0) {
 			t.Errorf("file %v is empty", filePath)
 		}
+	}
+}
+
+func AssertFileHasExpectedLines(t *testing.T, expectedLines []string, filePath string) {
+	success, _ := MatchLines(expectedLines, filePath)
+	if !success {
+		t.Errorf("file %v did not contain expected lines %v", filePath, expectedLines)
 	}
 }
