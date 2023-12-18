@@ -40,7 +40,15 @@ func MatchFile(expectedFile, actualFile string) (success bool, err error) {
 	return expectedText == actualText, nil
 }
 
-func MatchLines(expectedLines []string, actualFile string) (success bool, err error) {
+func MatchLines(t *testing.T, expectedLines []string, actualFile string) (bool, error) {
+
+	type MatchLines struct {
+		word    string
+		matched bool
+	}
+	var matchLine MatchLines
+	var matchLines []MatchLines
+	var success int
 
 	actualLines, err := readLines(actualFile)
 	if err != nil {
@@ -48,22 +56,34 @@ func MatchLines(expectedLines []string, actualFile string) (success bool, err er
 	}
 
 	// We take each expected line and check for matches
-	matches := 0
+	mi := 0
 	for _, expectedLine := range expectedLines {
+		matchLine.word = expectedLine
+		matchLine.matched = false
+		matchLines = append(matchLines, matchLine)
 		for _, actualLine := range actualLines {
 			if strings.Contains(actualLine, expectedLine) {
-				matches = matches + 1
+				matchLines[mi].word = expectedLine
+				matchLines[mi].matched = true
 			}
 		}
+		mi++
 	}
-	// We should ideally have the same number of matches
-	if len(expectedLines) == matches {
-		success = true
-	} else {
-		success = false
+	// We have to see at least one match on each expected line
+	// if not then the whole check fails
+	for _, m := range matchLines {
+		if !m.matched {
+			t.Errorf("Did not find a match for %v in file %v", m.word, actualFile)
+			return false, nil
+		}
+		success++
 	}
-
-	return success, nil
+	// the count of success must equal the count of expected words
+	// or expressions
+	if len(expectedLines) == success {
+		return true, nil
+	}
+	return false, nil
 }
 
 func readLines(filePath string) ([]string, error) {
@@ -101,7 +121,7 @@ func AssertFileHasContent(t *testing.T, filePath string) {
 }
 
 func AssertFileHasExpectedLines(t *testing.T, expectedLines []string, filePath string) {
-	success, _ := MatchLines(expectedLines, filePath)
+	success, _ := MatchLines(t, expectedLines, filePath)
 	if !success {
 		t.Errorf("file %v did not contain expected lines %v", filePath, expectedLines)
 		err := echoLines(t, filePath)
