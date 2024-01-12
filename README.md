@@ -100,36 +100,6 @@ and run
 If you are running ddc from windows, always run in a shell from the `C:` drive prompt. 
 This is because of a limitation of kubectl ( see https://github.com/kubernetes/kubernetes/issues/77310 )
 
-## What is collected?
-
-As of the today the following is collected
-
-### By default
-
-* Perf metrics (cpu and GC usage by thread)
-* System disk usage
-* Java Flight Recorder recording of 60 seconds
-* Jstack thread dump every second for approximately 60 seconds
-* server.log and 7 days of archives
-* metadata\_refresh.log and 7 days of archives
-* reflection.log and 7 days of archives
-* queries.json and up to 28 days of archives 
-* all dremio configurations
-* All gc logs if present
-
-### Optionally with the appropriate change to ddc.yaml
-
-* access.log and 7 days of archives
-* audit.log and 7 days of archives
-* java heap dump
-
-### Optionally with a Dremio Personal Access Token
-
-* a sampling of job profiles (note 25000 jobs can take 15 minutes to collect)
-* dremio key value store report
-* dremio work load manager details
-* system tables and their details
-
 ### ddc.yaml
 
 The ddc.yaml file is located next to your ddc binary, it is well documented and you should edit it to fit your environment.
