@@ -193,6 +193,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				Collector:     c,
 				IsCoordinator: false,
 				Host:          host,
+				SudoUser:      sudoUser,
 				CopyStrategy:  s,
 				DDCfs:         ddcfs,
 				TransferDir:   transferDir,
