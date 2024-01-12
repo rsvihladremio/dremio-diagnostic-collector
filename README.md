@@ -67,7 +67,7 @@ ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser  --dremio-pat-prompt
 ```    
     
-### to avoid using the /tmp folder on nodes
+#### to avoid using the /tmp folder on nodes
 
 ```bash
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser --transfer-dir /mnt/lots_of_storage/
