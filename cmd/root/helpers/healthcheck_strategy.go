@@ -37,17 +37,16 @@ func (r *RealTimeService) GetNow() time.Time {
 	return time.Now()
 }
 
-func NewHCCopyStrategy(ddcfs Filesystem, timeService TimeService) (*CopyStrategyHC, error) {
+func NewHCCopyStrategy(ddcfs Filesystem, timeService TimeService, tmpDir string) *CopyStrategyHC {
 	now := timeService.GetNow()
 	dir := now.Format("20060102-150405-DDC")
-	tmpDir, err := ddcfs.MkdirTemp("", "*")
 	return &CopyStrategyHC{
 		StrategyName: "healthcheck",
 		BaseDir:      dir,
 		TmpDir:       tmpDir,
 		Fs:           ddcfs,
 		TimeService:  timeService,
-	}, err
+	}
 }
 
 /*
@@ -139,6 +138,23 @@ func (s *CopyStrategyHC) ClusterPath() (path string, err error) {
 	return path, nil
 }
 
+func (s *CopyStrategyHC) Close() {
+	// cleanup when done
+	defer func() {
+		simplelog.Infof("cleaning up temp directory %v", s.GetTmpDir())
+		//temp folders stay around forever unless we tell them to go away
+		if err := s.Fs.RemoveAll(s.GetTmpDir()); err != nil {
+			simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", s.GetTmpDir(), err)
+		}
+		summaryFile := filepath.Join(s.TmpDir, "summary.json")
+		simplelog.Infof("cleaning up file %v", summaryFile)
+		//temp folders stay around forever unless we tell them to go away
+		if err := s.Fs.Remove(summaryFile); err != nil {
+			simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", summaryFile, err)
+		}
+	}()
+}
+
 // Archive calls out to the main archive function
 func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string) error {
 	// creates the summary file
@@ -147,22 +163,13 @@ func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string) error {
 		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
 	}
 
-	// cleanup when done
-	defer func() {
-		simplelog.Infof("cleaning up temp directory %v", s.TmpDir)
-		//temp folders stay around forever unless we tell them to go away
-		if err := s.Fs.RemoveAll(s.TmpDir); err != nil {
-			simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", s.TmpDir, err)
-		}
-	}()
-
 	// create completed file (its not gzipped)
 	if _, err := s.createHCFiles(); err != nil {
 		return err
 	}
 
 	// call general archive routine
-	return archive.TarGzDir(s.TmpDir, outputLoc)
+	return archive.TarDDC(s.TmpDir, outputLoc, s.BaseDir)
 }
 
 // This function creates a couple of supplemental files required for the HC data to be uploaded
