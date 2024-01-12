@@ -56,10 +56,7 @@ func TestJStackCapture(t *testing.T) {
 		t.Fatal(err)
 	}
 	nodeName := "node1"
-	threadDumpsOutDir := filepath.Join(tmpOutDir, "jfr", "thread-dumps", nodeName)
-	if err := os.MkdirAll(threadDumpsOutDir, 0700); err != nil {
-		t.Fatal(err)
-	}
+
 	ddcYamlString := fmt.Sprintf(`
 dremio-log-dir: %v
 dremio-conf-dir: %v
@@ -78,6 +75,10 @@ dremio-jstack-freq-seconds: 1
 	}
 	c, err := conf.ReadConf(overrides, ddcYaml)
 	if err != nil {
+		t.Fatal(err)
+	}
+	threadDumpsOutDir := filepath.Join(c.OutputDir(), "jfr", "thread-dumps", nodeName)
+	if err := os.MkdirAll(threadDumpsOutDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
