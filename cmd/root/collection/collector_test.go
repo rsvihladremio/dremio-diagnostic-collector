@@ -43,9 +43,8 @@ type MockStrategy struct {
 
 }
 
-func NewMockStrategy(ddcfs helpers.Filesystem) *MockStrategy {
+func NewMockStrategy(ddcfs helpers.Filesystem, tmpDir string) *MockStrategy {
 	dir := time.Now().Format("20060102-150405-DDC")
-	tmpDir, _ := ddcfs.MkdirTemp("", "*")
 	return &MockStrategy{
 		StrategyName: "basic",
 		BaseDir:      dir,
@@ -220,13 +219,14 @@ func TestFindHostsCoordinators(t *testing.T) {
 	}
 
 	fakeFS := helpers.NewFakeFileSystem()
-	mockStrategy := NewMockStrategy(fakeFS)
-	fakeTmp := mockStrategy.TmpDir
+	tmpDir := t.TempDir()
+
+	mockStrategy := NewMockStrategy(fakeFS, tmpDir)
 	fakeArgs := Args{
 		DDCfs:          fakeFS,
 		CoordinatorStr: "10.1.2.3-nok",
 		ExecutorsStr:   "10.2.3.4-nok",
-		OutputLoc:      fakeTmp,
+		OutputLoc:      tmpDir,
 		CopyStrategy:   mockStrategy,
 	}
 
@@ -250,13 +250,13 @@ func TestFindHostsExecutors(t *testing.T) {
 	}
 
 	fakeFS := helpers.NewFakeFileSystem()
-	mockStrategy := NewMockStrategy(fakeFS)
-	fakeTmp := mockStrategy.TmpDir
+	tmpDir := t.TempDir()
+	mockStrategy := NewMockStrategy(fakeFS, tmpDir)
 	fakeArgs := Args{
 		DDCfs:          fakeFS,
 		CoordinatorStr: "10.1.2.3-ok",
 		ExecutorsStr:   "10.2.3.4-nok",
-		OutputLoc:      fakeTmp,
+		OutputLoc:      tmpDir,
 		CopyStrategy:   mockStrategy,
 	}
 
