@@ -2,87 +2,84 @@
 ![Coverage Status](https://img.shields.io/badge/Code_Coverage-71%25-yellow)
 
 
-collect logs of Dremio for analysis
+Automated log and analytics collection for Dremio clusters
 
 ## IMPORTANT LINKS
 
-* Read the [FAQ.md](FAQ.md) for questions on making DDC work the way you want
-* Read the [ddc.yaml](default-ddc.yaml) as it is well documented and contains all the custom functionality you may want to customer
+* Read the [FAQ](FAQ.md) for common questions on setting up DDC
+* Read the [ddc.yaml](default-ddc.yaml) for a full, detailed list of customizable collection parameters (optional)
+* Read the [official Dremio Support page](https://support.dremio.com/hc/en-us/articles/15560006579739) for more details on the DDC architecture
 
-### Install
+### Install DDC on your local machine
 
-Download the [latest release binaries](https://github.com/dremio/dremio-diagnostic-collector/releases/latest):
+Download the [latest release binary](https://github.com/dremio/dremio-diagnostic-collector/releases/latest):
 
-1. unzip the binary
-2. open a terminal
-3. change to the directory where you unzip your binary
-4. run the command `./ddc -h` if you get the help for the command you are good to go.
+1. Unzip the binary
+2. Open a terminal and change to the directory where you unzipped your binary
+3. Run the command `./ddc -h`. If you see the DDC command help, you are good to go.
 
-## User Docs
+### Dremio on Kubernetes
 
-Read the [Dremio Diagnostic Collector KB Article](https://support.dremio.com/hc/en-us/articles/15560006579739-Using-DDC-to-collect-files-for-Support-Tickets)
+DDC connects via SSH or `kubectl` and collects a series of logs and files for Dremio, then puts those collected files in an archive
 
-### dremio on k8s
+For Kubernetes deployments _(Requires `kubectl` cluster access to be configured)_:
 
-ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
-
-for kubernetes deployments:
-
-#### coordinator only
+##### coordinator only
 ```bash
 ddc --k8s --namespace mynamespace --coordinator app=dremio-coordinator 
 ```
     
-#### coordinator and executors
+##### coordinator and executors
 ```bash
 ddc --k8s --namespace mynamespace --coordinator app=dremio-coordinator --executors app=dremio-executor 
 ```
       
-#### to collect job profiles, system tables, kv reports and wlm 
-
+##### to collect job profiles, system tables, kv reports and wlm (via REST API)
+_Requires Dremio admin privileges. Dremio PATs can be enabled by the support key `auth.personal-access-tokens.enabled`_
 ```bash
 ddc --k8s -n mynamespace -c app=dremio-coordinator -e app=dremio-executor --dremio-pat-prompt
 ```
 
-### dremio on prem
+### Dremio on-prem
 
-specific executors that you want to collect from with the -e flag and coordinators with the -c flag. Specify ssh user, and ssh key to use.
+Specific executors that you want to collect from with the `-e` flag and coordinators with the `-c` flag. Specify SSH user, and SSH key to use.
 
 
-for ssh based communication to VMs or Bare metal hardware:
+For SSH based communication to VMs or Bare Metal hardware:
 
-#### coordinator only
+##### coordinator only
 
 ```bash
 ddc --coordinator 10.0.0.19 --ssh-user myuser 
 ```    
-#### coordinator and executors
+##### coordinator and executors
         
 ```bash
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser
 ```
 
-#### to collect job profiles, system tables, kv reports and wlm 
+##### to collect job profiles, system tables, kv reports and wlm (via REST API)
+_Requires Dremio admin privileges. Dremio PATs can be enabled by the support key `auth.personal-access-tokens.enabled`_
 ```bash
-ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser  --dremio-pat-prompt
+ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser --dremio-pat-prompt
 ```    
     
-#### to avoid using the /tmp folder on nodes
+##### to avoid using the /tmp folder on nodes
 
 ```bash
 ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser --transfer-dir /mnt/lots_of_storage/
 ```
 
-### dremio on AWSE
+### Dremio AWSE
 
-If you want to do a log only collection of AWSE say from the coordinator the following command will produce a tarball with all the logs from each node
+Log-only collection from a Dremio AWSE coordinator is possible via the following command. This will produce a tarball with logs from all nodes.
 
 ```bash
 ./ddc awselogs
 ```
 
-### dremio cloud (Preview)
-Specify the following parameters in ddc.yaml
+### Dremio Cloud
+To collect job profiles, system tables, and wlm via REST API, specify the following parameters in `ddc.yaml`
 ```yaml
 is-dremio-cloud: true
 dremio-endpoint: "[eu.]dremio.cloud"    # Specify whether EU Dremio Cloud or not
@@ -90,19 +87,16 @@ dremio-cloud-project-id: "<PROJECT_ID>"
 dremio-pat-token: "<DREMIO_PAT>"
 tmp-output-dir: /full/path/to/dir       # Specify local target directory
 ```
-and run
-```bash
-./ddc local-collect
-```
+and run `./ddc local-collect` from your local machine
 
 ### Windows Users
 
-If you are running ddc from windows, always run in a shell from the `C:` drive prompt. 
+If you are running DDC from Windows, always run in a shell from the `C:` drive prompt. 
 This is because of a limitation of kubectl ( see https://github.com/kubernetes/kubernetes/issues/77310 )
 
 ### ddc.yaml
 
-The ddc.yaml file is located next to your ddc binary, it is well documented and you should edit it to fit your environment.
+The `ddc.yaml` file is located next to your DDC binary and can be edited to fit your environment. The [default-ddc.yaml](default-ddc.yaml) documents the full list of available parameters.
 
 ### Flags
 
