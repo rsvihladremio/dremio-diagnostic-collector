@@ -33,6 +33,11 @@ func TarGzDir(srcDir, dest string) error {
 func TarDDC(srcDir, dest, baseDDC string) error {
 	summaryJSON := filepath.Join(srcDir, "summary.json")
 	ddcFolder := filepath.Join(srcDir, baseDDC)
+	err := simplelog.CopyLog(filepath.Join(baseDDC, "ddc.log"))
+	if err != nil {
+		simplelog.Warningf("unable to copy ddc.log: \n%v", err)
+	}
+
 	return TarGzDirFiltered(srcDir, dest, func(name string) bool {
 		switch name {
 		case summaryJSON, ddcFolder:
