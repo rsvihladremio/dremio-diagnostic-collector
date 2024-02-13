@@ -316,7 +316,7 @@ func Execute(args []string) error {
 				}
 			}
 			prompt = promptui.Select{
-				Label: "Collection Type\n- quick is 2 days logs and not diagnostics\n- full is 7 days of logs and some light diagnostics\n- health check takes 20-30 minutes and requires a Dremio PAT",
+				Label: "Collection Type: light (2 days logs), standard (7 days logs + jstack), health-check (needs PAT)",
 				Items: []string{"light", "standard", "health-check"},
 			}
 			_, collectionMode, err = prompt.Run()

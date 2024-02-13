@@ -184,10 +184,13 @@ func GetClusters(kubectl string) ([]string, error) {
 			if err != nil {
 				simplelog.Errorf("unable find pods in namespace %v: %v", err, nCopy)
 			}
-			if len(strings.Split(strings.TrimSpace(out), "\n")) > 0 {
+			if len(strings.Split(strings.TrimSpace(out), "\n")) > 1 {
 				lock.Lock()
+				defer lock.Unlock()
+				if strings.TrimSpace(nCopy) == "" {
+					return
+				}
 				dremioClusters = append(dremioClusters, nCopy)
-				lock.Unlock()
 			}
 		}()
 
