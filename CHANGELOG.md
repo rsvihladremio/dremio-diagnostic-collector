@@ -4,7 +4,7 @@
 
 ## Fixed
 
-* a log was leaking to the output when it should have been doing to ddc.log
+* a log was leaking to the output when it should have been going to ddc.log
 * logging error, jstack collection was called gc log collection
 * autodetect in gclogging was not working this has been added back
 
