@@ -100,6 +100,7 @@ collect-system-tables-export: true
 collect-kvstore-report: true
 `, filepath.Join("testdata", "logs"), filepath.Join("testdata", "conf"), tarballOutDir, ts.URL)
 	}
+	cfgContent = strings.ReplaceAll(cfgContent, "\\", "\\\\")
 	// Write the sample configuration to a file.
 	err = os.WriteFile(cfgFilePath, []byte(cfgContent), 0600)
 	if err != nil {
@@ -265,7 +266,11 @@ func TestConfReadingWithAValidConfigurationFile(t *testing.T) {
 	//should parse the configuration correctly
 	cfg, err = conf.ReadConf(overrides, cfgFilePath)
 	if err != nil {
-		t.Errorf("unexpected error %v", err)
+		b, yamlErr := os.ReadFile(cfgFilePath)
+		if yamlErr != nil {
+			t.Fatal(err)
+		}
+		t.Errorf("unexpected error %v - yaml %s", err, b)
 	}
 	if cfg == nil {
 		t.Error("invalid conf")
@@ -416,7 +421,10 @@ func TestConfReadingWhenLoggingParsingOfDdcYAML(t *testing.T) {
 	if cfg == nil {
 		t.Error("expected a valid CollectConf but it is nil")
 	}
-
+	if err := simplelog.Close(); err != nil {
+		t.Fatal(err)
+	}
+	defer simplelog.InitLogger(4)
 	b, err := os.ReadFile(testLog)
 	if err != nil {
 		t.Fatal(err)
