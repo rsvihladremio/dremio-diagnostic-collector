@@ -137,7 +137,7 @@ func (c *KubectlK8sActions) SearchPods(compare func(container string) bool) (pod
 			podCopy := rawPod[4:]
 			container, err := c.getContainerName(podCopy)
 			if err != nil {
-				simplelog.Errorf("uanble to get pod name (%v): %v", podCopy, err)
+				simplelog.Errorf("unable to get pod name (%v): %v", podCopy, err)
 				return
 			}
 			if compare(container) {
@@ -159,4 +159,39 @@ func (c *KubectlK8sActions) GetExecutors() (podName []string, err error) {
 
 func (c *KubectlK8sActions) HelpText() string {
 	return "Make sure the labels and namespace you use actually correspond to your dremio pods: try something like 'ddc -n mynamespace --coordinator app=dremio-coordinator --executor app=dremio-executor'.  You can also run 'kubectl get pods --show-labels' to see what labels are available to use for your dremio pods"
+}
+
+func GetClusters(kubectl string) ([]string, error) {
+	c := &cli.Cli{}
+	out, err := c.Execute(false, kubectl, "get", "ns", "-o", "name")
+	if err != nil {
+		return []string{}, err
+	}
+	var namespaces []string
+	lines := strings.Split(out, "\n")
+	for _, l := range lines {
+		namespaces = append(namespaces, strings.TrimPrefix(l, "namespace/"))
+	}
+	var dremioClusters []string
+	var wg sync.WaitGroup
+	var lock sync.RWMutex
+	for _, n := range namespaces {
+		nCopy := n
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out, err := c.Execute(false, kubectl, "get", "pods", "-n", nCopy, "-l", "role=dremio-cluster-pod", "-o", "name")
+			if err != nil {
+				simplelog.Errorf("unable find pods in namespace %v: %v", err, nCopy)
+			}
+			if len(strings.Split(strings.TrimSpace(out), "\n")) > 0 {
+				lock.Lock()
+				dremioClusters = append(dremioClusters, nCopy)
+				lock.Unlock()
+			}
+		}()
+
+	}
+	wg.Wait()
+	return dremioClusters, nil
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/versions"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -55,7 +56,10 @@ var kubectlPath string
 var sudoUser string
 var namespace string
 var disableFreeSpaceCheck bool
+var disablePrompt bool
+var detectNamespace bool
 var collectionMode string
+var cliAuthToken string
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -67,6 +71,9 @@ var RootCmd = &cobra.Command{
 	Long: versions.GetCLIVersion() + ` ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
+for a ui prompt just run:
+	ddc 
+
 for ssh based communication to VMs or Bare metal hardware:
 
 	ddc --coordinator 10.0.0.19 --executors 10.0.0.20,10.0.0.21,10.0.0.22 --ssh-user myuser --ssh-key ~/.ssh/mykey --sudo-user dremio 
@@ -76,11 +83,11 @@ for kubernetes deployments:
 	# run against a specific namespace and retrieve 2 days of logs
 	ddc --namespace mynamespace
 
-	# run against a specific namespace with a full collection (includes jfr, ttop, jstack and 28 days of queries.json logs)
-	ddc --namespace mynamespace	--collect full
+	# run against a specific namespace with a standard collection (includes jfr, ttop, jstack and 28 days of queries.json logs)
+	ddc --namespace mynamespace	--collect standard
 
-	# run against a specific namespace with a Health Check (runs 2 threads and includes everything in a full collection plus collect 25,000 job profiles, system tables, kv reports and Work Load Manager (WLM) reports)
-	ddc --namespace mynamespace	--collec health-check
+	# run against a specific namespace with a Health Check (runs 2 threads and includes everything in a standard collection plus collect 25,000 job profiles, system tables, kv reports and Work Load Manager (WLM) reports)
+	ddc --namespace mynamespace	--collect health-check
 `,
 	Run: func(c *cobra.Command, args []string) {
 
@@ -212,25 +219,112 @@ func ValidateAndReadYaml(ddcYaml, collectionMode string) (map[string]interface{}
 	}
 
 	// set defaults so we get an accurate reading of if these will be enabled or not
-	conf.SetViperDefaults(confData, "", 0, collects.FullCollection)
+	conf.SetViperDefaults(confData, "", 0, collects.StandardCollection)
 	return confData, nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute(args []string) error {
-	if len(args) < 2 {
-		fmt.Println("COMMAND HELP TEXT:")
-		fmt.Println("")
-		helpErr := RootCmd.Help()
-		if helpErr != nil {
-			return fmt.Errorf("unable to print help %w", helpErr)
-		}
-		return nil
-	}
+
 	foundCmd, _, err := RootCmd.Find(args[1:])
 	// default cmd if no cmd is given
 	if err == nil && foundCmd.Use == RootCmd.Use && foundCmd.Flags().Parse(args[1:]) != pflag.ErrHelp {
+		if namespace == "" && sshUser == "" && !disablePrompt {
+			// fire configuration prompt
+			prompt := promptui.Select{
+				Label: "select transport for file transfers",
+				Items: []string{"kubernetes", "ssh"},
+			}
+			_, transport, err := prompt.Run()
+			if err != nil {
+				return fmt.Errorf("prompt failed %v", err)
+			}
+			if transport == "ssh" {
+				// ssh user
+				prompt := promptui.Prompt{
+					Label: "ssh user ",
+				}
+				var err error
+				sshUser, err = prompt.Run()
+				if err != nil {
+					return err
+				}
+
+				// sudo user
+				prompt = promptui.Prompt{
+					Label: "sudo user (runs on remote servers as this user)",
+				}
+				if err != nil {
+					return err
+				}
+				sudoUser, err = prompt.Run()
+				if err != nil {
+					return err
+				}
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return err
+				}
+				sshDir := filepath.Join(home, ".ssh")
+				entries, err := os.ReadDir(sshDir)
+				if err != nil {
+					return err
+				}
+				var sshKeys []string
+				for _, e := range entries {
+					if strings.HasPrefix(e.Name(), "id_") && !strings.HasSuffix(e.Name(), ".pub") {
+						sshKeys = append(sshKeys, filepath.Join(sshDir, e.Name()))
+					}
+				}
+				selectPrompt := promptui.Select{
+					Label: "ssh key location (from .ssh directory)",
+					Items: sshKeys,
+				}
+				_, sshKeyLoc, err = selectPrompt.Run()
+				if err != nil {
+					return err
+				}
+
+				prompt = promptui.Prompt{
+					Label: "coordinator list ex 192.168.1.10,192.168.1.12",
+				}
+				coordinatorStr, err = prompt.Run()
+				if err != nil {
+					return err
+				}
+
+				prompt = promptui.Prompt{
+					Label: "executor list ex 192.168.1.10,192.168.1.12",
+				}
+				executorsStr, err = prompt.Run()
+				if err != nil {
+					return err
+				}
+			} else {
+				clustersToList, err := kubernetes.GetClusters(kubectlPath)
+				if err != nil {
+					return err
+				}
+				prompt := promptui.Select{
+					Label: "The following k8s namespaces have dremio clusters. Select the one you want to collect from",
+					Items: clustersToList,
+				}
+				_, namespace, err = prompt.Run()
+				if err != nil {
+					return fmt.Errorf("prompt failed %v", err)
+				}
+			}
+			prompt = promptui.Select{
+				Label: "Collection Type\n- quick is 2 days logs and not diagnostics\n- full is 7 days of logs and some light diagnostics\n- health check takes 20-30 minutes and requires a Dremio PAT",
+				Items: []string{"light", "standard", "health-check"},
+			}
+			_, collectionMode, err = prompt.Run()
+			if err != nil {
+				return fmt.Errorf("prompt failed %v", err)
+			}
+		}
+
 		if sshKeyLoc == "" {
 			sshDefault, err := sshDefault()
 			if err != nil {
@@ -255,8 +349,12 @@ func Execute(args []string) error {
 				return fmt.Errorf("%v, therefore use --output-file to output the tarball to somewhere with more space or --%v to disable this check", err, conf.KeyDisableFreeSpaceCheck)
 			}
 		}
+
 		dremioPAT := confData[conf.KeyDremioPatToken].(string)
-		if collectionMode == collects.HealthCheckCollection {
+		if cliAuthToken != "" {
+			dremioPAT = cliAuthToken
+		}
+		if collectionMode == collects.HealthCheckCollection && dremioPAT == "" {
 			pat, err := masking.PromptForPAT()
 			if err != nil {
 				return fmt.Errorf("unable to get PAT due to: %v", err)
@@ -264,6 +362,14 @@ func Execute(args []string) error {
 			dremioPAT = pat
 		}
 		patSet := dremioPAT != ""
+
+		if detectNamespace {
+			b, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				return fmt.Errorf("unable to detect namespace: %v", err)
+			}
+			namespace = fmt.Sprint(b)
+		}
 		var enabled []string
 		var disabled []string
 		for k, v := range confData {
@@ -293,8 +399,10 @@ func Execute(args []string) error {
 				}
 			}
 		}
-		stop := startTicker()
-		defer stop()
+		if !disablePrompt {
+			stop := startTicker()
+			defer stop()
+		}
 		collectionArgs := collection.Args{
 			OutputLoc:             filepath.Clean(outputLoc),
 			DDCfs:                 helpers.NewRealFileSystem(),
@@ -365,8 +473,23 @@ func init() {
 	RootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "K8S ONLY: kubectl where to find kubectl")
 
 	// shared flags
-	RootCmd.Flags().StringVar(&collectionMode, "collect", "quick", "type of collection: 'quick'- 2 days of logs (no ttop, jstack or jfr). 'full' - includes jfr, ttop, jstack, 7 days of logs and 28 days of queries.json logs. 'health-check' - all of 'full' + WLM, KV Store Report, 25,000 Job Profiles")
+	RootCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop, jstack or jfr). 'standard' - includes jfr, ttop, jstack, 7 days of logs and 28 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
 	RootCmd.Flags().BoolVar(&disableFreeSpaceCheck, conf.KeyDisableFreeSpaceCheck, false, "disables the free space check for the --transfer-dir")
+	RootCmd.Flags().BoolVar(&disablePrompt, "disable-prompt", false, "disables the prompt ui")
+	if err := RootCmd.Flags().MarkHidden("disable-prompt"); err != nil {
+		fmt.Printf("unable to mark flag hidden critical error %v", err)
+		os.Exit(1)
+	}
+	RootCmd.Flags().StringVar(&cliAuthToken, conf.KeyDremioPatToken, "", "Dremio Personal Access Token (PAT) for ui")
+	if err := RootCmd.Flags().MarkHidden(conf.KeyDremioPatToken); err != nil {
+		fmt.Printf("unable to mark flag hidden critical error %v", err)
+		os.Exit(1)
+	}
+	RootCmd.Flags().BoolVar(&detectNamespace, "detect-namespace", false, "detect namespace feature to pass the namespace automatically")
+	if err := RootCmd.Flags().MarkHidden("detect-namespace"); err != nil {
+		fmt.Printf("unable to mark flag hidden critical error %v", err)
+		os.Exit(1)
+	}
 	RootCmd.Flags().StringVar(&transferDir, "transfer-dir", fmt.Sprintf("/tmp/ddc-%v", time.Now().Format("20060102150405")), "directory to use for communication between the local-collect command and this one")
 	RootCmd.Flags().StringVar(&outputLoc, "output-file", "diag.tgz", "name and location of diagnostic tarball")
 	execLoc, err := os.Executable()
