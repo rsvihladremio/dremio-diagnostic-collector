@@ -362,7 +362,7 @@ func init() {
 
 	// k8s flags
 	RootCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "K8S ONLY: namespace to use for kubernetes pods")
-	RootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "K8S ONLY: kubectl", "where to find kubectl")
+	RootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "K8S ONLY: kubectl where to find kubectl")
 
 	// shared flags
 	RootCmd.Flags().StringVar(&collectionMode, "collect", "quick", "type of collection: 'quick'- 2 days of logs (no ttop, jstack or jfr). 'full' - includes jfr, ttop, jstack, 7 days of logs and 28 days of queries.json logs. 'health-check' - all of 'full' + WLM, KV Store Report, 25,000 Job Profiles")
