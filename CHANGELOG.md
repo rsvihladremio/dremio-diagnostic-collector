@@ -8,7 +8,7 @@
 * logging error, jstack collection was called gc log collection
 * autodetect in gclogging was not working this has been added back
 
-## Removed
+### Removed
 
 * Removed many of the command line flags as they were little used, ddc.yaml still provides all the options needed
 * the -k and --k8s flags are now inferred by the use of the --namespace flag
