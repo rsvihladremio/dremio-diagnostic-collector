@@ -1,5 +1,4 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/dremio/dremio-diagnostic-collector)](https://goreportcard.com/report/github.com/dremio/dremio-diagnostic-collector)
-![Coverage Status](https://img.shields.io/badge/Code_Coverage-71%9-yellow)
 
 
 Automated log and analytics collection for Dremio clusters
