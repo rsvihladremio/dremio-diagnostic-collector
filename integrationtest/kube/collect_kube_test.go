@@ -719,7 +719,7 @@ func TestValidateBadCollectFlag(t *testing.T) {
 	if err := os.WriteFile(ddcYaml, []byte("#comment"), 0600); err != nil {
 		t.Fatalf("unable to write ddc yaml: %v", err)
 	}
-	args := []string{"ddc", "-n", namespace, "--ddc-yaml", ddcYaml, "--collect", "wrong"}
+	args := []string{"ddc", "-n", namespace, "--ddc-yaml", ddcYaml, "--collect", "wrong", "--" + conf.KeyDisableFreeSpaceCheck}
 	err := cmd.Execute(args)
 	if err == nil {
 		t.Error("collect should fail")
