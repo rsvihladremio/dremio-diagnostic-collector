@@ -481,8 +481,34 @@ dremio-jfr-time-seconds: 10
 	tests.AssertFileHasContent(t, filepath.Join(hcDir, "kubernetes", "service.json"))
 	tests.AssertFileHasContent(t, filepath.Join(hcDir, "kubernetes", "statefulsets.json"))
 
-	expectedFiles := []string{"dremio-executor-2-chown-data-directory.txt", "dremio-executor-2-chown-cloudcache-directory.txt", "dremio-executor-1-chown-data-directory.txt", "dremio-executor-1-chown-cloudcache-directory.txt", "dremio-executor-0-chown-data-directory.txt", "dremio-executor-0-chown-cloudcache-directory.txt", "dremio-executor-0-dremio-executor.txt", "dremio-executor-0-wait-for-zookeeper.txt", "dremio-master-0-chown-data-directory.txt", "dremio-master-0-dremio-master-coordinator.txt", "dremio-master-0-start-only-one-dremio-master.txt", "dremio-master-0-upgrade-task.txt", "dremio-master-0-wait-for-zookeeper.txt"}
-	expectedEmptyFiles := []string{"dremio-executor-2-chown-data-directory.txt", "dremio-executor-2-chown-cloudcache-directory.txt", "dremio-executor-1-chown-data-directory.txt", "dremio-executor-1-chown-cloudcache-directory.txt", "dremio-executor-0-chown-data-directory.txt", "dremio-executor-0-chown-cloudcache-directory.txt", "dremio-master-0-chown-data-directory.txt", "dremio-master-0-start-only-one-dremio-master.txt"}
+	expectedFiles := []string{
+		"dremio-executor-2-chown-data-directory.txt",
+		"dremio-executor-2-chown-cloudcache-directory.txt",
+		"dremio-executor-2-dremio-executor.txt",
+		"dremio-executor-2-wait-for-zookeeper.txt",
+		"dremio-executor-1-chown-data-directory.txt",
+		"dremio-executor-1-chown-cloudcache-directory.txt",
+		"dremio-executor-1-dremio-executor.txt",
+		"dremio-executor-1-wait-for-zookeeper.txt",
+		"dremio-executor-0-chown-data-directory.txt",
+		"dremio-executor-0-chown-cloudcache-directory.txt",
+		"dremio-executor-0-dremio-executor.txt",
+		"dremio-executor-0-wait-for-zookeeper.txt",
+		"dremio-master-0-chown-data-directory.txt",
+		"dremio-master-0-dremio-master-coordinator.txt",
+		"dremio-master-0-start-only-one-dremio-master.txt",
+		"dremio-master-0-upgrade-task.txt",
+		"dremio-master-0-wait-for-zookeeper.txt"}
+
+	expectedEmptyFiles := []string{
+		"dremio-executor-2-chown-data-directory.txt",
+		"dremio-executor-2-chown-cloudcache-directory.txt",
+		"dremio-executor-1-chown-data-directory.txt",
+		"dremio-executor-1-chown-cloudcache-directory.txt",
+		"dremio-executor-0-chown-data-directory.txt",
+		"dremio-executor-0-chown-cloudcache-directory.txt",
+		"dremio-master-0-chown-data-directory.txt",
+		"dremio-master-0-start-only-one-dremio-master.txt"}
 	dir := filepath.Join(hcDir, "kubernetes", "container-logs")
 	entries, err = os.ReadDir(dir)
 	if err != nil {
