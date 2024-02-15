@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dremio/dremio-diagnostic-collector/cmd/local/threading"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/cli"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/ddcbinary"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/helpers"
@@ -92,7 +93,6 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 	ddcYamlFilePath := collectionArgs.DDCYamlLoc
 	disableFreeSpaceCheck := collectionArgs.DisableFreeSpaceCheck
 	collectionMode := collectionArgs.CollectionMode
-	var ddcLoc string
 	var err error
 	tmpInstallDir := filepath.Join(outputLocDir, fmt.Sprintf("ddcex-output-%v", time.Now().Unix()))
 	err = os.Mkdir(tmpInstallDir, 0700)
@@ -104,7 +104,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			simplelog.Warningf("unable to cleanup temp install directory: '%v'", err)
 		}
 	}()
-	ddcLoc, err = ddcbinary.WriteOutDDC(tmpInstallDir)
+	ddcFilePath, err := ddcbinary.WriteOutDDC(tmpInstallDir)
 	if err != nil {
 		return fmt.Errorf("making ddc binary failed: '%v'", err)
 	}
@@ -147,6 +147,10 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 		0,
 		len(coordinators)+len(executors),
 	)
+	transferThreadPool, err := threading.NewThreadPool(2, 1, false)
+	if err != nil {
+		return err
+	}
 	for _, coordinator := range coordinators {
 		nodesConnectedTo++
 		wg.Add(1)
@@ -164,20 +168,28 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			}
 			//we want to be able to capture the job profiles of all the nodes
 			skipRESTCalls := false
-			size, f, err := Capture(coordinatorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), skipRESTCalls, disableFreeSpaceCheck)
+			err := StartCapture(coordinatorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck)
 			if err != nil {
-				m.Lock()
-				totalFailedFiles = append(totalFailedFiles, f)
-				m.Unlock()
-			} else {
-				m.Lock()
-				tarballs = append(tarballs, f)
-				files = append(files, helpers.CollectedFile{
-					Path: f,
-					Size: size,
-				})
-				m.Unlock()
+				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
+				return
 			}
+			transferThreadPool.AddJob(func() error {
+				size, f, err := TransferCapture(coordinatorCaptureConf, s.GetTmpDir())
+				if err != nil {
+					m.Lock()
+					totalFailedFiles = append(totalFailedFiles, f)
+					m.Unlock()
+				} else {
+					m.Lock()
+					tarballs = append(tarballs, f)
+					files = append(files, helpers.CollectedFile{
+						Path: f,
+						Size: size,
+					})
+					m.Unlock()
+				}
+				return nil
+			})
 
 		}(coordinator)
 	}
@@ -198,20 +210,28 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			}
 			//always skip executor calls
 			skipRESTCalls := true
-			size, f, err := Capture(executorCaptureConf, ddcLoc, ddcYamlFilePath, s.GetTmpDir(), skipRESTCalls, disableFreeSpaceCheck)
+			err := StartCapture(executorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck)
 			if err != nil {
-				m.Lock()
-				totalFailedFiles = append(totalFailedFiles, f)
-				m.Unlock()
-			} else {
-				m.Lock()
-				tarballs = append(tarballs, f)
-				files = append(files, helpers.CollectedFile{
-					Path: f,
-					Size: size,
-				})
-				m.Unlock()
+				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
+				return
 			}
+			transferThreadPool.AddJob(func() error {
+				size, f, err := TransferCapture(executorCaptureConf, s.GetTmpDir())
+				if err != nil {
+					m.Lock()
+					totalFailedFiles = append(totalFailedFiles, f)
+					m.Unlock()
+				} else {
+					m.Lock()
+					tarballs = append(tarballs, f)
+					files = append(files, helpers.CollectedFile{
+						Path: f,
+						Size: size,
+					})
+					m.Unlock()
+				}
+				return nil
+			})
 		}(executor)
 	}
 	wg.Wait()
