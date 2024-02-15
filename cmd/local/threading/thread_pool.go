@@ -45,6 +45,7 @@ func NewThreadPool(numberThreads int, loggingFrequency int, output bool) (*Threa
 		numberThreads:    numberThreads,
 		jobs:             jobs,
 		loggingFrequency: loggingFrequency,
+		output:           output,
 	}, nil
 }
 
