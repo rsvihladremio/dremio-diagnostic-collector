@@ -517,8 +517,8 @@ dremio-jfr-time-seconds: 10
 	for _, entry := range entries {
 		t.Logf("directories %v", entry.Name())
 	}
-	if len(entries) != 9 {
-		t.Errorf("expected to find 9 entries but found %v", len(entries))
+	if len(entries) != 17 {
+		t.Errorf("expected to find 17 entries but found %v", len(entries))
 	}
 	foundFiles := []string{}
 	foundEmptyFiles := []string{}
