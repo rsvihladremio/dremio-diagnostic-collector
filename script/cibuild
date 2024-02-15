@@ -11,6 +11,17 @@ echo "Validating if all dependencies are fullfilled…"
 date "+%H:%M:%S"
 ./script/bootstrap
 
+
+echo "Tests started at…"
+date "+%H:%M:%S"
+# have to start this before the other functions so that we embed the binary
+./script/test
+
+echo "Coverage file started at…"
+date "+%H:%M:%S"
+
+./script/cover
+
 echo "Linting started at…"
 date "+%H:%M:%S"
 
@@ -26,13 +37,3 @@ date "+%H:%M:%S"
 
 echo "Audit finished at…"
 date "+%H:%M:%S"
-
-echo "Tests started at…"
-date "+%H:%M:%S"
-
-./script/test
-
-echo "Coverage file started at…"
-date "+%H:%M:%S"
-
-./script/cover
