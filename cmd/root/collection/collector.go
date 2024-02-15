@@ -235,6 +235,9 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 		}(executor)
 	}
 	wg.Wait()
+	if err := transferThreadPool.ProcessAndWait(); err != nil {
+		return err
+	}
 	end := time.Now().UTC()
 	var collectionInfo SummaryInfo
 	collectionInfo.EndTimeUTC = end

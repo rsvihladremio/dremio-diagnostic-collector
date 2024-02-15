@@ -135,7 +135,7 @@ func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath str
 	}
 
 	simplelog.Debugf("on host %v capture successful", host)
-	consoleprint.UpdateNodeState(host, "COLLECTED")
+	consoleprint.UpdateNodeState(host, "COLLECTED - AWAITING TRANSFER")
 	return nil
 }
 
