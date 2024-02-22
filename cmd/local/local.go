@@ -272,9 +272,10 @@ func findClusterID(c *conf.CollectConf) (string, error) {
 	var clusterID string
 	rocksDBDir := c.DremioRocksDBDir()
 	simplelog.Debugf("checking dir %v for cluster version", rocksDBDir)
+
 	err := filepath.Walk(rocksDBDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("prevent panic by handling failure accessing a path %q: %v", path, err)
+			return fmt.Errorf("error accessing path %q: %v", path, err)
 		}
 
 		if clusterID != "" {
@@ -285,7 +286,7 @@ func findClusterID(c *conf.CollectConf) (string, error) {
 			f, err := os.Open(filepath.Clean(path))
 			simplelog.Debugf("checking file %v for cluster version", f.Name())
 			if err != nil {
-				return fmt.Errorf("error reading file %s: %v", path, err)
+				return fmt.Errorf("error reading file %q: %v", path, err)
 			}
 			defer f.Close()
 			var tempString string
@@ -293,12 +294,14 @@ func findClusterID(c *conf.CollectConf) (string, error) {
 			matched := ""
 			nextChar := 'c'
 			skipped := 0
+			var bytesRead int64
 			for {
 				// Read file byte by byte
 				b, err := reader.ReadByte()
 				if err != nil {
 					break // End of file or an error
 				}
+				bytesRead++
 				if tempString == "clusterIdentity" {
 					if skipped != 4 {
 						skipped++
@@ -307,7 +310,12 @@ func findClusterID(c *conf.CollectConf) (string, error) {
 					matched += string(b)
 					if len(matched) == 36 {
 						endTime := time.Now().Unix()
-						simplelog.Infof("found cluster ID '%v' in file %v in %v seconds", matched, path, endTime-startTime)
+						seconds := endTime - startTime
+						if seconds > 0 {
+							simplelog.Infof("found cluster ID '%v' in file %v in %v seconds at %.2f bytes/second", matched, path, seconds, float64(bytesRead)/float64(seconds))
+						} else {
+							simplelog.Infof("found cluster ID '%v' in file %v in less than a second", matched, path)
+						}
 						clusterID = matched
 						return nil
 					}
@@ -429,12 +437,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 		return fmt.Errorf("unable to create file %v due to error %v", filepath.Clean(osInfoFile), err)
 	}
 	defer func() {
-		if err := w.Sync(); err != nil {
-			simplelog.Warningf("unable to sync the os_info.txt file due to error: %v", err)
-		}
-		if err := w.Close(); err != nil {
-			simplelog.Warningf("unable to close the os_info.txt file due to error: %v", err)
-		}
+
 	}()
 
 	simplelog.Debug("/etc/*-release")
@@ -507,7 +510,24 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 		simplelog.Warningf("unable to write lsblk for os_info.txt due to error %v", err)
 	}
 
+	if c.DremioPID() > 0 {
+		_, err = w.Write([]byte("___\n>>> ps eww\n"))
+		if err != nil {
+			simplelog.Warningf("unable to write ps eww header for os_info.txt due to error %v", err)
+		}
+		err = ddcio.Shell(w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", c.DremioPID()))
+		if err != nil {
+			simplelog.Warningf("unable to write ps eww output for os_info.txt due to error %v", err)
+		}
+	}
+	if err := w.Sync(); err != nil {
+		return fmt.Errorf("unable to sync the os_info.txt file due to error: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("unable to close the os_info.txt file due to error: %v", err)
+	}
 	simplelog.Debugf("... Collecting OS Information from %v COMPLETED", c.NodeName())
+
 	return nil
 }
 

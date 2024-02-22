@@ -368,6 +368,8 @@ func ReadConf(overrides map[string]string, ddcYamlLoc, collectionMode string) (*
 					fmt.Println(msg)
 					simplelog.Errorf(msg)
 				} else {
+
+					simplelog.Infof("configured values retrieved from ps output: %v:%v, %v:%v", KeyDremioLogDir, detectedConfig.LogDir, KeyCollectDremioConfiguration, detectedConfig.ConfDir)
 					c.dremioLogDir = detectedConfig.LogDir
 					c.dremioConfDir = detectedConfig.ConfDir
 				}
@@ -593,12 +595,20 @@ type DremioConfig struct {
 }
 
 func GetConfiguredDremioValuesFromPID(dremioPID int) (DremioConfig, error) {
-	var w bytes.Buffer
-	err := ddcio.Shell(&w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", dremioPID))
+	psOut, err := ReadPSEnv(dremioPID)
 	if err != nil {
 		return DremioConfig{}, err
 	}
-	return ParsePSForConfig(w.String())
+	return ParsePSForConfig(psOut)
+}
+
+func ReadPSEnv(dremioPID int) (string, error) {
+	var w bytes.Buffer
+	err := ddcio.Shell(&w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", dremioPID))
+	if err != nil {
+		return "", err
+	}
+	return w.String(), nil
 }
 
 func ParsePSForConfig(ps string) (DremioConfig, error) {
@@ -658,7 +668,7 @@ func extractValue(input string, key string) (string, error) {
 	if value == "" {
 		return "", fmt.Errorf("did not find %v in string %v", key, input)
 	}
-	return value, nil
+	return strings.TrimSpace(value), nil
 }
 
 func getOutputDir(now time.Time) string {
