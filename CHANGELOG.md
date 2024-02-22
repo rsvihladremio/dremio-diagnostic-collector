@@ -1,4 +1,11 @@
 # Changelog
+## [2.1.2] - 2024-02-23
+
+### Added
+
+* --pid flag for local-collect
+* --transfer-flag for advanced users of the ddc command to override the hard coded value
+
 ## [2.1.1] - 2024-02-23
 
 ### Added
@@ -507,6 +514,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[2.1.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.0.1...v2.0.2
