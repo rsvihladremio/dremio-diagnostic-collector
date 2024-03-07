@@ -53,7 +53,6 @@ var ddcYamlLoc string
 
 var outputLoc string
 
-var kubectlPath string
 var sudoUser string
 var namespace string
 var disableFreeSpaceCheck bool
@@ -148,7 +147,10 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 	var collectorStrategy collection.Collector
 	if kubeArgs.Namespace != "" {
 		simplelog.Info("using Kubernetes kubectl based collection")
-		collectorStrategy = kubernetes.NewKubectlK8sActions(kubeArgs)
+		collectorStrategy, err = kubernetes.NewKubectlK8sActions(kubeArgs)
+		if err != nil {
+			return err
+		}
 		consoleprint.UpdateRuntime(
 			versions.GetCLIVersion(),
 			simplelog.GetLogLoc(),
@@ -161,21 +163,13 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 			0,
 		)
 		clusterCollect = func(pods []string) {
-			err = collection.ClusterK8sExecute(kubeArgs.Namespace, cs, collectionArgs.DDCfs, collectorStrategy, kubeArgs.KubectlPath)
+			err = collection.ClusterK8sExecute(kubeArgs.Namespace, cs, collectionArgs.DDCfs)
 			if err != nil {
 				simplelog.Errorf("when getting Kubernetes info, the following error was returned: %v", err)
 			}
-			err = collection.GetClusterLogs(kubeArgs.Namespace, cs, collectionArgs.DDCfs, kubeArgs.KubectlPath, pods)
+			err = collection.GetClusterLogs(kubeArgs.Namespace, cs, collectionArgs.DDCfs, pods)
 			if err != nil {
 				simplelog.Errorf("when getting container logs, the following error was returned: %v", err)
-			}
-			err = collection.GetClusterNodes(kubeArgs.Namespace, cs, collectionArgs.DDCfs, kubeArgs.KubectlPath)
-			if err != nil {
-				simplelog.Errorf("when getting cluster nodes, the following error was returned: %v", err)
-			}
-			err = collection.GetClusterPods(kubeArgs.Namespace, cs, collectionArgs.DDCfs, kubeArgs.KubectlPath)
-			if err != nil {
-				simplelog.Errorf("when getting cluster pods, the following error was returned: %v", err)
 			}
 		}
 	} else {
@@ -325,7 +319,7 @@ func Execute(args []string) error {
 					return err
 				}
 			} else {
-				clustersToList, err := kubernetes.GetClusters(kubectlPath)
+				clustersToList, err := kubernetes.GetClusters()
 				if err != nil {
 					return err
 				}
@@ -394,7 +388,7 @@ func Execute(args []string) error {
 			if err != nil {
 				return fmt.Errorf("unable to detect namespace: %v", err)
 			}
-			namespace = fmt.Sprint(b)
+			namespace = string(b)
 		}
 		var enabled []string
 		var disabled []string
@@ -449,8 +443,7 @@ func Execute(args []string) error {
 			CoordinatorStr: coordinatorStr,
 		}
 		kubeArgs := kubernetes.KubeArgs{
-			Namespace:   namespace,
-			KubectlPath: kubectlPath,
+			Namespace: namespace,
 		}
 		if err := RemoteCollect(collectionArgs, sshArgs, kubeArgs); err != nil {
 			consoleprint.UpdateResult(err.Error())
@@ -497,7 +490,6 @@ func init() {
 
 	// k8s flags
 	RootCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "K8S ONLY: namespace to use for kubernetes pods")
-	RootCmd.Flags().StringVarP(&kubectlPath, "kubectl-path", "p", "kubectl", "K8S ONLY: kubectl where to find kubectl")
 
 	// shared flags
 	RootCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop, jstack or jfr). 'standard' - includes jfr, ttop, jstack, 7 days of logs and 28 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
