@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ddc-limited
+subjects:
+- kind: ServiceAccount
+  name: ddc-limited
+  namespace: default
+roleRef:
+  kind: Role
+  name: ddc-limited
+  apiGroup: rbac.authorization.k8s.io
