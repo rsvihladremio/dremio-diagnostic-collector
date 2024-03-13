@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1-beta1] - 2024-03-13
+
+### Added
+
+* option to change the tmp limits in gb
+* --disable-prompt now outputs the status and result as json
+
 ## [2.2.0] - 2024-03-07
 
 ### Added
@@ -530,6 +537,7 @@
 
 - able to capture logs, configuration and diagnostic data from dremio clusters deployed on Kubernetes and on-prem
 
+[2.2.1-beta1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.2.0...v2.2.1-beta1
 [2.2.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.1.0...v2.1.1
