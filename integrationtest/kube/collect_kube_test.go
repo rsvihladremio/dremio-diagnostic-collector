@@ -416,6 +416,7 @@ dremio-pat-token: %v
 collect-dremio-configuration: true
 number-job-profiles: 25
 tmp-output-dir: %v
+collect-jstack: true
 dremio-jstack-time-seconds: 10
 dremio-jfr-time-seconds: 10
 `, dremioPATToken, tmpOutputDir)), 0600); err != nil {

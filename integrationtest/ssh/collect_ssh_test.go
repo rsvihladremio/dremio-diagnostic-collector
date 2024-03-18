@@ -117,6 +117,7 @@ dremio-username: %v
 dremio-pat-token: '%v'
 collect-dremio-configuration: true
 number-job-profiles: 25
+collect-jstack: true
 dremio-jstack-time-seconds: 10
 dremio-jfr-time-seconds: 10
 `, sshConf.DremioLogDir, sshConf.DremioConfDir, sshConf.DremioRocksDBDir, sshConf.DremioEndpoint, sshConf.DremioUsername, sshConf.DremioPAT)
