@@ -69,7 +69,7 @@ func TestSetViperDefaults(t *testing.T) {
 		{conf.KeyCollectReflectionLog, true},
 		{conf.KeyCollectGCLogs, true},
 		{conf.KeyCollectJFR, true},
-		{conf.KeyCollectJStack, true},
+		{conf.KeyCollectJStack, false},
 		{conf.KeyCollectSystemTablesExport, true},
 		{conf.KeyCollectWLM, true},
 		{conf.KeyCollectTtop, true},
