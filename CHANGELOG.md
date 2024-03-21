@@ -1,10 +1,10 @@
 # Changelog
 
-## [2.3.0-rc2] - 2024-03-22
+## [2.3.0-rc2] - 2024-03-21
 
 ### Added
 
-* added a --label-seelcted flag for the kubernetes pods which follows the standard [kubernetes approach](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors), this is entirely optional and will use the current default if nothing is specified
+* added a --label-selector flag for the kubernetes pods which follows the standard [kubernetes approach](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors), this is entirely optional and will use the current default if nothing is specified
 * show the collection arguments used for DDC
 
 ### Changed
