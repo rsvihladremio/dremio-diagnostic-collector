@@ -47,6 +47,7 @@ import (
 // var scaleoutCoordinatorContainer string
 var coordinatorStr string
 var executorsStr string
+var labelSelector string
 var sshKeyLoc string
 var sshUser string
 var transferDir string
@@ -163,6 +164,7 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 		)
 	} else if kubeArgs.Namespace != "" {
 		simplelog.Info("using Kubernetes api based collection")
+		consoleprint.UpdateCollectionArgs(fmt.Sprintf("namespace: '%v', label selector: '%v'", kubeArgs.Namespace, kubeArgs.LabelSelector))
 		collectorStrategy, err = kubernetes.NewKubectlK8sActions(kubeArgs)
 		if err != nil {
 			return err
@@ -201,6 +203,7 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 			return fmt.Errorf("invalid command flag detected: %w", err)
 		}
 		simplelog.Info("using SSH based collection")
+		consoleprint.UpdateCollectionArgs(fmt.Sprintf("login: %v, user: %v, coordinator: %v, executor: %v, key: %v", sshArgs.SSHUser, sshArgs.SudoUser, sshArgs.CoordinatorStr, sshArgs.ExecutorStr, sshArgs.SSHKeyLoc))
 		collectorStrategy = ssh.NewCmdSSHActions(sshArgs)
 	}
 
@@ -267,7 +270,8 @@ func Execute(args []string) error {
 				return fmt.Errorf("DDC is running based on pid file '%v'. If this is a stale file then please remove", pid)
 			}
 		}
-		if namespace == "" && sshUser == "" && !disablePrompt {
+		skipPromptUI := disablePrompt || detectNamespace || (namespace != "") || sshUser != ""
+		if !skipPromptUI {
 			// fire configuration prompt
 			prompt := promptui.Select{
 				Label: "select transport for file transfers",
@@ -349,7 +353,7 @@ func Execute(args []string) error {
 				}
 			}
 			prompt = promptui.Select{
-				Label: "Collection Type: light (2 days logs), standard (7 days logs + jstack), health-check (needs PAT)",
+				Label: "Collection Type: light (2 days logs), standard (7 days logs + 30 days queries.json), health-check (needs PAT)",
 				Items: []string{"light", "standard", "health-check"},
 			}
 			_, collectionMode, err = prompt.Run()
@@ -488,7 +492,8 @@ func Execute(args []string) error {
 			CoordinatorStr: coordinatorStr,
 		}
 		kubeArgs := kubernetes.KubeArgs{
-			Namespace: namespace,
+			Namespace:     namespace,
+			LabelSelector: labelSelector,
 		}
 		if err := RemoteCollect(collectionArgs, sshArgs, kubeArgs, enableFallback); err != nil {
 			consoleprint.UpdateResult(err.Error())
@@ -537,9 +542,10 @@ func init() {
 
 	// k8s flags
 	RootCmd.Flags().StringVarP(&namespace, "namespace", "n", "", "K8S ONLY: namespace to use for kubernetes pods")
+	RootCmd.Flags().StringVarP(&labelSelector, "label-selector", "l", "role=dremio-cluster-pod", "K8S ONLY: select which pods to collect: follows kubernetes label syntax see https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors")
 
 	// shared flags
-	RootCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop, jstack or jfr). 'standard' - includes jfr, ttop, jstack, 7 days of logs and 28 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
+	RootCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop or jfr). 'standard' - includes jfr, ttop, 7 days of logs and 30 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
 	RootCmd.Flags().BoolVar(&disableFreeSpaceCheck, conf.KeyDisableFreeSpaceCheck, false, "disables the free space check for the --transfer-dir")
 	RootCmd.Flags().BoolVar(&disablePrompt, "disable-prompt", false, "disables the prompt ui")
 	if err := RootCmd.Flags().MarkHidden("disable-prompt"); err != nil {
