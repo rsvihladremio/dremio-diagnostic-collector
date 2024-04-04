@@ -18,6 +18,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -270,6 +271,7 @@ func Execute(args []string) error {
 				return fmt.Errorf("DDC is running based on pid file '%v'. If this is a stale file then please remove", pid)
 			}
 		}
+
 		skipPromptUI := disablePrompt || detectNamespace || (namespace != "") || sshUser != ""
 		if !skipPromptUI {
 			// fire configuration prompt
@@ -388,12 +390,25 @@ func Execute(args []string) error {
 		}
 
 		dremioPAT := confData[conf.KeyDremioPatToken].(string)
-		if cliAuthToken != "" {
-			dremioPAT = cliAuthToken
+		if cliAuthToken == "" {
+			fi, err := os.Stdin.Stat()
+			if err != nil {
+				return err
+			}
+			if fi.Size() > 0 {
+				simplelog.Info("accepting PAT from standard in")
+				var inputReader io.Reader = RootCmd.InOrStdin()
+				b, err := io.ReadAll(inputReader)
+				if err != nil {
+					return err
+				}
+				dremioPAT = strings.TrimSpace(string(b[:]))
+			}
 		}
 		if err := validation.ValidateCollectMode(collectionMode); err != nil {
 			return err
 		}
+
 		if collectionMode == collects.HealthCheckCollection && dremioPAT == "" {
 			pat, err := masking.PromptForPAT()
 			if err != nil {

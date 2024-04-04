@@ -22,6 +22,7 @@ import (
 )
 
 type MockCli struct {
+	PatCalls       []string
 	Calls          [][]string
 	StoredResponse []string
 	StoredErrors   []error
@@ -37,9 +38,10 @@ func (m *MockCli) Execute(_ bool, args ...string) (out string, err error) {
 	return m.StoredResponse[length-1], m.StoredErrors[length-1]
 }
 
-func (m *MockCli) ExecuteAndStreamOutput(_ bool, output cli.OutputHandler, args ...string) (err error) {
+func (m *MockCli) ExecuteAndStreamOutput(_ bool, output cli.OutputHandler, pat string, args ...string) (err error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	m.PatCalls = append(m.PatCalls, pat)
 	m.Calls = append(m.Calls, args)
 	length := len(m.Calls)
 	output(m.StoredResponse[length-1])

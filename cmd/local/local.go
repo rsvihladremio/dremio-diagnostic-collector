@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -40,16 +41,17 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/pkg/archive"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/clusterstats"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/dirs"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/validation"
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/local/ddcio"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/local/threading"
-	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/versions"
 )
 
 var ddcYamlLoc, collectionMode, pid string
+var patStdIn bool
 
 func createAllDirs(c *conf.CollectConf) error {
 	var perms fs.FileMode = 0750
@@ -589,6 +591,18 @@ var LocalCollectCmd = &cobra.Command{
 				overrides[flag.Name] = flag.Value.String()
 			}
 		})
+		if patStdIn {
+			var inputReader io.Reader = cobraCmd.InOrStdin()
+			b, err := io.ReadAll(inputReader)
+			if err != nil {
+				fmt.Printf("\nCRITICAL ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			pat := strings.TrimSpace(string(b[:]))
+			if pat != "" {
+				overrides[conf.KeyDremioPatToken] = pat
+			}
+		}
 		msg, err := Execute(args, overrides)
 		if err != nil {
 			fmt.Printf("\nCRITICAL ERROR: %v\n", err)
@@ -626,6 +640,7 @@ func Execute(args []string, overrides map[string]string) (string, error) {
 	if err := validation.ValidateCollectMode(collectionMode); err != nil {
 		return "", err
 	}
+
 	c, err := conf.ReadConf(overrides, ddcYamlLoc, collectionMode)
 	if err != nil {
 		return "", fmt.Errorf("unable to read configuration %w", err)
@@ -675,6 +690,7 @@ func init() {
 		os.Exit(1)
 	}
 	LocalCollectCmd.Flags().Bool("allow-insecure-ssl", false, "When true allow insecure ssl certs when doing API calls")
+	LocalCollectCmd.Flags().BoolVar(&patStdIn, "pat-stdin", false, "allows one to pipe the pat to standard in")
 	LocalCollectCmd.Flags().Bool("disable-rest-api", false, "disable all REST API calls, this will disable job profile, WLM, and KVM reports")
 	LocalCollectCmd.Flags().StringVar(&pid, "pid", "", "write a pid")
 	if err := LocalCollectCmd.Flags().MarkHidden("pid"); err != nil {

@@ -109,24 +109,30 @@ func (c *KubectlK8sActions) Name() string {
 	return "Kube API"
 }
 
-func (c *KubectlK8sActions) HostExecuteAndStream(mask bool, hostString string, output cli.OutputHandler, args ...string) (err error) {
+func (c *KubectlK8sActions) HostExecuteAndStream(mask bool, hostString string, output cli.OutputHandler, pat string, args ...string) (err error) {
 	cmd := []string{
 		"sh",
 		"-c",
 		strings.Join(args, " "),
 	}
+	// cmd := args
 	logArgs(mask, args)
+	containerName, err := c.getPrimaryContainer(hostString)
+	if err != nil {
+		return fmt.Errorf("failed looking for pod %v: %v", hostString, err)
+	}
 	req := c.client.CoreV1().RESTClient().Post().Resource("pods").Name(hostString).
 		Namespace(c.namespace).SubResource("exec")
 	option := &v1.PodExecOptions{
-		Command: cmd,
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     true,
+		Container: containerName,
+		Command:   cmd,
+		Stdin:     pat != "",
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
 	}
 
-	req.VersionedParams(
+	req = req.VersionedParams(
 		option,
 		scheme.ParameterCodec,
 	)
@@ -138,6 +144,18 @@ func (c *KubectlK8sActions) HostExecuteAndStream(mask bool, hostString string, o
 	writer := &K8SWriter{
 		Buff:   &buff,
 		Output: output,
+	}
+	if pat != "" {
+		buff := bytes.Buffer{}
+		if _, err := buff.WriteString(pat); err != nil {
+			return err
+		}
+		err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+			Stdin:  &buff,
+			Stdout: writer,
+			Stderr: writer,
+		})
+		return err
 	}
 	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdout: writer,
@@ -173,7 +191,7 @@ func (c *KubectlK8sActions) HostExecute(mask bool, hostString string, args ...st
 	writer := func(line string) {
 		outBuilder.WriteString(line)
 	}
-	err = c.HostExecuteAndStream(mask, hostString, writer, args...)
+	err = c.HostExecuteAndStream(mask, hostString, writer, "", args...)
 	out = outBuilder.String()
 	return
 }
@@ -191,7 +209,7 @@ type TarPipe struct {
 func newTarPipe(src string, executor func(writer *io.PipeWriter, cmdArr []string)) *TarPipe {
 	t := new(TarPipe)
 	t.src = src
-	t.maxRetries = 99
+	t.maxRetries = 200
 	t.executor = executor
 	t.initReadFrom(0)
 	return t
@@ -211,7 +229,7 @@ func (t *TarPipe) Read(p []byte) (n int, err error) {
 	if err != nil {
 		if t.maxRetries < 0 || t.retries < t.maxRetries {
 			// short pause between retries
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			t.retries++
 			simplelog.Warningf("resuming copy at %d bytes, retry %d/%d - %v", t.bytesRead, t.retries, t.maxRetries, err)
 			t.initReadFrom(t.bytesRead + 1)
