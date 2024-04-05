@@ -9,7 +9,7 @@
 ### Changed
 
 * when using DDC standard collection we now pass the pat to local-collect on nodes via standard in using kubernetes and ssh. This improves security
-* bumped retries up to 200 for k8s and dropped the pause time between retries from 100 milliseconds to 50 seconds
+* bumped retries up to 200 for k8s and dropped the pause time between retries from 100 milliseconds to 50 milliseconds
 
 
 ## [2.3.0] - 2024-03-28
