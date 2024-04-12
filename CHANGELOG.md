@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.4.1] - UNRELEASED
+## [2.4.1] - 2024-04-12
 
 ### Added
 
