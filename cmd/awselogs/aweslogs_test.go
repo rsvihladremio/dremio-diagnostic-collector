@@ -46,6 +46,7 @@ func TestAWSELogs(t *testing.T) {
 dremio-log-dir: /path/to/dremio/logs
 node-name: node1
 dremio-conf-dir: /path/to/dremio/conf
+min-free-space-gb: 5
 `), 0600); err != nil {
 		t.Fatal(err)
 	}

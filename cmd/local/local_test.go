@@ -166,6 +166,8 @@ collect-system-tables-export: false
 collect-wlm: false
 collect-kvstore-report: false
 is-dremio-cloud: false
+min-free-space-gb: 5
+
 `, cmd.Process.Pid)
 	yamlLocation := writeConfWithYamlText(tmpDirForConf, yaml)
 	c, err := conf.ReadConf(make(map[string]string), yamlLocation, collects.QuickCollection)
@@ -258,6 +260,7 @@ collect-system-tables-export: false
 collect-wlm: false
 collect-kvstore-report: false
 is-dremio-cloud: false
+min-free-space-gb: 5
 `, cmd.Process.Pid)
 	yamlLocation := writeConfWithYamlText(tmpDirForConf, yaml)
 	c, err := conf.ReadConf(make(map[string]string), yamlLocation, collects.QuickCollection)
