@@ -58,11 +58,21 @@ func GetJSON(t *testing.T) []byte {
 	}
 	testJSON := filepath.Join(home, ".config", "ddc-test", "ssh.json")
 	if _, err := os.Stat(oldTestJSON); err == nil {
-		t.Logf("moving %v to %v", oldTestJSON, testJSON)
-		if err := os.MkdirAll(filepath.Dir(testJSON), 0700); err != nil {
+		dirToCreate := filepath.Dir(testJSON)
+		t.Logf("making dir $%v", dirToCreate)
+		if err := os.MkdirAll(dirToCreate, 0700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Rename(oldTestJSON, testJSON); err != nil {
+		t.Logf("copying %v to %v", oldTestJSON, testJSON)
+		b, err := os.ReadFile(oldTestJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(testJSON, b, 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("removing %v", oldTestJSON)
+		if err := os.Remove(oldTestJSON); err != nil {
 			t.Fatal(err)
 		}
 	}
