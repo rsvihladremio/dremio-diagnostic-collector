@@ -354,24 +354,14 @@ func newTarPipe(src string, executor func(writer *io.PipeWriter, cmdArr []string
 	t.maxRetries = 100
 	t.executor = executor
 	t.initReadFrom(0)
-	defer func() {
-		if err := t.outStream.Close(); err != nil {
-			simplelog.Debugf("failed closing tar pipe :%v", err)
-		}
-		if err := t.reader.Close(); err != nil {
-			simplelog.Debugf("failed closing tar pipe reader :%v", err)
-		}
-	}()
 	return t
 }
 
 func (t *TarPipe) initReadFrom(n uint64) {
-	reader, outStream := io.Pipe()
-	t.reader = reader
-	t.outStream = outStream
+	t.reader, t.outStream = io.Pipe()
 	copyCommand := []string{"sh", "-c", fmt.Sprintf("tar cf - %s | tail -c+%d", t.src, n)}
 	go func() {
-		defer outStream.Close()
+		defer t.outStream.Close()
 		t.executor(t.outStream, copyCommand)
 	}()
 }

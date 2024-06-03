@@ -34,7 +34,7 @@ type Hook interface {
 	Add(p func(), name string)
 	AddPriorityCancel(p func(), name string)
 	Cleanup()
-	AddUriStop(func())
+	AddUIStop(func())
 }
 
 // hookImpl is a thread safe queue of cleanup work to be run.
@@ -69,10 +69,11 @@ func (h *hookImpl) GetContext() context.Context {
 	return h.ctx
 }
 
-// AddUriStop sets the function that stops the ui thread
-func (h *hookImpl) AddUriStop(f func()) {
+// AddUIStop sets the function that stops the ui thread
+func (h *hookImpl) AddUIStop(f func()) {
 	defer h.mu.Unlock()
 	h.mu.Lock()
+	h.stopUIThread = f
 }
 
 // Add will add a function call to a list to be cleaned up later

@@ -508,7 +508,7 @@ func Execute(args []string) error {
 		}
 		if !disablePrompt {
 			stop := startTicker()
-			hook.AddUriStop(stop)
+			hook.AddUIStop(stop)
 		}
 		collectionArgs := collection.Args{
 			OutputLoc:             filepath.Clean(outputLoc),
