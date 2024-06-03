@@ -53,7 +53,7 @@ func TestKubectlExec(t *testing.T) {
 	if !reflect.DeepEqual(calls[0], expectedCall) {
 		t.Errorf("\nexpected call\n%v\nbut got\n%v", expectedCall, calls[0])
 	}
-	expectedCall = []string{"kubectl", "exec", "-i", "-n", namespace, "-c", "dremio-executor", podName, "--", "ls", "-l"}
+	expectedCall = []string{"kubectl", "exec", "-n", namespace, "-c", "dremio-executor", podName, "--", "ls", "-l"}
 	if !reflect.DeepEqual(calls[1], expectedCall) {
 		t.Errorf("\nexpected call\n%v\nbut got\n%v", expectedCall, calls[1])
 	}
