@@ -351,7 +351,7 @@ type TarPipe struct {
 func newTarPipe(src string, executor func(writer *io.PipeWriter, cmdArr []string)) *TarPipe {
 	t := new(TarPipe)
 	t.src = src
-	t.maxRetries = 100
+	t.maxRetries = 50
 	t.executor = executor
 	t.initReadFrom(0)
 	return t
@@ -371,14 +371,15 @@ func (t *TarPipe) Read(p []byte) (n int, err error) {
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			simplelog.Warning("cancelling transfer")
-			return 0, err
+			return
 		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			simplelog.Warning("timed out stopping retries")
-			return 0, err
+			return
 		}
 		if t.maxRetries < 0 || t.retries < t.maxRetries {
 			// short pause between retries
+			time.Sleep(50 * time.Millisecond)
 			t.retries++
 			simplelog.Warningf("resuming copy at %d bytes, retry %d/%d - %v", t.bytesRead, t.retries, t.maxRetries, err)
 			t.initReadFrom(t.bytesRead + 1)
