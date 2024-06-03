@@ -79,7 +79,13 @@ func (c *CliK8sActions) HostExecuteAndStream(mask bool, hostString string, outpu
 	if err != nil {
 		return fmt.Errorf("unable to get container name: %v", err)
 	}
-	kubectlArgs := []string{c.kubectlPath, "exec", "-i", "-n", c.namespace, "-c", container, hostString, "--"}
+	var kubectlArgs []string
+	if pat == "" {
+		kubectlArgs = []string{c.kubectlPath, "exec", "-n", c.namespace, "-c", container, hostString, "--"}
+	} else {
+		kubectlArgs = []string{c.kubectlPath, "exec", "-i", "-n", c.namespace, "-c", container, hostString, "--"}
+	}
+
 	kubectlArgs = append(kubectlArgs, args...)
 	return c.cli.ExecuteAndStreamOutput(mask, output, pat, kubectlArgs...)
 }
