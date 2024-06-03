@@ -15,6 +15,7 @@
 package restclient
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 )
 
@@ -44,12 +46,16 @@ func InitClient(allowInsecureSSL bool, restHTTPTimeout int) {
 	}
 }
 
-func APIRequest(url string, pat string, request string, headers map[string]string) ([]byte, error) {
+func APIRequest(hook shutdown.CancelHook, url string, pat string, request string, headers map[string]string) ([]byte, error) {
 	if client == nil {
 		return []byte(""), errors.New("critical error call InitClient first")
 	}
 	simplelog.Debugf("Requesting %s", url)
-	req, err := http.NewRequest(request, url, nil)
+
+	// making sure the global timeout does not get overriden
+	ctx, timeout := context.WithTimeoutCause(hook.GetContext(), client.Timeout, fmt.Errorf("API request to url %v exceeded timeout %v", url, client.Timeout))
+	defer timeout()
+	req, err := http.NewRequestWithContext(ctx, request, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create request due to error %v", err)
 	}
@@ -61,7 +67,12 @@ func APIRequest(url string, pat string, request string, headers map[string]strin
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		switch ctx.Err() {
+		case context.DeadlineExceeded:
+			return nil, context.Cause(ctx)
+		default:
+			return nil, err
+		}
 	}
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf(res.Status)
@@ -73,11 +84,14 @@ func APIRequest(url string, pat string, request string, headers map[string]strin
 	return body, nil
 }
 
-func PostQuery(url string, pat string, headers map[string]string, sqlbody string) (string, error) {
-
-	req, err := http.NewRequest("POST", url, strings.NewReader(sqlbody))
+func PostQuery(hook shutdown.CancelHook, url string, pat string, headers map[string]string, sqlbody string) (string, error) {
+	// making sure the global timeout does not get overriden
+	ctx, timeout := context.WithTimeoutCause(hook.GetContext(), client.Timeout, fmt.Errorf("POST request to %v exceeded timeout %v", url, client.Timeout))
+	defer timeout()
+	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(sqlbody))
 	if err != nil {
 		return "", fmt.Errorf("unable to create request due to error %v", err)
+
 	}
 	authorization := "Bearer " + pat
 	req.Header.Set("Authorization", authorization)
@@ -88,7 +102,12 @@ func PostQuery(url string, pat string, headers map[string]string, sqlbody string
 	res, err := client.Do(req)
 
 	if err != nil {
-		return "", err
+		switch ctx.Err() {
+		case context.DeadlineExceeded:
+			return "", context.Cause(ctx)
+		default:
+			return "", err
+		}
 	}
 	if res.StatusCode != 200 {
 		return "", fmt.Errorf(res.Status)

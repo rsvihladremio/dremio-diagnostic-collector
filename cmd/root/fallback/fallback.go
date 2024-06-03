@@ -22,16 +22,24 @@ import (
 	"strings"
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/cli"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 )
 
 type Fallback struct {
 	cli cli.CmdExecutor
 }
 
-func NewFallback() *Fallback {
+func NewFallback(hook shutdown.CancelHook) *Fallback {
 	return &Fallback{
-		cli: &cli.Cli{},
+		cli: cli.NewCli(hook),
 	}
+}
+
+func (c *Fallback) SetHostPid(_, _ string) {
+	// not needed as normal cancellation will work
+}
+func (c *Fallback) CleanupRemote() error {
+	return nil
 }
 
 func (c *Fallback) Name() string {

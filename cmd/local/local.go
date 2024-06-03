@@ -24,9 +24,12 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -42,6 +45,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/pkg/clusterstats"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/dirs"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/validation"
 
@@ -103,7 +107,7 @@ func createAllDirs(c *conf.CollectConf) error {
 	return nil
 }
 
-func collect(c *conf.CollectConf) error {
+func collect(c *conf.CollectConf, hook shutdown.Hook) error {
 	if !c.DisableFreeSpaceCheck() {
 		if err := dirs.CheckFreeSpace(c.TarballOutDir(), uint64(c.MinFreeSpaceGB())); err != nil {
 			return fmt.Errorf("%v. Use a larger directory by using ddc --transfer-dir or if using ddc local-collect --tarball-out-dir", err)
@@ -119,10 +123,17 @@ func collect(c *conf.CollectConf) error {
 		return fmt.Errorf("unable to spawn thread pool: %w", err)
 	}
 
-	wrapConfigJob := func(name string, j func(c *conf.CollectConf) error) threading.Job {
+	wrapConfigJob := func(name string, j func(c *conf.CollectConf, h shutdown.CancelHook) error) threading.Job {
 		return threading.Job{
 			Name:    name,
-			Process: func() error { return j(c) },
+			Process: func() error { return j(c, hook) },
+		}
+	}
+
+	wrapConfigJobWithFileRemovalTasks := func(name string, j func(c *conf.CollectConf, h shutdown.Hook) error) threading.Job {
+		return threading.Job{
+			Name:    name,
+			Process: func() error { return j(c, hook) },
 		}
 	}
 
@@ -262,7 +273,7 @@ func collect(c *conf.CollectConf) error {
 		if !c.CollectTtop() {
 			simplelog.Debugf("Skipping ttop collection")
 		} else {
-			t.AddJob(wrapConfigJob("TTOP COLLECTION", jvmcollect.RunTtopCollect))
+			t.AddJob(wrapConfigJob("TTOP COLLECTION", RunTtopCollect))
 		}
 		if !c.CollectJFR() {
 			simplelog.Debugf("Skipping Java Flight Recorder collection")
@@ -279,7 +290,7 @@ func collect(c *conf.CollectConf) error {
 		if !c.CaptureHeapDump() {
 			simplelog.Debugf("Skipping Java heap dump collection")
 		} else {
-			t.AddJob(wrapConfigJob("HEAP DUMP COLLECTION", jvmcollect.RunCollectHeapDump))
+			t.AddJob(wrapConfigJobWithFileRemovalTasks("HEAP DUMP COLLECTION", jvmcollect.RunCollectHeapDump))
 		}
 	}
 
@@ -291,11 +302,11 @@ func collect(c *conf.CollectConf) error {
 	if c.NumberJobProfilesToCollect() == 0 {
 		simplelog.Debugf("Skipping job profiles collection")
 	} else {
-		if err := apicollect.RunCollectJobProfiles(c); err != nil {
+		if err := apicollect.RunCollectJobProfiles(c, hook); err != nil {
 			simplelog.Errorf("during job profile collection there was an error: %v", err)
 		}
 	}
-	if err := runCollectClusterStats(c); err != nil {
+	if err := runCollectClusterStats(c, hook); err != nil {
 		simplelog.Errorf("during unable to collect cluster stats like cluster ID: %v", err)
 	}
 	return nil
@@ -420,9 +431,9 @@ func parseVersionFromClassPath(classPath string) string {
 	return ""
 }
 
-func getClassPath(pid int) (string, error) {
+func getClassPath(hook shutdown.CancelHook, pid int) (string, error) {
 	var w bytes.Buffer
-	if err := ddcio.Shell(&w, fmt.Sprintf("jcmd %v VM.system_properties", pid)); err != nil {
+	if err := ddcio.Shell(hook, &w, fmt.Sprintf("jcmd %v VM.system_properties", pid)); err != nil {
 		return "", err
 	}
 	out := w.String()
@@ -441,9 +452,9 @@ func getClassPath(pid int) (string, error) {
 	return "", fmt.Errorf("no matches for java.class.path= found in '%v'", pid)
 }
 
-func runCollectClusterStats(c *conf.CollectConf) error {
+func runCollectClusterStats(c *conf.CollectConf, hook shutdown.CancelHook) error {
 	simplelog.Debugf("Collecting cluster stats")
-	classPath, err := getClassPath(c.DremioPID())
+	classPath, err := getClassPath(hook, c.DremioPID())
 	if err != nil {
 		return err
 	}
@@ -465,16 +476,32 @@ func runCollectClusterStats(c *conf.CollectConf) error {
 	return os.WriteFile(filepath.Join(c.ClusterStatsOutDir(), "cluster-stats.json"), b, 0600)
 }
 
-func runCollectOSConfig(c *conf.CollectConf) error {
+func RunTtopCollect(c *conf.CollectConf, hook shutdown.CancelHook) error {
+	simplelog.Debug("Running top -H to get thread information")
+	duration := c.DremioTtopTimeSeconds() / c.DremioTtopFreqSeconds()
+	if duration == 0 {
+		return fmt.Errorf("cannot have duration of 0 for ttop")
+	}
+	var w bytes.Buffer
+	err := ddcio.Shell(hook, &w, fmt.Sprintf("top -H -n %v -p %v -d %v -1 -bw", duration, c.DremioPID(), c.DremioTtopFreqSeconds()))
+	if err != nil {
+		return fmt.Errorf("failed collecting top %v", err)
+	}
+	loc := fmt.Sprintf("%v/ttop.txt", c.TtopOutDir())
+	if err := os.WriteFile(loc, w.Bytes(), 0600); err != nil {
+		return fmt.Errorf("unable to write top out %v", err)
+	}
+	simplelog.Debugf("top -H written to %v", loc)
+	return nil
+}
+
+func runCollectOSConfig(c *conf.CollectConf, hook shutdown.CancelHook) error {
 	simplelog.Debug("Collecting OS Information")
 	osInfoFile := filepath.Join(c.NodeInfoOutDir(), "os_info.txt")
 	w, err := os.Create(filepath.Clean(osInfoFile))
 	if err != nil {
 		return fmt.Errorf("unable to create file %v due to error %v", filepath.Clean(osInfoFile), err)
 	}
-	defer func() {
-
-	}()
 
 	simplelog.Debug("/etc/*-release")
 
@@ -483,7 +510,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 		simplelog.Warningf("unable to write release file header for os_info.txt due to error %v", err)
 	}
 
-	err = ddcio.Shell(w, "cat /etc/*-release")
+	err = ddcio.Shell(hook, w, "cat /etc/*-release")
 	if err != nil {
 		simplelog.Warningf("unable to write release files for os_info.txt due to error %v", err)
 	}
@@ -493,7 +520,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 		simplelog.Warningf("unable to write uname header for os_info.txt due to error %v", err)
 	}
 
-	err = ddcio.Shell(w, "uname -r")
+	err = ddcio.Shell(hook, w, "uname -r")
 	if err != nil {
 		simplelog.Warningf("unable to write uname -r for os_info.txt due to error %v", err)
 	}
@@ -501,7 +528,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write cat /etc/issue header for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "cat /etc/issue")
+	err = ddcio.Shell(hook, w, "cat /etc/issue")
 	if err != nil {
 		simplelog.Warningf("unable to write /etc/issue for os_info.txt due to error %v", err)
 	}
@@ -509,7 +536,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write hostname for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "cat /proc/sys/kernel/hostname")
+	err = ddcio.Shell(hook, w, "cat /proc/sys/kernel/hostname")
 	if err != nil {
 		simplelog.Warningf("unable to write hostname for os_info.txt due to error %v", err)
 	}
@@ -517,7 +544,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write /proc/meminfo header for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "cat /proc/meminfo")
+	err = ddcio.Shell(hook, w, "cat /proc/meminfo")
 	if err != nil {
 		simplelog.Warningf("unable to write /proc/meminfo for os_info.txt due to error %v", err)
 	}
@@ -525,7 +552,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write lscpu header for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "lscpu")
+	err = ddcio.Shell(hook, w, "lscpu")
 	if err != nil {
 		simplelog.Warningf("unable to write lscpu for os_info.txt due to error %v", err)
 	}
@@ -533,7 +560,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write mount header for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "mount")
+	err = ddcio.Shell(hook, w, "mount")
 	if err != nil {
 		simplelog.Warningf("unable to write mount for os_info.txt due to error %v", err)
 	}
@@ -541,7 +568,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 	if err != nil {
 		simplelog.Warningf("unable to write lsblk header for os_info.txt due to error %v", err)
 	}
-	err = ddcio.Shell(w, "lsblk")
+	err = ddcio.Shell(hook, w, "lsblk")
 	if err != nil {
 		simplelog.Warningf("unable to write lsblk for os_info.txt due to error %v", err)
 	}
@@ -551,7 +578,7 @@ func runCollectOSConfig(c *conf.CollectConf) error {
 		if err != nil {
 			simplelog.Warningf("unable to write ps eww header for os_info.txt due to error %v", err)
 		}
-		err = ddcio.Shell(w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", c.DremioPID()))
+		err = ddcio.Shell(hook, w, fmt.Sprintf("ps eww %v | grep dremio | awk '{$1=$2=$3=$4=\"\"; print $0}'", c.DremioPID()))
 		if err != nil {
 			simplelog.Warningf("unable to write ps eww output for os_info.txt due to error %v", err)
 		}
@@ -615,6 +642,20 @@ var LocalCollectCmd = &cobra.Command{
 }
 
 func Execute(args []string, overrides map[string]string) (string, error) {
+	hook := shutdown.NewHook()
+	defer hook.Cleanup()
+	cSignal := make(chan os.Signal, 1)
+	signal.Notify(cSignal, os.Interrupt, syscall.SIGTERM)
+	killOnlyCleanup := func() {}
+	go func() {
+		<-cSignal
+		simplelog.Infof("graceful shutdown initiated")
+		hook.Cleanup()
+		simplelog.Infof("removing tarball out folder if present")
+		killOnlyCleanup()
+		simplelog.Infof("cleanup complete")
+		os.Exit(1)
+	}()
 	simplelog.Infof("ddc local-collect version: %v", versions.GetCLIVersion())
 	simplelog.Infof("args: %v", strings.Join(args, " "))
 	fmt.Println(strings.TrimSpace(versions.GetCLIVersion()))
@@ -624,16 +665,16 @@ func Execute(args []string, overrides map[string]string) (string, error) {
 				return "", fmt.Errorf("unable to read pid location '%v' with error: '%w'", pid, err)
 			}
 			// this means nothing is present great continue
-			if err := os.WriteFile(filepath.Clean(pid), []byte(""), 0600); err != nil {
+			if err := os.WriteFile(filepath.Clean(pid), []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
 				return "", fmt.Errorf("unable to write pid file '%v: %w", pid, err)
 			}
-			defer func() {
+			hook.AddFinalSteps(func() {
 				if err := os.Remove(pid); err != nil {
 					msg := fmt.Sprintf("unable to remove pid '%v': '%v', it will need to be removed manually", pid, err)
 					fmt.Println(msg)
 					simplelog.Error(msg)
 				}
-			}()
+			}, fmt.Sprintf("removing pid file %v", pid))
 		} else {
 			return "", fmt.Errorf("DDC is running based on pid file '%v'. If this is a stale file then please remove", pid)
 		}
@@ -643,16 +684,23 @@ func Execute(args []string, overrides map[string]string) (string, error) {
 		return "", err
 	}
 
-	c, err := conf.ReadConf(overrides, ddcYamlLoc, collectionMode)
+	c, err := conf.ReadConf(hook, overrides, ddcYamlLoc, collectionMode)
 	if err != nil {
 		return "", fmt.Errorf("unable to read configuration %w", err)
 	}
-
+	killOnlyCleanup = func() {
+		if err := os.RemoveAll(c.OutputDir()); err != nil {
+			simplelog.Errorf("unable to cleanup %v: %v", c.OutputDir(), err)
+		}
+		if err := os.RemoveAll(c.TarballOutDir()); err != nil {
+			simplelog.Errorf("unable to cleanup %v: %v", c.TarballOutDir(), err)
+		}
+	}
 	fmt.Println("looking for logs in: " + c.DremioLogDir())
 
 	// Run application
 	simplelog.Info("Starting collection...")
-	if err := collect(c); err != nil {
+	if err := collect(c, hook); err != nil {
 		return "", fmt.Errorf("unable to collect: %w", err)
 	}
 
@@ -670,6 +718,7 @@ func Execute(args []string, overrides map[string]string) (string, error) {
 	if err := os.RemoveAll(c.OutputDir()); err != nil {
 		simplelog.Errorf("unable to remove %v: %v", c.OutputDir(), err)
 	}
+
 	simplelog.Infof("Archive %v complete", tarballName)
 	endTime := time.Now().Unix()
 	fi, err := os.Stat(tarballName)
@@ -683,7 +732,7 @@ func Execute(args []string, overrides map[string]string) (string, error) {
 func init() {
 	//wire up override flags
 	LocalCollectCmd.Flags().CountP("verbose", "v", "Logging verbosity")
-	LocalCollectCmd.Flags().String("dremio-pat-token", "", "Dremio Personal Access Token (PAT)")
+	LocalCollectCmd.Flags().String("dremio-pat-token", "	", "Dremio Personal Access Token (PAT)")
 	LocalCollectCmd.Flags().String("tarball-out-dir", "/tmp/ddc", "directory where the final diag.tgz file is placed. This is also the location where final archive will be output for pickup by the ddc command")
 	LocalCollectCmd.Flags().Bool(conf.KeyDisableFreeSpaceCheck, false, "disables the free space check for the --tarball-out-dir")
 	LocalCollectCmd.Flags().Int(conf.KeyMinFreeSpaceGB, 40, "min free space needed in GB for the process to run")
@@ -706,5 +755,5 @@ func init() {
 	}
 	execLocDir := filepath.Dir(execLoc)
 	LocalCollectCmd.Flags().StringVar(&ddcYamlLoc, "ddc-yaml", filepath.Join(execLocDir, "ddc.yaml"), "location of ddc.yaml that will be transferred to remote nodes for collection configuration")
-	LocalCollectCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop, jstack or jfr). 'standard' - includes jfr, ttop, jstack, 7 days of logs and 30 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
+	LocalCollectCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no top, jstack or jfr). 'standard' - includes jfr, top, jstack, 7 days of logs and 30 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
 }

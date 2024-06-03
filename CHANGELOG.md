@@ -1,10 +1,19 @@
 # Changelog
 
-## [2.4.4] - 2024-05-24
+## [3.0.0] - 2024-06-04
+
+### Changed
+
+* removed ttop and replaced it with `LINES=50 COLUMNS=512 top -H -n <iterations> -p <pid> -d <interval> -1 -bw` 
+* will try and use `kubectl` for file transfers and command execution if present, but for cluster discovery and k8s right checks the api is still used, use the `-d` flag to disable this behavior and just use the Kubernetes api directly.
+* unhide most of the hidden flags so that people can use the more advanced features if they want
+* in k8s pod tarball transfer now increases with node count (coordinators will have more queries.json size) the base is still 30 minutes but we add a minute for every 3 pods
 
 ### Fixed
 
+* CTRL+C cancels all running processes and remote calls also executes any file or folder cleanup that was pending
 * ignoring errors when searching for cluster ID as high usage clusters have files vanish during search
+* improved timeout error messages 
 
 ## [2.4.3] - 2024-04-25
 
@@ -651,7 +660,7 @@ someone has added the PAT which is always available
 
 - able to capture logs, configuration and diagnostic data from Dremio clusters deployed on Kubernetes and on-prem
 
-[2.4.4]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.3...v2.4.4
+[3.0.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.3...v3.0.0
 [2.4.3]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.2...v2.4.3
 [2.4.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.0...v2.4.1

@@ -32,6 +32,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/pkg/archive"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/clusterstats"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/consoleprint"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/versions"
 )
@@ -53,6 +54,8 @@ type Collector interface {
 	HostExecuteAndStream(mask bool, hostString string, output cli.OutputHandler, pat string, args ...string) error
 	HelpText() string
 	Name() string
+	SetHostPid(host, pidFile string)
+	CleanupRemote() error
 }
 
 type Args struct {
@@ -81,7 +84,7 @@ type HostCaptureConfiguration struct {
 	CollectionMode string
 }
 
-func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection ...func([]string)) error {
+func Execute(c Collector, s CopyStrategy, collectionArgs Args, hook shutdown.Hook, clusterCollection ...func([]string)) error {
 	start := time.Now().UTC()
 	outputLoc := collectionArgs.OutputLoc
 	outputLocDir := filepath.Dir(outputLoc)
@@ -99,11 +102,11 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 	if err != nil {
 		return err
 	}
-	defer func() {
+	hook.AddFinalSteps(func() {
 		if err := os.RemoveAll(tmpInstallDir); err != nil {
 			simplelog.Warningf("unable to cleanup temp install directory: '%v'", err)
 		}
-	}()
+	}, "cleaning temp install dir")
 	ddcFilePath, err := ddcbinary.WriteOutDDC(tmpInstallDir)
 	if err != nil {
 		return fmt.Errorf("making ddc binary failed: '%v'", err)
@@ -173,7 +176,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			}
 			//we want to be able to capture the job profiles of all the nodes
 			skipRESTCalls := false
-			err := StartCapture(coordinatorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
+			err := StartCapture(coordinatorCaptureConf, hook, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
 			if err != nil {
 				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
 				return
@@ -182,7 +185,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			transferWg.Add(1)
 			go func() {
 				defer transferWg.Done()
-				size, f, err := TransferCapture(coordinatorCaptureConf, s.GetTmpDir())
+				size, f, err := TransferCapture(coordinatorCaptureConf, hook, s.GetTmpDir())
 				if err != nil {
 					m.Lock()
 					totalFailedFiles = append(totalFailedFiles, f)
@@ -217,7 +220,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			}
 			//always skip executor calls
 			skipRESTCalls := true
-			err := StartCapture(executorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
+			err := StartCapture(executorCaptureConf, hook, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
 			if err != nil {
 				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
 				return
@@ -226,7 +229,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 			transferWg.Add(1)
 			go func() {
 				defer transferWg.Done()
-				size, f, err := TransferCapture(executorCaptureConf, s.GetTmpDir())
+				size, f, err := TransferCapture(executorCaptureConf, hook, s.GetTmpDir())
 				if err != nil {
 					m.Lock()
 					totalFailedFiles = append(totalFailedFiles, f)
@@ -277,9 +280,16 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, clusterCollection
 				simplelog.Errorf("unable to extract tarball %v due to error %v", t, err)
 			}
 			simplelog.Debugf("extracted %v", t)
+			// run a delete immediately as this takes up substantial space
 			if err := os.Remove(t); err != nil {
 				simplelog.Errorf("unable to delete tarball %v due to error %v", t, err)
 			}
+			hook.AddFinalSteps(func() {
+				// run it again on cleanup just to be sure it's removed in case we got a ctrl+c
+				if err := os.Remove(t); err != nil {
+					simplelog.Errorf("unable to delete tarball %v due to error %v", t, err)
+				}
+			}, fmt.Sprintf("removing local tarball %v", t))
 			simplelog.Debugf("removed %v", t)
 		}
 	}

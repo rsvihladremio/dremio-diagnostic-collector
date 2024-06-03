@@ -17,12 +17,14 @@ package collection
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/local/conf"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/consoleprint"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/strutils"
 )
@@ -114,7 +116,7 @@ func extractJobProgressText(line string) (status string, statusUX string, messag
 
 // Capture collects diagnostics, conf files and log files from the target hosts. Failures are permissive and
 // are first logged and then returned at the end with the reason for the failure.
-func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath string, skipRESTCollect bool, disableFreeSpaceCheck bool, minFreeSpaceGB int) error {
+func StartCapture(c HostCaptureConfiguration, hook shutdown.Hook, localDDCPath, localDDCYamlPath string, skipRESTCollect bool, disableFreeSpaceCheck bool, minFreeSpaceGB int) error {
 	host := c.Host
 	consoleprint.UpdateNodeState(consoleprint.NodeState{
 		Node:     host,
@@ -128,12 +130,6 @@ func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath str
 	pathToDDCYAML := path.Join(c.TransferDir, "ddc.yaml")
 	dremioPAT := c.DremioPAT
 	versionMatch := false
-	// if out, err := ComposeExecute(conf, []string{pathToDDC, "version"}); err != nil {
-	// 	simplelog.Warningf("host %v unable to find ddc version due to error '%v' with output '%v'", host, err, out)
-	// } else {
-	// 	simplelog.Infof("host %v has ddc version '%v' already installed", host, out)
-	// 	versionMatch = out == versions.GetDDCRuntimeVersion()
-	// }
 	//if versions don't match go ahead and install a copy in the ddc tmp directory
 	if !versionMatch {
 		consoleprint.UpdateNodeState(consoleprint.NodeState{
@@ -238,9 +234,12 @@ func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath str
 		StatusUX: "COLLECTING",
 		Result:   consoleprint.ResultPending,
 	})
+
 	//execute local-collect with a tarball-out-dir flag it must match our transfer-dir flag
 	var mask bool // to mask PAT token in logs
-	localCollectArgs := []string{pathToDDC, "local-collect", fmt.Sprintf("--%v", conf.KeyTarballOutDir), c.TransferDir, fmt.Sprintf("--%v", conf.KeyCollectionMode), c.CollectionMode, fmt.Sprintf("--%v", conf.KeyMinFreeSpaceGB), fmt.Sprintf("%v", minFreeSpaceGB)}
+	pidFile := path.Join(c.TransferDir, "ddc.pid")
+	c.Collector.SetHostPid(c.Host, pidFile)
+	localCollectArgs := []string{pathToDDC, "local-collect", fmt.Sprintf("--%v", conf.KeyTarballOutDir), c.TransferDir, fmt.Sprintf("--%v", conf.KeyCollectionMode), c.CollectionMode, fmt.Sprintf("--%v", conf.KeyMinFreeSpaceGB), fmt.Sprintf("%v", minFreeSpaceGB), "--pid", pidFile}
 	if disableFreeSpaceCheck {
 		localCollectArgs = append(localCollectArgs, fmt.Sprintf("--%v", conf.KeyDisableFreeSpaceCheck))
 	}
@@ -254,6 +253,13 @@ func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath str
 	} else {
 		mask = false
 	}
+
+	hook.AddPriorityCancel(func() {
+		err := c.Collector.CleanupRemote()
+		if err != nil {
+			simplelog.Errorf("error during cleanup %v", err)
+		}
+	}, "killing old pods")
 	var allHostLog []string
 	err := c.Collector.HostExecuteAndStream(mask, c.Host, func(line string) {
 		if strings.HasPrefix(line, "JOB START") {
@@ -312,7 +318,7 @@ func StartCapture(c HostCaptureConfiguration, localDDCPath, localDDCYamlPath str
 	return nil
 }
 
-func TransferCapture(c HostCaptureConfiguration, outputLoc string) (int64, string, error) {
+func TransferCapture(c HostCaptureConfiguration, hook shutdown.Hook, outputLoc string) (int64, string, error) {
 	hostname, err := c.Collector.HostExecute(false, c.Host, "cat", "/proc/sys/kernel/hostname")
 	if err != nil {
 		consoleprint.UpdateNodeState(consoleprint.NodeState{
@@ -330,6 +336,7 @@ func TransferCapture(c HostCaptureConfiguration, outputLoc string) (int64, strin
 	tgzFileName := fmt.Sprintf("%v.tar.gz", strings.TrimSpace(hostname))
 	//IMPORTANT we must use path.join and not filepath.join or everything will break
 	tarGZ := path.Join(c.TransferDir, tgzFileName)
+
 	outDir := path.Dir(outputLoc)
 	if outDir == "" {
 		outDir = fmt.Sprintf(".%v", filepath.Separator)
@@ -340,7 +347,13 @@ func TransferCapture(c HostCaptureConfiguration, outputLoc string) (int64, strin
 		StatusUX: "TARBALL TRANSFER",
 		Result:   consoleprint.ResultPending,
 	})
-
+	hook.AddFinalSteps(func() {
+		if out, err := c.Collector.HostExecute(false, c.Host, "rm", tarGZ); err != nil {
+			simplelog.Warningf("on host %v unable to cleanup remote capture due to error '%v' with output '%v'", c.Host, err, out)
+		} else {
+			simplelog.Debugf("on host %v file %v has been removed", c.Host, tarGZ)
+		}
+	}, fmt.Sprintf("removing tarball %v on host %v", tarGZ, c.Host))
 	destFile := filepath.Join(outDir, tgzFileName)
 	if out, err := c.Collector.CopyFromHost(c.Host, tarGZ, destFile); err != nil {
 		consoleprint.UpdateNodeState(consoleprint.NodeState{
@@ -353,6 +366,15 @@ func TransferCapture(c HostCaptureConfiguration, outputLoc string) (int64, strin
 		})
 		return 0, destFile, fmt.Errorf("unable to copy file %v from host %v to directory %v due to error %v with output %v", tarGZ, c.Host, outDir, err, out)
 	}
+
+	hook.AddFinalSteps(func() {
+		if _, err := os.Stat(outputLoc); err == nil {
+			if err := os.Remove(outputLoc); err != nil {
+				simplelog.Warningf("unable to cleanup tgz %v: %v", outputLoc, err)
+			}
+			simplelog.Debugf("on host %v file %v has been removed", c.Host, tarGZ)
+		}
+	}, fmt.Sprintf("removing local tarball if present %v", tarGZ))
 
 	fileInfo, err := c.DDCfs.Stat(destFile)
 	//we assume a file size of zero if we are not able to retrieve the file size for some reason
@@ -370,13 +392,6 @@ func TransferCapture(c HostCaptureConfiguration, outputLoc string) (int64, strin
 		Result:     consoleprint.ResultPending,
 	})
 	simplelog.Infof("host %v copied %v to %v it was %v bytes", c.Host, tarGZ, destFile, size)
-	//defer delete tar.gz
-	defer func() {
-		if out, err := c.Collector.HostExecute(false, c.Host, "rm", tarGZ); err != nil {
-			simplelog.Warningf("on host %v unable to cleanup remote capture due to error '%v' with output '%v'", c.Host, err, out)
-		} else {
-			simplelog.Debugf("on host %v file %v has been removed", c.Host, c.TransferDir)
-		}
-	}()
+
 	return size, destFile, nil
 }

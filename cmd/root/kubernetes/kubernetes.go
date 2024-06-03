@@ -19,6 +19,7 @@ package kubernetes
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,9 @@ import (
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/cli"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/archive"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/consoleprint"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,18 +51,21 @@ type KubeArgs struct {
 	LabelSelector string
 }
 
-// NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct
+// NewK8sAPI is the only supported way to initialize the NewK8sAPI struct
 // one must pass the path to kubectl
-func NewKubectlK8sActions(kubeArgs KubeArgs) (*KubectlK8sActions, error) {
+func NewK8sAPI(kubeArgs KubeArgs, hook shutdown.CancelHook) (*KubeCtlAPIActions, error) {
 	clientset, config, err := GetClientset()
 	if err != nil {
-		return &KubectlK8sActions{}, err
+		return &KubeCtlAPIActions{}, err
 	}
-	return &KubectlK8sActions{
-		namespace:     kubeArgs.Namespace,
-		client:        clientset,
-		config:        config,
-		labelSelector: kubeArgs.LabelSelector,
+	return &KubeCtlAPIActions{
+		namespace:      kubeArgs.Namespace,
+		client:         clientset,
+		config:         config,
+		labelSelector:  kubeArgs.LabelSelector,
+		hook:           hook,
+		pidHosts:       make(map[string]string),
+		timeoutMinutes: 30,
 	}, nil
 }
 
@@ -93,23 +99,158 @@ func GetClientset() (*kubernetes.Clientset, *rest.Config, error) {
 	return clientset, config, nil
 }
 
-// KubectlK8sActions provides a way to collect and copy files using kubectl
-type KubectlK8sActions struct {
-	namespace     string
-	labelSelector string
-	client        *kubernetes.Clientset
-	config        *rest.Config
+// KubeCtlAPIActions provides a way to collect and copy files using kubectl
+type KubeCtlAPIActions struct {
+	namespace      string
+	labelSelector  string
+	client         *kubernetes.Clientset
+	config         *rest.Config
+	hook           shutdown.CancelHook
+	pidHosts       map[string]string
+	timeoutMinutes int
+	m              sync.Mutex
 }
 
-func (c *KubectlK8sActions) GetClient() *kubernetes.Clientset {
+func (c *KubeCtlAPIActions) SetHostPid(host, pidFile string) {
+	c.pidHosts[host] = pidFile
+}
+func (c *KubeCtlAPIActions) CleanupRemote() error {
+	kill := func(host string, pidFile string) {
+		if pidFile == "" {
+			simplelog.Debugf("pidfile is blank for %v skipping", host)
+			return
+		}
+		containerName, err := c.getPrimaryContainer(host)
+		if err != nil {
+			simplelog.Warningf("failed looking for pod %v: %v", host, err)
+			return
+		}
+		req := c.client.CoreV1().RESTClient().Post().Resource("pods").Name(host).
+			Namespace(c.namespace).SubResource("exec")
+		cmd := []string{
+			"sh",
+			"-c",
+			fmt.Sprintf("cat  %v", pidFile),
+		}
+		option := &v1.PodExecOptions{
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}
+		req = req.VersionedParams(
+			option,
+			scheme.ParameterCodec,
+		)
+		exec, err := remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+		if err != nil {
+			simplelog.Warningf("failed getting pidfile %v on host %v: %v", pidFile, host, err)
+			return
+		}
+		var w bytes.Buffer
+		var errOut bytes.Buffer
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(30)*time.Second)
+		defer cancel()
+		err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+			Stdout: &w,
+			Stderr: &errOut,
+		})
+		if err != nil {
+			simplelog.Warningf("failed getting pidfile %v on host %v: %v - %v", pidFile, host, err, errOut.String())
+			return
+		}
+
+		req = c.client.CoreV1().RESTClient().Post().Resource("pods").Name(host).
+			Namespace(c.namespace).SubResource("exec")
+		cmd = []string{
+			"sh",
+			"-c",
+			fmt.Sprintf("kill -15 %v", w.String()),
+		}
+		option = &v1.PodExecOptions{
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}
+		req = req.VersionedParams(
+			option,
+			scheme.ParameterCodec,
+		)
+		exec, err = remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+		if err != nil {
+			simplelog.Warningf("failed killing ddc %v on host %v: %v", w.String(), host, err)
+			return
+		}
+		var buff bytes.Buffer
+		ctx, timeout := context.WithTimeout(context.Background(), time.Duration(120)*time.Second)
+		defer timeout()
+		err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+			Stdout: &buff,
+			Stderr: &buff,
+		})
+		if err != nil {
+			simplelog.Warningf("failed killing ddc %v on host %v: %v - %v", w.String(), host, err, buff.String())
+			return
+		}
+		consoleprint.UpdateNodeState(consoleprint.NodeState{
+			Node:     host,
+			Status:   consoleprint.Starting,
+			StatusUX: "FAILED - CANCELLED",
+			Result:   consoleprint.ResultFailure,
+		})
+		//cancel out so we can skip if it's called again
+		c.pidHosts[host] = ""
+	}
+	var criticalErrors []string
+	coordinators, err := c.GetCoordinators()
+	if err != nil {
+		msg := fmt.Sprintf("unable to get coordinators for cleanup %v", err)
+		simplelog.Error(msg)
+		criticalErrors = append(criticalErrors, msg)
+	} else {
+		for _, coordinator := range coordinators {
+			if v, ok := c.pidHosts[coordinator]; ok {
+				kill(coordinator, v)
+			} else {
+				simplelog.Errorf("missing key %v in pidHosts skipping host", coordinator)
+			}
+		}
+	}
+
+	executors, err := c.GetExecutors()
+	if err != nil {
+		msg := fmt.Sprintf("unable to get executors for cleanup %v", err)
+		simplelog.Error(msg)
+		criticalErrors = append(criticalErrors, msg)
+	} else {
+		for _, executor := range executors {
+			if v, ok := c.pidHosts[executor]; ok {
+				kill(executor, v)
+			} else {
+				simplelog.Errorf("missing key %v in pidHosts skipping host", executor)
+			}
+		}
+	}
+	if len(criticalErrors) > 0 {
+		return fmt.Errorf("critical errors trying to cleanup pods %v", strings.Join(criticalErrors, ", "))
+	}
+	return nil
+}
+
+func (c *KubeCtlAPIActions) GetClient() *kubernetes.Clientset {
 	return c.client
 }
 
-func (c *KubectlK8sActions) Name() string {
+func (c *KubeCtlAPIActions) Name() string {
 	return "Kube API"
 }
 
-func (c *KubectlK8sActions) HostExecuteAndStream(mask bool, hostString string, output cli.OutputHandler, pat string, args ...string) (err error) {
+func (c *KubeCtlAPIActions) HostExecuteAndStream(mask bool, hostString string, output cli.OutputHandler, pat string, args ...string) (err error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -145,19 +286,20 @@ func (c *KubectlK8sActions) HostExecuteAndStream(mask bool, hostString string, o
 		Buff:   &buff,
 		Output: output,
 	}
+
 	if pat != "" {
-		buff := bytes.Buffer{}
-		if _, err := buff.WriteString(pat); err != nil {
+		stdIn := bytes.Buffer{}
+		if _, err := stdIn.WriteString(pat); err != nil {
 			return err
 		}
-		err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
-			Stdin:  &buff,
+		err = exec.StreamWithContext(c.hook.GetContext(), remotecommand.StreamOptions{
+			Stdin:  &stdIn,
 			Stdout: writer,
 			Stderr: writer,
 		})
 		return err
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(c.hook.GetContext(), remotecommand.StreamOptions{
 		Stdout: writer,
 		Stderr: writer,
 	})
@@ -186,7 +328,7 @@ func logArgs(mask bool, args []string) {
 	}
 }
 
-func (c *KubectlK8sActions) HostExecute(mask bool, hostString string, args ...string) (out string, err error) {
+func (c *KubeCtlAPIActions) HostExecute(mask bool, hostString string, args ...string) (out string, err error) {
 	var outBuilder strings.Builder
 	writer := func(line string) {
 		outBuilder.WriteString(line)
@@ -212,14 +354,24 @@ func newTarPipe(src string, executor func(writer *io.PipeWriter, cmdArr []string
 	t.maxRetries = 100
 	t.executor = executor
 	t.initReadFrom(0)
+	defer func() {
+		if err := t.outStream.Close(); err != nil {
+			simplelog.Debugf("failed closing tar pipe :%v", err)
+		}
+		if err := t.reader.Close(); err != nil {
+			simplelog.Debugf("failed closing tar pipe reader :%v", err)
+		}
+	}()
 	return t
 }
 
 func (t *TarPipe) initReadFrom(n uint64) {
-	t.reader, t.outStream = io.Pipe()
+	reader, outStream := io.Pipe()
+	t.reader = reader
+	t.outStream = outStream
 	copyCommand := []string{"sh", "-c", fmt.Sprintf("tar cf - %s | tail -c+%d", t.src, n)}
 	go func() {
-		defer t.outStream.Close()
+		defer outStream.Close()
 		t.executor(t.outStream, copyCommand)
 	}()
 }
@@ -227,9 +379,16 @@ func (t *TarPipe) initReadFrom(n uint64) {
 func (t *TarPipe) Read(p []byte) (n int, err error) {
 	n, err = t.reader.Read(p)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			simplelog.Warning("cancelling transfer")
+			return 0, err
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			simplelog.Warning("timed out stopping retries")
+			return 0, err
+		}
 		if t.maxRetries < 0 || t.retries < t.maxRetries {
 			// short pause between retries
-			time.Sleep(50 * time.Millisecond)
 			t.retries++
 			simplelog.Warningf("resuming copy at %d bytes, retry %d/%d - %v", t.bytesRead, t.retries, t.maxRetries, err)
 			t.initReadFrom(t.bytesRead + 1)
@@ -243,7 +402,7 @@ func (t *TarPipe) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (c *KubectlK8sActions) CopyFromHost(hostString string, source, destination string) (out string, err error) {
+func (c *KubeCtlAPIActions) CopyFromHost(hostString string, source, destination string) (out string, err error) {
 	if strings.HasPrefix(destination, `C:`) {
 		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
 		// only replace once because more doesn't make sense
@@ -279,9 +438,9 @@ func (c *KubectlK8sActions) CopyFromHost(hostString string, source, destination 
 			return
 		}
 		var errBuff bytes.Buffer
-		// hard coding a 30 minute timeout, we could add a flag but feedback is thare are too many already. Make a PR if you want to change this
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
+		duration := time.Duration(c.timeoutMinutes) * time.Minute
+		ctx, timeout := context.WithTimeoutCause(c.hook.GetContext(), duration, fmt.Errorf("transferring file %v from host %v timeout exceeded %v", source, hostString, duration))
+		defer timeout()
 		err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 			Stdin:  os.Stdin,
 			Stdout: writer,
@@ -289,8 +448,17 @@ func (c *KubectlK8sActions) CopyFromHost(hostString string, source, destination 
 			Tty:    false,
 		})
 		if err != nil {
-			msg := fmt.Sprintf("failed streaming %v - %v", err, errBuff.String())
-			simplelog.Error(msg)
+			switch ctx.Err() {
+			case context.Canceled:
+				msg := fmt.Sprintf("manually cancelled transfer - %v", context.Cause(ctx))
+				simplelog.Warningf(msg)
+			case context.DeadlineExceeded:
+				msg := fmt.Sprintf("%v", context.Cause(ctx))
+				simplelog.Error(msg)
+			default:
+				msg := fmt.Sprintf("failed streaming %v - %v", err, errBuff.String())
+				simplelog.Error(msg)
+			}
 		}
 	}
 	reader := newTarPipe(source, executor)
@@ -302,7 +470,7 @@ func (c *KubectlK8sActions) CopyFromHost(hostString string, source, destination 
 	return "", nil
 }
 
-func (c *KubectlK8sActions) getPrimaryContainer(hostString string) (string, error) {
+func (c *KubeCtlAPIActions) getPrimaryContainer(hostString string) (string, error) {
 	pods, err := c.client.CoreV1().Pods(c.namespace).List(context.Background(), meta_v1.ListOptions{})
 	if err != nil {
 		return "", err
@@ -319,7 +487,7 @@ func (c *KubectlK8sActions) getPrimaryContainer(hostString string) (string, erro
 	return containerName, nil
 }
 
-func (c *KubectlK8sActions) CopyToHost(hostString string, source, destination string) (out string, err error) {
+func (c *KubeCtlAPIActions) CopyToHost(hostString string, source, destination string) (out string, err error) {
 	if strings.HasPrefix(source, `C:`) {
 		// Fix problem seen in https://github.com/kubernetes/kubernetes/issues/77310
 		// only replace once because more doesn't make sense
@@ -373,7 +541,7 @@ func (c *KubectlK8sActions) CopyToHost(hostString string, source, destination st
 	var outBuff bytes.Buffer
 
 	// hard coding a 4 minute timeout on copy to host we could add a flag but feedback is thare are too many already. Make a PR if you want to change this
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(c.hook.GetContext(), 4*time.Minute)
 	defer cancel()
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  reader,
@@ -389,20 +557,22 @@ func (c *KubectlK8sActions) CopyToHost(hostString string, source, destination st
 	return errBuff.String() + outBuff.String(), nil
 }
 
-func (c *KubectlK8sActions) GetCoordinators() (podName []string, err error) {
+func (c *KubeCtlAPIActions) GetCoordinators() (podName []string, err error) {
 	return c.SearchPods(func(container string) bool {
 		return strings.Contains(container, "coordinator")
 	})
 }
 
-func (c *KubectlK8sActions) SearchPods(compare func(container string) bool) (podName []string, err error) {
+func (c *KubeCtlAPIActions) SearchPods(compare func(container string) bool) (podName []string, err error) {
 	podList, err := c.client.CoreV1().Pods(c.namespace).List(context.Background(), meta_v1.ListOptions{
 		LabelSelector: c.labelSelector,
 	})
 	if err != nil {
 		return podName, err
 	}
+	count := 0
 	for _, p := range podList.Items {
+		count++
 		if len(p.Spec.Containers) == 0 {
 			return podName, fmt.Errorf("unsupported pod %v which has no containers attached", p)
 		}
@@ -411,17 +581,21 @@ func (c *KubectlK8sActions) SearchPods(compare func(container string) bool) (pod
 			podName = append(podName, p.Name)
 		}
 	}
+	c.m.Lock()
+	// so 100 pods would get 63 minutes to transfer before the transfers timed out
+	c.timeoutMinutes = (count / 3) + 30
+	c.m.Unlock()
 	sort.Strings(podName)
 	return podName, nil
 }
 
-func (c *KubectlK8sActions) GetExecutors() (podName []string, err error) {
+func (c *KubeCtlAPIActions) GetExecutors() (podName []string, err error) {
 	return c.SearchPods(func(container string) bool {
 		return container == "dremio-executor"
 	})
 }
 
-func (c *KubectlK8sActions) HelpText() string {
+func (c *KubeCtlAPIActions) HelpText() string {
 	return "Make sure namespace you use actually has a dremio cluster installed by dremio, if not then this is not supported"
 }
 

@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dremio/dremio-diagnostic-collector/cmd/awselogs"
@@ -30,6 +32,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/collection"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/fallback"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/helpers"
+	"github.com/dremio/dremio-diagnostic-collector/cmd/root/kubectl"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/kubernetes"
 	"github.com/dremio/dremio-diagnostic-collector/cmd/root/ssh"
 	version "github.com/dremio/dremio-diagnostic-collector/cmd/version"
@@ -37,6 +40,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/pkg/consoleprint"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/dirs"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/masking"
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/validation"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/versions"
@@ -59,6 +63,7 @@ var outputLoc string
 var sudoUser string
 var namespace string
 var disableFreeSpaceCheck bool
+var disableKubeCtl bool
 var minFreeSpaceGB int
 var disablePrompt bool
 var detectNamespace bool
@@ -66,6 +71,7 @@ var collectionMode string
 var cliAuthToken string
 var pid string
 var transferThreads int
+var transferTimeout int
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -124,7 +130,7 @@ func startTicker() (stop func()) {
 	}
 }
 
-func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs kubernetes.KubeArgs, fallbackEnabled bool) error {
+func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs kubernetes.KubeArgs, fallbackEnabled bool, hook shutdown.Hook) error {
 	patSet := collectionArgs.DremioPAT != ""
 	consoleprint.UpdateRuntime(
 		versions.GetCLIVersion(),
@@ -145,13 +151,12 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 		return fmt.Errorf("error when getting directory for copy strategy: %v", err)
 	}
 	cs := helpers.NewHCCopyStrategy(collectionArgs.DDCfs, &helpers.RealTimeService{}, outputDir)
-
-	defer cs.Close()
+	hook.AddFinalSteps(cs.Close, "running cleanup on copy strategy")
 	var clusterCollect = func([]string) {}
 	var collectorStrategy collection.Collector
 	if fallbackEnabled {
 		simplelog.Info("using fallback based collection")
-		collectorStrategy = fallback.NewFallback()
+		collectorStrategy = fallback.NewFallback(hook)
 		consoleprint.UpdateRuntime(
 			versions.GetCLIVersion(),
 			simplelog.GetLogLoc(),
@@ -166,10 +171,19 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 	} else if kubeArgs.Namespace != "" {
 		simplelog.Info("using Kubernetes api based collection")
 		consoleprint.UpdateCollectionArgs(fmt.Sprintf("namespace: '%v', label selector: '%v'", kubeArgs.Namespace, kubeArgs.LabelSelector))
-		collectorStrategy, err = kubernetes.NewKubectlK8sActions(kubeArgs)
+		collectorStrategy, err = kubernetes.NewK8sAPI(kubeArgs, hook)
 		if err != nil {
 			return err
 		}
+		if !disableKubeCtl {
+			potentialStrategy, err := kubectl.NewKubectlK8sActions(hook, kubeArgs.Namespace)
+			if err != nil {
+				simplelog.Warningf("kubectl not available failling back to kubeapi: %v", err)
+			} else {
+				collectorStrategy = potentialStrategy
+			}
+		}
+
 		consoleprint.UpdateRuntime(
 			versions.GetCLIVersion(),
 			simplelog.GetLogLoc(),
@@ -183,11 +197,11 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 		)
 
 		clusterCollect = func(pods []string) {
-			err = collection.ClusterK8sExecute(kubeArgs.Namespace, cs, collectionArgs.DDCfs)
+			err = collection.ClusterK8sExecute(hook, kubeArgs.Namespace, cs, collectionArgs.DDCfs)
 			if err != nil {
 				simplelog.Errorf("when getting Kubernetes info, the following error was returned: %v", err)
 			}
-			err = collection.GetClusterLogs(kubeArgs.Namespace, cs, collectionArgs.DDCfs, pods)
+			err = collection.GetClusterLogs(hook, kubeArgs.Namespace, cs, collectionArgs.DDCfs, pods)
 			if err != nil {
 				simplelog.Errorf("when getting container logs, the following error was returned: %v", err)
 			}
@@ -205,13 +219,14 @@ func RemoteCollect(collectionArgs collection.Args, sshArgs ssh.Args, kubeArgs ku
 		}
 		simplelog.Info("using SSH based collection")
 		consoleprint.UpdateCollectionArgs(fmt.Sprintf("login: %v, user: %v, coordinator: %v, executor: %v, key: %v", sshArgs.SSHUser, sshArgs.SudoUser, sshArgs.CoordinatorStr, sshArgs.ExecutorStr, sshArgs.SSHKeyLoc))
-		collectorStrategy = ssh.NewCmdSSHActions(sshArgs)
+		collectorStrategy = ssh.NewCmdSSHActions(sshArgs, hook)
 	}
 
 	// Launch the collection
 	err = collection.Execute(collectorStrategy,
 		cs,
 		collectionArgs,
+		hook,
 		clusterCollect,
 	)
 	if err != nil {
@@ -244,10 +259,20 @@ func ValidateAndReadYaml(ddcYaml, collectionMode string) (map[string]interface{}
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute(args []string) error {
-
 	foundCmd, _, err := RootCmd.Find(args[1:])
 	// default cmd if no cmd is given
 	if err == nil && foundCmd.Use == RootCmd.Use && foundCmd.Flags().Parse(args[1:]) != pflag.ErrHelp {
+		hook := shutdown.NewHook()
+		defer hook.Cleanup()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-c
+			simplelog.Info("CTRL+C interrupt starting graceful shutdown")
+			consoleprint.UpdateResult("CANCELLING")
+			hook.Cleanup()
+			os.Exit(1)
+		}()
 		if disablePrompt {
 			consoleprint.EnableStatusOutput()
 		}
@@ -260,13 +285,13 @@ func Execute(args []string) error {
 				if err := os.WriteFile(filepath.Clean(pid), []byte(""), 0600); err != nil {
 					return fmt.Errorf("unable to write pid file '%v: %v", pid, err)
 				}
-				defer func() {
+				hook.AddFinalSteps(func() {
 					if err := os.Remove(pid); err != nil {
 						msg := fmt.Sprintf("unable to remove pid '%v': '%v', it will need to be removed manually", pid, err)
 						consoleprint.ErrorPrint(msg)
 						simplelog.Error(msg)
 					}
-				}()
+				}, fmt.Sprintf("removing root pid file %v", pid))
 			} else {
 				return fmt.Errorf("DDC is running based on pid file '%v'. If this is a stale file then please remove", pid)
 			}
@@ -427,7 +452,7 @@ func Execute(args []string) error {
 				simplelog.Error(msg)
 			}
 			validateK8s := func(namespace string) {
-				rightsTester, err := kubernetes.NewKubectlK8sActions(kubernetes.KubeArgs{Namespace: namespace})
+				rightsTester, err := kubernetes.NewK8sAPI(kubernetes.KubeArgs{Namespace: namespace}, hook)
 				if err != nil {
 					enableFallback(err)
 					return
@@ -484,7 +509,7 @@ func Execute(args []string) error {
 		}
 		if !disablePrompt {
 			stop := startTicker()
-			defer stop()
+			hook.AddPriorityCancel(stop, "stopping UI")
 		}
 		collectionArgs := collection.Args{
 			OutputLoc:             filepath.Clean(outputLoc),
@@ -510,7 +535,7 @@ func Execute(args []string) error {
 			Namespace:     namespace,
 			LabelSelector: labelSelector,
 		}
-		if err := RemoteCollect(collectionArgs, sshArgs, kubeArgs, enableFallback); err != nil {
+		if err := RemoteCollect(collectionArgs, sshArgs, kubeArgs, enableFallback, hook); err != nil {
 			consoleprint.UpdateResult(err.Error())
 		} else {
 			consoleprint.UpdateResult(fmt.Sprintf("complete at %v", time.Now().Format(time.RFC1123)))
@@ -563,36 +588,20 @@ func init() {
 	RootCmd.Flags().StringVar(&collectionMode, "collect", "light", "type of collection: 'light'- 2 days of logs (no ttop or jfr). 'standard' - includes jfr, ttop, 7 days of logs and 30 days of queries.json logs. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles")
 	RootCmd.Flags().BoolVar(&disableFreeSpaceCheck, conf.KeyDisableFreeSpaceCheck, false, "disables the free space check for the --transfer-dir")
 	RootCmd.Flags().BoolVar(&disablePrompt, "disable-prompt", false, "disables the prompt ui")
-	if err := RootCmd.Flags().MarkHidden("disable-prompt"); err != nil {
-		fmt.Printf("unable to mark flag hidden critical error %v", err)
-		os.Exit(1)
-	}
+	RootCmd.Flags().BoolVarP(&disableKubeCtl, "disable-kubectl", "d", false, "uses the embedded k8s api client and skips the use of kubectl for transfers and copying")
 	RootCmd.Flags().StringVar(&cliAuthToken, conf.KeyDremioPatToken, "", "Dremio Personal Access Token (PAT) for ui")
 	if err := RootCmd.Flags().MarkHidden(conf.KeyDremioPatToken); err != nil {
 		fmt.Printf("unable to mark flag hidden critical error %v", err)
 		os.Exit(1)
 	}
 	RootCmd.Flags().BoolVar(&detectNamespace, "detect-namespace", false, "detect namespace feature to pass the namespace automatically")
-	if err := RootCmd.Flags().MarkHidden("detect-namespace"); err != nil {
-		fmt.Printf("unable to mark flag hidden critical error %v", err)
-		os.Exit(1)
-	}
 	RootCmd.Flags().StringVar(&pid, "pid", "", "write a pid")
 	if err := RootCmd.Flags().MarkHidden("pid"); err != nil {
 		fmt.Printf("unable to mark flag hidden critical error %v", err)
 		os.Exit(1)
 	}
 	RootCmd.Flags().IntVar(&transferThreads, "transfer-threads", 2, "number of threads to transfer tarballs")
-	if err := RootCmd.Flags().MarkHidden("transfer-threads"); err != nil {
-		fmt.Printf("unable to mark flag hidden critical error %v", err)
-		os.Exit(1)
-	}
 	RootCmd.Flags().IntVar(&minFreeSpaceGB, "min-free-space-gb", 40, "min free space needed in GB for the process to run")
-	if err := RootCmd.Flags().MarkHidden("min-free-space-gb"); err != nil {
-		fmt.Printf("unable to mark flag hidden critical error %v", err)
-		os.Exit(1)
-	}
-
 	RootCmd.Flags().StringVar(&transferDir, "transfer-dir", fmt.Sprintf("/tmp/ddc-%v", time.Now().Format("20060102150405")), "directory to use for communication between the local-collect command and this one")
 	RootCmd.Flags().StringVar(&outputLoc, "output-file", "diag.tgz", "name and location of diagnostic tarball")
 	execLoc, err := os.Executable()

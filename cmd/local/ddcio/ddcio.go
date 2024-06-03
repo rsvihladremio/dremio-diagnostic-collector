@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/dremio/dremio-diagnostic-collector/pkg/shutdown"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 )
 
@@ -114,7 +115,6 @@ func CopyFile(srcPath, dstPath string) error {
 	defer func() {
 		if err := dstFile.Close(); err != nil {
 			simplelog.Errorf("unable to close file %v due to error %v", path.Clean(dstPath), err)
-			os.Exit(1)
 		}
 	}()
 
@@ -146,7 +146,7 @@ func GetFilesInDir(dir string) ([]os.DirEntry, error) {
 }
 
 // Shell executes a shell command with shell expansion and appends its output to the provided io.Writer.
-func Shell(writer io.Writer, commandLine string) error {
+func Shell(hook shutdown.CancelHook, writer io.Writer, commandLine string) error {
 	//this is a hack before we can do a longer term improvement of separating local-collect
 	// and the ddc command into different clis
 	shell := "bash"
@@ -155,10 +155,9 @@ func Shell(writer io.Writer, commandLine string) error {
 		shell = "cmd.exe"
 		fileArg = "/C"
 	}
-	cmd := exec.Command(shell, fileArg, commandLine)
+	cmd := exec.CommandContext(hook.GetContext(), shell, fileArg, commandLine)
 	cmd.Stdout = writer
 	cmd.Stderr = writer
-
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("command execution failed: %w", err)
