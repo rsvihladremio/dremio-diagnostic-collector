@@ -16,8 +16,11 @@ package shutdown
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
+	"github.com/dremio/dremio-diagnostic-collector/pkg/consoleprint"
 	"github.com/dremio/dremio-diagnostic-collector/pkg/simplelog"
 )
 
@@ -31,6 +34,7 @@ type Hook interface {
 	Add(p func(), name string)
 	AddPriorityCancel(p func(), name string)
 	Cleanup()
+	AddUriStop(func())
 }
 
 // hookImpl is a thread safe queue of cleanup work to be run.
@@ -42,12 +46,14 @@ type hookImpl struct {
 	priorityCleanup []cleanupTask
 	finalSteps      []cleanupTask
 	ctx             context.Context
+	stopUIThread    func()
 }
 
 func NewHook() Hook {
 	ctx, cancel := context.WithCancel(context.Background())
 	hook := &hookImpl{
-		ctx: ctx,
+		ctx:          ctx,
+		stopUIThread: func() {},
 	}
 	hook.Add(cancel, "cancelling all cancellable executions")
 	return hook
@@ -61,6 +67,12 @@ type cleanupTask struct {
 // GetContext provides a cancel context for everyone to share
 func (h *hookImpl) GetContext() context.Context {
 	return h.ctx
+}
+
+// AddUriStop sets the function that stops the ui thread
+func (h *hookImpl) AddUriStop(f func()) {
+	defer h.mu.Unlock()
+	h.mu.Lock()
 }
 
 // Add will add a function call to a list to be cleaned up later
@@ -90,7 +102,13 @@ func (h *hookImpl) AddFinalSteps(p func(), name string) {
 func (h *hookImpl) Cleanup() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	simplelog.Debugf("%v tasks to run on cleanup", len(h.cleanups)+len(h.priorityCleanup))
+	totalTasks := len(h.cleanups) + len(h.priorityCleanup) + len(h.finalSteps)
+	if totalTasks == 0 {
+		return
+	}
+	consoleprint.UpdateResult("CLEANUP TASKS")
+
+	simplelog.Debugf("%v tasks to run on cleanup", totalTasks)
 	for _, j := range h.priorityCleanup {
 		simplelog.Debugf("shutdown initial stage: %v", j.name)
 		j.p()
@@ -108,4 +126,6 @@ func (h *hookImpl) Cleanup() {
 	}
 	//blank
 	h.finalSteps = []cleanupTask{}
+	consoleprint.UpdateResult(fmt.Sprintf("COMPLETE AT %v", time.Now().Format(time.RFC1123)))
+	h.stopUIThread()
 }

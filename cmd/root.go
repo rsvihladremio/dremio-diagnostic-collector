@@ -71,7 +71,6 @@ var collectionMode string
 var cliAuthToken string
 var pid string
 var transferThreads int
-var transferTimeout int
 
 // var isEmbeddedK8s bool
 // var isEmbeddedSSH bool
@@ -509,7 +508,7 @@ func Execute(args []string) error {
 		}
 		if !disablePrompt {
 			stop := startTicker()
-			hook.AddPriorityCancel(stop, "stopping UI")
+			hook.AddUriStop(stop)
 		}
 		collectionArgs := collection.Args{
 			OutputLoc:             filepath.Clean(outputLoc),
@@ -537,8 +536,6 @@ func Execute(args []string) error {
 		}
 		if err := RemoteCollect(collectionArgs, sshArgs, kubeArgs, enableFallback, hook); err != nil {
 			consoleprint.UpdateResult(err.Error())
-		} else {
-			consoleprint.UpdateResult(fmt.Sprintf("complete at %v", time.Now().Format(time.RFC1123)))
 		}
 		// we put the error in result so just return nil
 		if !disablePrompt {

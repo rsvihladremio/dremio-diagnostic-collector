@@ -483,7 +483,7 @@ func RunTtopCollect(c *conf.CollectConf, hook shutdown.CancelHook) error {
 		return fmt.Errorf("cannot have duration of 0 for ttop")
 	}
 	var w bytes.Buffer
-	err := ddcio.Shell(hook, &w, fmt.Sprintf("top -H -n %v -p %v -d %v -bw", duration, c.DremioPID(), c.DremioTtopFreqSeconds()))
+	err := ddcio.Shell(hook, &w, fmt.Sprintf("LINES=100 top -H -n %v -p %v -d %v -bw", duration, c.DremioPID(), c.DremioTtopFreqSeconds()))
 	if err != nil {
 		return fmt.Errorf("failed collecting top %v", err)
 	}

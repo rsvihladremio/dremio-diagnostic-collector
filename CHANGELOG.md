@@ -13,7 +13,8 @@
 
 * CTRL+C cancels all running processes and remote calls also executes any file or folder cleanup that was pending
 * ignoring errors when searching for cluster ID as high usage clusters have files vanish during search
-* improved timeout error messages 
+* improved timeout error messages
+* improved UX when waiting on cleanup tasks to finish, CLEANUP TASKS is now a reported status
 
 ## [2.4.3] - 2024-04-25
 

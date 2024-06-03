@@ -294,12 +294,7 @@ func PrintState() {
 	if len(c.nodeDetectDisabled) > 0 {
 		autodetectEnabled = fmt.Sprintf("Disabled on %v/%v nodes files may be missing try again with the --sudo-user flag", len(c.nodeDetectDisabled), len(c.nodeCaptureStats))
 	}
-	var durationElapsed int64
-	if c.endTime > 0 {
-		durationElapsed = c.endTime - c.startTime
-	} else {
-		durationElapsed = time.Now().Unix() - c.startTime
-	}
+	durationElapsed := time.Now().Unix() - c.startTime
 	ddcVersion := "Unknown Version"
 	if c.ddcVersion != "" {
 		ddcVersion = c.ddcVersion
