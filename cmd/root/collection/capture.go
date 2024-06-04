@@ -259,7 +259,7 @@ func StartCapture(c HostCaptureConfiguration, hook shutdown.Hook, localDDCPath, 
 		if err != nil {
 			simplelog.Errorf("error during cleanup %v", err)
 		}
-	}, "killing old pods")
+	}, "killing ddc local-collect processes")
 	var allHostLog []string
 	err := c.Collector.HostExecuteAndStream(mask, c.Host, func(line string) {
 		if strings.HasPrefix(line, "JOB START") {
