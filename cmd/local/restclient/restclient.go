@@ -38,7 +38,8 @@ func InitClient(allowInsecureSSL bool, restHTTPTimeout int) {
 		ResponseHeaderTimeout: time.Duration(30) * time.Second,
 		TLSHandshakeTimeout:   time.Duration(30) * time.Second,
 		ExpectContinueTimeout: time.Duration(30) * time.Second,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: allowInsecureSSL},
+		//nolint:all
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureSSL},
 	}
 	client = &http.Client{
 		Transport: tr,

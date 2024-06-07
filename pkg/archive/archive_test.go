@@ -46,8 +46,11 @@ func TestTarGzDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to open file for writing with error %v", err)
 	}
-	if _, err = io.Copy(outf, zr); err != nil {
-		t.Fatalf("unable to copy file out %v", err)
+
+	if _, err = io.CopyN(outf, zr, 4096); err != nil {
+		if err != io.EOF {
+			t.Fatalf("unable to copy file out %v", err)
+		}
 	}
 
 	if err := zr.Close(); err != nil {
@@ -78,13 +81,15 @@ func TestTarGzDir(t *testing.T) {
 		if hdr.Typeflag == tar.TypeDir {
 			continue
 		}
-		outPath := filepath.Join(tmpDir, hdr.Name)
+		outPath := filepath.Join(tmpDir, filepath.Clean(hdr.Name))
 		f, err := os.Create(outPath)
 		if err != nil {
 			t.Fatalf("unable to create path %v: %v", outPath, err)
 		}
-		if _, err := io.Copy(f, tr); err != nil {
-			t.Fatalf("unable to copy file %v out: %v", hdr.Name, err)
+		if _, err := io.CopyN(f, tr, 4096); err != nil {
+			if err != io.EOF {
+				t.Fatalf("unable to copy file %v out: %v", hdr.Name, err)
+			}
 		}
 		if err := f.Close(); err != nil {
 			t.Fatalf("unable to close file %v", err)
@@ -153,8 +158,10 @@ func TestTarDDC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to open file for writing with error %v", err)
 	}
-	if _, err = io.Copy(outf, zr); err != nil {
-		t.Fatalf("unable to copy file out %v", err)
+	if _, err = io.CopyN(outf, zr, 4096); err != nil {
+		if err != io.EOF {
+			t.Fatalf("unable to copy file out %v", err)
+		}
 	}
 
 	if err := zr.Close(); err != nil {
@@ -182,8 +189,8 @@ func TestTarDDC(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		outPath := filepath.Join(tmpDir, hdr.Name)
 
+		outPath := filepath.Join(tmpDir, filepath.Clean(hdr.Name))
 		if hdr.Typeflag == tar.TypeDir {
 			if err := os.MkdirAll(outPath, 0700); err != nil {
 				t.Fatalf("unable to create dir path %v: %v", outPath, err)
@@ -194,8 +201,10 @@ func TestTarDDC(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unable to create path %v: %v", outPath, err)
 		}
-		if _, err := io.Copy(f, tr); err != nil {
-			t.Fatalf("unable to copy file %v out: %v", hdr.Name, err)
+		if _, err := io.CopyN(f, tr, 4096); err != nil {
+			if err != io.EOF {
+				t.Fatalf("unable to copy file %v out: %v", hdr.Name, err)
+			}
 		}
 		if err := f.Close(); err != nil {
 			t.Fatalf("unable to close file %v", err)

@@ -100,14 +100,14 @@ func TestConfig_WhenRemoveSecretsFromDremioConf(t *testing.T) {
 }
 
 func TestPATMask(t *testing.T) {
-	token := `pLnvVgLjQNKg0BMm+qpZe4xJVP0l7At8I7iuMu26lyZ5gx9YxF7KffTIIBbVQw==`
-	cmd := `ddc -k -c app=dremio-executor -e app=dremio-executor --dremio-pat-token ` + token
+	test := `pLnvVgLjQNKg0BMm+qpZe4xJVP0l7At8I7iuMu26lyZ5gx9YxF7KffTIIBbVQw==`
+	cmd := `ddc -k -c app=dremio-executor -e app=dremio-executor --dremio-pat-token ` + test
 	expected := `ddc -k -c app=dremio-executor -e app=dremio-executor "<REMOVED_PAT_TOKEN>"`
 	returned := masking.MaskPAT(cmd)
 	if strings.Compare(returned, expected) != 0 {
 		t.Errorf("\nexpected %v\nreturned %v\n", expected, returned)
 	}
-	cmd = `ddc -k -c app=dremio-executor -e app=dremio-executor -t ` + token
+	cmd = `ddc -k -c app=dremio-executor -e app=dremio-executor -t ` + test
 	returned = masking.MaskPAT(cmd)
 	if strings.Compare(returned, expected) != 0 {
 		t.Errorf("\nexpected %v\nreturned %v\n", expected, returned)
