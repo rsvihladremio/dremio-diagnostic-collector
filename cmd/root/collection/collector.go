@@ -144,7 +144,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, hook shutdown.Hoo
 	var m sync.Mutex
 	// block until transfers are commplete
 	var transferWg sync.WaitGroup
-	// cap at trasnfer threads
+	// cap at transfer threads
 	sem := make(chan struct{}, transferThreads)
 	// wait group for the per node capture
 	var wg sync.WaitGroup

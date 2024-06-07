@@ -53,7 +53,7 @@ func APIRequest(hook shutdown.CancelHook, url string, pat string, request string
 	}
 	simplelog.Debugf("Requesting %s", url)
 
-	// making sure the global timeout does not get overriden
+	// making sure the global timeout does not get overridden
 	ctx, timeout := context.WithTimeoutCause(hook.GetContext(), client.Timeout, fmt.Errorf("API request to url %v exceeded timeout %v", url, client.Timeout))
 	defer timeout()
 	req, err := http.NewRequestWithContext(ctx, request, url, nil)
@@ -86,7 +86,7 @@ func APIRequest(hook shutdown.CancelHook, url string, pat string, request string
 }
 
 func PostQuery(hook shutdown.CancelHook, url string, pat string, headers map[string]string, sqlbody string) (string, error) {
-	// making sure the global timeout does not get overriden
+	// making sure the global timeout does not get overridden
 	ctx, timeout := context.WithTimeoutCause(hook.GetContext(), client.Timeout, fmt.Errorf("POST request to %v exceeded timeout %v", url, client.Timeout))
 	defer timeout()
 	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(sqlbody))

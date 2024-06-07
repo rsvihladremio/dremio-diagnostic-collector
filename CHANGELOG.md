@@ -1,11 +1,16 @@
 # Changelog
 
-## [3.0.1] - 2024-06-07
+## [3.0.3] - 2024-06-07
+
+* spelling and logging fixes
+
+## [3.0.2] - 2024-06-07
 
 ### Fixed
 
 * security fixes 
 * upgrade k8s client to 0.30.1
+* semantic version correction for go modules
 
 ## [3.0.1] - 2024-06-05
 
@@ -678,6 +683,7 @@ someone has added the PAT which is always available
 
 - able to capture logs, configuration and diagnostic data from Dremio clusters deployed on Kubernetes and on-prem
 
+[3.0.3]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v2.4.3...v3.0.0

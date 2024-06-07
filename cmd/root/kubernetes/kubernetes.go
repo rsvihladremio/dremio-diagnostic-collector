@@ -404,7 +404,7 @@ func (c *KubeCtlAPIActions) CopyFromHost(hostString string, source, destination 
 	if err != nil {
 		return "", fmt.Errorf("failed looking for pod %v: %v", hostString, err)
 	}
-	simplelog.Infof("transfering from %v:%v to %v", hostString, source, destination)
+	simplelog.Infof("transferring from %v:%v to %v", hostString, source, destination)
 	executor := func(writer *io.PipeWriter, cmdArr []string) {
 		req := c.client.CoreV1().RESTClient().Post().Resource("pods").Name(hostString).
 			Namespace(c.namespace).SubResource("exec")

@@ -1,4 +1,4 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/dremio/dremio-diagnostic-collector)](https://goreportcard.com/report/github.com/dremio/dremio-diagnostic-collector)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dremio/dremio-diagnostic-collector/v3)](https://goreportcard.com/report/github.com/dremio/dremio-diagnostic-collector/v3)
 
 
 Automated log and analytics collection for Dremio clusters
