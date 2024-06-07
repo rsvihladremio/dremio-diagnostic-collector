@@ -75,7 +75,7 @@ func TestConfig_WhenRemoveSecretsFromDremioConf(t *testing.T) {
 		}
 	}()
 
-	err = os.WriteFile(tmpfile, []byte(conf), 0700)
+	err = os.WriteFile(tmpfile, []byte(conf), 0600)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}

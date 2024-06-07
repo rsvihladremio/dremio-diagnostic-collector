@@ -47,13 +47,13 @@ func TestTree(t *testing.T) {
 	}
 
 	file1 := filepath.Join(tempDir, "file1")
-	err = os.WriteFile(file1, []byte("file1"), 0644)
+	err = os.WriteFile(file1, []byte("file1"), 0600)
 	if err != nil {
 		t.Fatalf("Cannot write to file: %v", err)
 	}
 
 	file2 := filepath.Join(tempDir, "dir1/file2")
-	err = os.WriteFile(file2, []byte("file2"), 0644)
+	err = os.WriteFile(file2, []byte("file2"), 0600)
 	if err != nil {
 		t.Fatalf("Cannot write to file: %v", err)
 	}
