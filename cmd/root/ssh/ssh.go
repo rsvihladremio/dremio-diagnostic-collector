@@ -58,6 +58,7 @@ type CmdSSHActions struct {
 	executorStr    string
 	coordinatorStr string
 	pidHosts       map[string]string
+	m              sync.Mutex
 }
 
 func (c *CmdSSHActions) Name() string {
@@ -65,7 +66,9 @@ func (c *CmdSSHActions) Name() string {
 }
 
 func (c *CmdSSHActions) SetHostPid(host, pidFile string) {
+	c.m.Lock()
 	c.pidHosts[host] = pidFile
+	c.m.Unlock()
 }
 
 func (c *CmdSSHActions) CleanupRemote() error {
@@ -101,8 +104,10 @@ func (c *CmdSSHActions) CleanupRemote() error {
 			StatusUX: "FAILED - CANCELLED",
 			Result:   consoleprint.ResultFailure,
 		})
+		c.m.Lock()
 		//cancel out so we can skip if it's called again
 		c.pidHosts[host] = ""
+		c.m.Unlock()
 	}
 	var wg sync.WaitGroup
 	var criticalErrors []string
@@ -113,6 +118,7 @@ func (c *CmdSSHActions) CleanupRemote() error {
 		criticalErrors = append(criticalErrors, msg)
 	} else {
 		for _, coordinator := range coordinators {
+			c.m.Lock()
 			if v, ok := c.pidHosts[coordinator]; ok {
 				wg.Add(1)
 				go func(host, pid string) {
@@ -122,6 +128,7 @@ func (c *CmdSSHActions) CleanupRemote() error {
 			} else {
 				simplelog.Errorf("missing key %v in pidHosts skipping host", coordinator)
 			}
+			c.m.Unlock()
 		}
 	}
 
@@ -132,6 +139,7 @@ func (c *CmdSSHActions) CleanupRemote() error {
 		criticalErrors = append(criticalErrors, msg)
 	} else {
 		for _, executor := range executors {
+			c.m.Lock()
 			if v, ok := c.pidHosts[executor]; ok {
 				wg.Add(1)
 				go func(host, pid string) {
@@ -141,6 +149,7 @@ func (c *CmdSSHActions) CleanupRemote() error {
 			} else {
 				simplelog.Errorf("missing key %v in pidHosts skipping host", executor)
 			}
+			c.m.Unlock()
 		}
 	}
 	wg.Wait()

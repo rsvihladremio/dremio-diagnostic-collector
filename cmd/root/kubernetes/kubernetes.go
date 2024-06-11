@@ -112,6 +112,8 @@ type KubeCtlAPIActions struct {
 }
 
 func (c *KubeCtlAPIActions) SetHostPid(host, pidFile string) {
+	c.m.Lock()
+	defer c.m.Unlock()
 	c.pidHosts[host] = pidFile
 }
 func (c *KubeCtlAPIActions) CleanupRemote() error {
@@ -203,8 +205,10 @@ func (c *KubeCtlAPIActions) CleanupRemote() error {
 			StatusUX: "FAILED - CANCELLED",
 			Result:   consoleprint.ResultFailure,
 		})
+		c.m.Lock()
 		//cancel out so we can skip if it's called again
 		c.pidHosts[host] = ""
+		c.m.Unlock()
 	}
 	var criticalErrors []string
 
@@ -216,6 +220,7 @@ func (c *KubeCtlAPIActions) CleanupRemote() error {
 		criticalErrors = append(criticalErrors, msg)
 	} else {
 		for _, coordinator := range coordinators {
+			c.m.Lock()
 			if v, ok := c.pidHosts[coordinator]; ok {
 				wg.Add(1)
 				go func(host, pid string) {
@@ -225,6 +230,7 @@ func (c *KubeCtlAPIActions) CleanupRemote() error {
 			} else {
 				simplelog.Errorf("missing key %v in pidHosts skipping host", coordinator)
 			}
+			c.m.Unlock()
 		}
 	}
 	executors, err := c.GetExecutors()
@@ -234,6 +240,7 @@ func (c *KubeCtlAPIActions) CleanupRemote() error {
 		criticalErrors = append(criticalErrors, msg)
 	} else {
 		for _, executor := range executors {
+			c.m.Lock()
 			if v, ok := c.pidHosts[executor]; ok {
 				wg.Add(1)
 				go func(host, pid string) {
@@ -243,6 +250,7 @@ func (c *KubeCtlAPIActions) CleanupRemote() error {
 			} else {
 				simplelog.Errorf("missing key %v in pidHosts skipping host", executor)
 			}
+			c.m.Unlock()
 		}
 	}
 	wg.Wait()
@@ -587,7 +595,7 @@ func (c *KubeCtlAPIActions) SearchPods(compare func(container string) bool) (pod
 			podName = append(podName, p.Name)
 		}
 	}
-	c.m.Lock()
+
 	// so 100 pods would get 63 minutes to transfer before the transfers timed out
 	c.timeoutMinutes = (count / 3) + 30
 	c.m.Unlock()
