@@ -597,6 +597,7 @@ func (c *KubeCtlAPIActions) SearchPods(compare func(container string) bool) (pod
 	}
 
 	// so 100 pods would get 63 minutes to transfer before the transfers timed out
+	c.m.Lock()
 	c.timeoutMinutes = (count / 3) + 30
 	c.m.Unlock()
 	sort.Strings(podName)
