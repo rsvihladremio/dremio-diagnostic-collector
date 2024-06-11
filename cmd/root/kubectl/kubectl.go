@@ -37,13 +37,13 @@ type KubeArgs struct {
 // NewKubectlK8sActions is the only supported way to initialize the KubectlK8sActions struct
 // one must pass the path to kubectl
 func NewKubectlK8sActions(hook shutdown.CancelHook, namespace string) (*CliK8sActions, error) {
-	_, err := exec.LookPath("kubectl")
+	kubectl, err := exec.LookPath("kubectl")
 	if err != nil {
 		return &CliK8sActions{}, fmt.Errorf("no kubectl found: %v", err)
 	}
 	return &CliK8sActions{
 		cli:         cli.NewCli(hook),
-		kubectlPath: "kubectl",
+		kubectlPath: kubectl,
 		namespace:   namespace,
 		pidHosts:    make(map[string]string),
 	}, nil

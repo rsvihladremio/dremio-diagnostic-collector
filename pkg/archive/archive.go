@@ -163,9 +163,9 @@ func TarGzDirFilteredStream(srcDir string, w io.Writer, filterList func(string) 
 
 // Sanitize archive file pathing from "G305: Zip Slip vulnerability"
 func SanitizeArchivePath(destination, header string) (v string, err error) {
-	v = filepath.Join(destination, header)
+	v = filepath.ToSlash(filepath.Join(destination, header))
 	// tars use forward slash so we use path.Clean
-	if strings.HasPrefix(v, path.Clean(destination)) {
+	if strings.HasPrefix(v, path.Clean(filepath.ToSlash(destination))) {
 		return v, nil
 	}
 	return "", fmt.Errorf("header %v with destination %v is tainted and resolves to full path %v", destination, header, v)
