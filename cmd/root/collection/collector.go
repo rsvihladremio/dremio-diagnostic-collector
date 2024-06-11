@@ -159,6 +159,12 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, hook shutdown.Hoo
 		0,
 		len(coordinators)+len(executors),
 	)
+	hook.AddPriorityCancel(func() {
+		err := c.CleanupRemote()
+		if err != nil {
+			simplelog.Errorf("error during cleanup %v", err)
+		}
+	}, "killing ddc local-collect processes")
 	for _, coordinator := range coordinators {
 		nodesConnectedTo++
 		wg.Add(1)
@@ -176,7 +182,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, hook shutdown.Hoo
 			}
 			//we want to be able to capture the job profiles of all the nodes
 			skipRESTCalls := false
-			err := StartCapture(coordinatorCaptureConf, hook, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
+			err := StartCapture(coordinatorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
 			if err != nil {
 				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
 				return
