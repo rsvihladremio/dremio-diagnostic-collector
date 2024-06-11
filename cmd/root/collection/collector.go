@@ -226,7 +226,7 @@ func Execute(c Collector, s CopyStrategy, collectionArgs Args, hook shutdown.Hoo
 			}
 			//always skip executor calls
 			skipRESTCalls := true
-			err := StartCapture(executorCaptureConf, hook, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
+			err := StartCapture(executorCaptureConf, ddcFilePath, ddcYamlFilePath, skipRESTCalls, disableFreeSpaceCheck, minFreeSpaceGB)
 			if err != nil {
 				simplelog.Errorf("failed generating tarball for host %v: %v", host, err)
 				return
