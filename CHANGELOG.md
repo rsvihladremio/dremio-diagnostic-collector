@@ -1,4 +1,15 @@
 # Changelog
+
+## [3.1.2] - 2024-06-17
+
+### Added
+
+* added oidc auth for the k8s api
+
+### Changed
+
+* only run task kill on interrupt
+
 ## [3.1.1] - 2024-06-12
 
 ### Fixed
@@ -703,6 +714,7 @@ someone has added the PAT which is always available
 
 - able to capture logs, configuration and diagnostic data from Dremio clusters deployed on Kubernetes and on-prem
 
+[3.1.2]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.0.3...v3.1.0
 [3.0.3]: https://github.com/dremio/dremio-diagnostic-collector/compare/v3.0.2...v3.0.3
