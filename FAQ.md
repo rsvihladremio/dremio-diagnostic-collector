@@ -37,7 +37,7 @@ do the following in the ddc.yaml:
 
 ## What is captured by DDC?
 
-DDC has 3 modes - but you can alter the `ddc.yaml` and override collection modes to suit your own configuration
+DDC has 4 modes - but you can alter the `ddc.yaml` and override collection modes to suit your own configuration
 
 ### Light mode
 
@@ -54,12 +54,18 @@ DDC has 3 modes - but you can alter the `ddc.yaml` and override collection modes
 * perf metrics (cpu and GC usage by thread)
 * system disk usage
 * Java Flight Recorder recording of 60 seconds
+* top output of 60 seconds - older versions used [ttop](https://github.com/aragozin/jvm-tools/blob/master/sjk-core/docs/TTOP.md)
 * server.log and 7 days of archives
 * metadata\_refresh.log and 7 days of archives
 * reflection.log and 7 days of archives
 * queries.json and up to 30 days of archives 
 * all Dremio configurations
 * all GC logs if present
+
+### Standard+jstack mode
+
+* everything stated in standard
+* captures 60 seconds of jstack at 1 second intervals
 
 ### Healthcheck mode (with a Dremio Personal Access Token)
 
@@ -72,6 +78,5 @@ DDC has 3 modes - but you can alter the `ddc.yaml` and override collection modes
 
 * access.log and 7 days of archives
 * audit.log and 7 days of archives
-* Jstack thread dump every second for approximately 60 seconds
 * Java heap dump
 
