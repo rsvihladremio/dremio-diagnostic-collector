@@ -69,6 +69,7 @@ DDC has 4 modes - but you can alter the `ddc.yaml` and override collection modes
 
 ### Healthcheck mode (with a Dremio Personal Access Token)
 
+* everything stated in standard
 * a sampling of job profiles (note 25000 jobs can take 15 minutes to collect)
 * Dremio key value store report
 * Dremio work load manager details
