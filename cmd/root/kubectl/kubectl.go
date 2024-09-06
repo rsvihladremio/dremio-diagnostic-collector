@@ -44,10 +44,11 @@ func NewKubectlK8sActions(hook shutdown.CancelHook, namespace, k8sContext string
 	cliInstance := cli.NewCli(hook)
 
 	if k8sContext == "" {
-		k8sContext, err = cliInstance.Execute(false, kubectl, "config", "current-context")
+		k8sContextRaw, err := cliInstance.Execute(false, kubectl, "config", "current-context")
 		if err != nil {
 			return &CliK8sActions{}, fmt.Errorf("unable to retrieve context: %v", err)
 		}
+		k8sContext = strings.TrimSpace(k8sContextRaw)
 	}
 	return &CliK8sActions{
 		cli:         cliInstance,
