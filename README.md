@@ -108,11 +108,10 @@ This is because of a limitation of kubectl ( see https://github.com/kubernetes/k
 The `ddc.yaml` file is located next to your DDC binary and can be edited to fit your environment. The [default-ddc.yaml](default-ddc.yaml) documents the full list of available parameters.
 
 
-### ddc flags
+### ddc usage
 
 ```bash
- ddc help
-ddc v3.2.1-9d2a345
+ddc v3.2.3-79ea60d
  ddc connects via ssh or kubectl and collects a series of logs and files for dremio, then puts those collected files in an archive
 examples:
 
@@ -147,8 +146,9 @@ Available Commands:
 
 Flags:
       --collect string             type of collection: 'light'- 2 days of logs (no top or jfr). 'standard' - includes jfr, top, 7 days of logs and 30 days of queries.json logs. 'standard+jstack' - all of 'standard' plus jstack. 'health-check' - all of 'standard' + WLM, KV Store Report, 25,000 Job Profiles (default "light")
+  -x, --context string             K8S ONLY: context to use for kubernetes pods
   -c, --coordinator string         SSH ONLY: set a list of ip addresses separated by commas
-      --ddc-yaml string            location of ddc.yaml that will be transferred to remote nodes for collection configuration (default "/opt/homebrew/Cellar/ddc/3.2.1/libexec/ddc.yaml")
+      --ddc-yaml string            location of ddc.yaml that will be transferred to remote nodes for collection configuration (default "/opt/homebrew/Cellar/ddc/3.2.3/libexec/ddc.yaml")
       --detect-namespace           detect namespace feature to pass the namespace automatically
       --disable-free-space-check   disables the free space check for the --transfer-dir
   -d, --disable-kubectl            uses the embedded k8s api client and skips the use of kubectl for transfers and copying
@@ -163,6 +163,9 @@ Flags:
   -s, --ssh-key string             SSH ONLY: of ssh key to use to login
   -u, --ssh-user string            SSH ONLY: user to use during ssh operations to login
   -b, --sudo-user string           SSH ONLY: if any diagnostics commands need a sudo user (i.e. for jcmd)
-      --transfer-dir string        directory to use for communication between the local-collect command and this one (default "/tmp/ddc-20240904083850")
+      --transfer-dir string        directory to use for communication between the local-collect command and this one (default "/tmp/ddc-20240906174311")
       --transfer-threads int       number of threads to transfer tarballs (default 2)
+
+Use "ddc [command] --help" for more information about a command.
+
 ```
