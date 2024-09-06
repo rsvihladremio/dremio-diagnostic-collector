@@ -377,6 +377,7 @@ func TestMain(m *testing.M) {
 	if r := recover(); r != nil {
 		// handle the panic and terminate gracefully
 		// ...
+		fmt.Printf("panic occurred: %v\n", r)
 		exitCode = 1
 	}
 	cleanupOutput()
