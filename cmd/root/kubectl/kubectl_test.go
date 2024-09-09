@@ -113,10 +113,11 @@ func TestKubectCopyFrom(t *testing.T) {
 		StoredErrors:   []error{nil, nil},
 	}
 	k := CliK8sActions{
-		cli:         cli,
-		kubectlPath: "kubectl",
-		namespace:   namespace,
-		k8sContext:  k8sContext,
+		cli:            cli,
+		kubectlPath:    "kubectl",
+		namespace:      namespace,
+		k8sContext:     k8sContext,
+		retriesEnabled: true,
 	}
 	out, err := k.CopyFromHost(podName, source, destination)
 	if err != nil {
@@ -147,10 +148,11 @@ func TestKubectCopyFromWindowsHost(t *testing.T) {
 		StoredErrors:   []error{nil, nil},
 	}
 	k := CliK8sActions{
-		cli:         cli,
-		kubectlPath: "kubectl",
-		namespace:   namespace,
-		k8sContext:  k8sContext,
+		cli:            cli,
+		kubectlPath:    "kubectl",
+		namespace:      namespace,
+		k8sContext:     k8sContext,
+		retriesEnabled: true,
 	}
 	out, err := k.CopyFromHost(podName, source, destination)
 	if err != nil {
