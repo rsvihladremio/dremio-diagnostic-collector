@@ -29,6 +29,7 @@ import (
 	"github.com/dremio/dremio-diagnostic-collector/v3/cmd"
 	"github.com/dremio/dremio-diagnostic-collector/v3/cmd/local/conf"
 	"github.com/dremio/dremio-diagnostic-collector/v3/pkg/archive"
+	"github.com/dremio/dremio-diagnostic-collector/v3/pkg/consoleprint"
 	"github.com/dremio/dremio-diagnostic-collector/v3/pkg/simplelog"
 	"github.com/dremio/dremio-diagnostic-collector/v3/pkg/tests"
 )
@@ -106,6 +107,7 @@ func TestSSHBasedRemoteCollect(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping testing in short mode")
 	}
+	defer consoleprint.Clear()
 	var sshConf SSHTestConf
 	b := GetJSON(t)
 	if err := json.Unmarshal(b, &sshConf); err != nil {
@@ -224,6 +226,7 @@ func TestSSHBasedRemoteCollectPlusJstack(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping testing in short mode")
 	}
+	defer consoleprint.Clear()
 	var sshConf SSHTestConf
 	b := GetJSON(t)
 	if err := json.Unmarshal(b, &sshConf); err != nil {
@@ -350,6 +353,7 @@ func TestSSHBasedRemoteCollectWithPAT(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping testing in short mode")
 	}
+	defer consoleprint.Clear()
 	var sshConf SSHTestConf
 	b := GetJSON(t)
 	if err := json.Unmarshal(b, &sshConf); err != nil {

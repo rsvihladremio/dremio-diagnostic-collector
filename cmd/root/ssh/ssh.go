@@ -18,6 +18,7 @@ package ssh
 import (
 	"bufio"
 	"fmt"
+	"path"
 	"strings"
 	"sync"
 
@@ -184,7 +185,7 @@ func (c *CmdSSHActions) CopyToHost(hostName, source, destination string) (string
 	if err != nil {
 		return "", fmt.Errorf("unable to generate uuid %v", err)
 	}
-	tmpFile := fmt.Sprintf("/tmp/ddc-t-%v", u)
+	tmpFile := fmt.Sprintf("/tmp/%v-%v", path.Base(destination), u)
 
 	out, err := c.cli.Execute(false, "scp", "-i", c.sshKey, "-o", "LogLevel=error", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, tmpFile))
 	if err != nil {

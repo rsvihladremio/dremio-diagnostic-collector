@@ -187,6 +187,10 @@ func AddWarningToConsole(warning string) {
 var c *CollectionStats
 
 func init() {
+	initialize()
+}
+
+func initialize() {
 	c = &CollectionStats{
 		nodeCaptureStats:   make(map[string]*NodeCaptureStats),
 		nodeDetectDisabled: make(map[string]bool),
@@ -195,6 +199,12 @@ func init() {
 	if strings.HasSuffix(os.Args[0], ".test") {
 		clearCode = "CLEAR SCREEN"
 	}
+}
+
+func Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	initialize()
 }
 
 // Update updates the CollectionStats fields in a thread-safe manner.
