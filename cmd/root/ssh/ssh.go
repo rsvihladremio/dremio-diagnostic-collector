@@ -37,6 +37,7 @@ type Args struct {
 }
 
 func NewCmdSSHActions(sshArgs Args, hook shutdown.Hook) *CmdSSHActions {
+	uuid.EnableRandPool()
 	return &CmdSSHActions{
 		hook:           hook,
 		cli:            cli.NewCli(hook),
@@ -179,7 +180,7 @@ func (c *CmdSSHActions) CopyToHost(hostName, source, destination string) (string
 		return c.cli.Execute(false, "scp", "-i", c.sshKey, "-o", "LogLevel=error", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, destination))
 	}
 	// have to do something more complex in this case and _unfortunately_ copy to the /tmp dir
-	u, err := uuid.NewUUID()
+	u, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("unable to generate uuid %v", err)
 	}
