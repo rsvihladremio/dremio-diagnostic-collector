@@ -218,7 +218,6 @@ func ExtractTarStream(reader io.Reader, dest, pathToStrip string) error {
 			if err != nil {
 				simplelog.Errorf("skipping file %v due to error %v", file, err)
 				// any error here should fail
-				file.Close()
 				return err
 				// should error here if we error on copy
 			}
@@ -228,7 +227,9 @@ func ExtractTarStream(reader io.Reader, dest, pathToStrip string) error {
 					if err == io.EOF {
 						break
 					}
-					file.Close()
+					if err := file.Close(); err != nil {
+						simplelog.Warningf("unable to close file %v: %v", path.Clean(target), err)
+					}
 					return err
 				}
 				totalCopied += copied
