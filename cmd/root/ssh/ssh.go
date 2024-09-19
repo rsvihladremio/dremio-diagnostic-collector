@@ -181,11 +181,7 @@ func (c *CmdSSHActions) CopyToHost(hostName, source, destination string) (string
 		return c.cli.Execute(false, "scp", "-i", c.sshKey, "-o", "LogLevel=error", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, destination))
 	}
 	// have to do something more complex in this case and _unfortunately_ copy to the /tmp dir
-	u, err := uuid.NewV7()
-	if err != nil {
-		return "", fmt.Errorf("unable to generate uuid %v", err)
-	}
-	tmpFile := fmt.Sprintf("/tmp/%v-%v", path.Base(destination), u)
+	tmpFile := fmt.Sprintf("/tmp/%v-%v", path.Base(destination), uuid.New())
 
 	out, err := c.cli.Execute(false, "scp", "-i", c.sshKey, "-o", "LogLevel=error", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", source, fmt.Sprintf("%v@%v:%v", c.sshUser, hostName, tmpFile))
 	if err != nil {
@@ -196,6 +192,10 @@ func (c *CmdSSHActions) CopyToHost(hostName, source, destination string) (string
 		if err != nil {
 			simplelog.Warningf("failed to remove file %v on node %v: %v - %v", tmpFile, hostName, err, out)
 		}
+	}
+	out, err = c.cli.Execute(false, "ssh", "-i", c.sshKey, "-o", "LogLevel=error", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v", c.sshUser, hostName), "chmod", "o+r", tmpFile)
+	if err != nil {
+		return out, err
 	}
 	c.hook.AddCancelOnlyTasks(cleanup, fmt.Sprintf("removing ssh transfer %v", tmpFile))
 	// now we can move it to it's final destination
