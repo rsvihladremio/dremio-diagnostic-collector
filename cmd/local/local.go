@@ -323,7 +323,7 @@ func findClusterID(c *conf.CollectConf) (string, error) {
 	}
 	// ignore bad certs because dremio provides an easy way to use self signed certs
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402
 	}
 	client := &http.Client{Transport: tr}
 	exec := func(url string) (string, error) {
