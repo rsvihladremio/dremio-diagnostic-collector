@@ -648,8 +648,8 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            cpu: 2
-            memory: 4096Mi
+            cpu: 4 
+            memory: 16384Mi
         volumeMounts:
         - name: dremio-config
           mountPath: /opt/dremio/conf
@@ -745,8 +745,8 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            cpu: 100m
-            memory: 2048Mi
+            cpu: 2000m
+            memory: 4096Mi
         volumeMounts:
         - name: dremio-default-executor-volume
           mountPath: /opt/dremio/data
@@ -884,8 +884,8 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            cpu: 2
-            memory: 4096Mi
+            cpu: 4 
+            memory: 16384Mi
         volumeMounts:
         - name: dremio-master-volume
           mountPath: /opt/dremio/data
