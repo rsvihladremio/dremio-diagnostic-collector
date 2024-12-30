@@ -176,7 +176,7 @@ func (c *CliK8sActions) CopyFromHost(hostString string, source, destination stri
 }
 func (c *CliK8sActions) addRetries(args []string) []string {
 	if c.retriesEnabled {
-		args = append(args, "--retries", "50")
+		args = append(args, "--retries", "999")
 	}
 	return args
 }
@@ -199,12 +199,6 @@ func (c *CliK8sActions) CopyToHost(hostString string, source, destination string
 func (c *CliK8sActions) GetCoordinators() (podName []string, err error) {
 	return c.SearchPods(func(container string) bool {
 		return strings.Contains(container, "coordinator")
-	})
-}
-
-func (c *CliK8sActions) GetNats() (podName []string, err error) {
-	return c.SearchPods(func(container string) bool {
-		return container == "nats"
 	})
 }
 

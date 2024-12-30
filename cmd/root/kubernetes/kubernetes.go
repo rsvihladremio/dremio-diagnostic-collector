@@ -389,7 +389,7 @@ type TarPipe struct {
 func newTarPipe(src string, executor func(writer *io.PipeWriter, cmdArr []string)) *TarPipe {
 	t := new(TarPipe)
 	t.src = src
-	t.maxRetries = 50
+	t.maxRetries = 200
 	t.executor = executor
 	t.initReadFrom(0)
 	return t
@@ -593,12 +593,6 @@ func (c *KubeCtlAPIActions) CopyToHost(hostString string, source, destination st
 func (c *KubeCtlAPIActions) GetCoordinators() (podName []string, err error) {
 	return c.SearchPods(func(container string) bool {
 		return strings.Contains(container, "coordinator")
-	})
-}
-
-func (c *KubeCtlAPIActions) GetNats() (podName []string, err error) {
-	return c.SearchPods(func(container string) bool {
-		return container == "nats"
 	})
 }
 
