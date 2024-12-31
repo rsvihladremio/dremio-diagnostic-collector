@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/dremio/dremio-diagnostic-collector/v3/pkg/archive"
@@ -30,8 +29,7 @@ type TimeService interface {
 	GetNow() time.Time
 }
 
-type RealTimeService struct {
-}
+type RealTimeService struct{}
 
 func (r *RealTimeService) GetNow() time.Time {
 	return time.Now()
@@ -98,19 +96,10 @@ func (s *CopyStrategyHC) CreatePath(fileType, source, nodeType string) (path str
 
 	// We only tag a suffix of '-C' / '-E' for ssh nodes, the K8s pods are desriptive enough to determine the coordinator / executor
 	// also add exceptions for general k8s directories
-	var isK8s bool
-	if strings.Contains(source, "dremio-master") ||
-		strings.Contains(source, "dremio-executor") ||
-		strings.Contains(source, "dremio-coordinator") ||
-		strings.Contains(source, "container-logs") ||
-		strings.Contains(source, "nodes") ||
-		strings.Contains(source, "pods") {
-		isK8s = true
-	}
-	if !isK8s { // SSH node types
+	if fileType != "kubernetes" {
+		// ssh nodes types
 		if nodeType == "coordinator" {
 			path = filepath.Join(tmpDir, baseDir, fileType, source+"-C")
-
 		} else {
 			path = filepath.Join(tmpDir, baseDir, fileType, source+"-E")
 		}
@@ -141,15 +130,15 @@ func (s *CopyStrategyHC) ClusterPath() (path string, err error) {
 func (s *CopyStrategyHC) Close() {
 	// cleanup when done
 	simplelog.Infof("cleaning up temp directory %v", s.GetTmpDir())
-	//temp folders stay around forever unless we tell them to go away
+	// temp folders stay around forever unless we tell them to go away
 	if err := s.Fs.RemoveAll(s.GetTmpDir()); err != nil {
-		simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", s.GetTmpDir(), err)
+		simplelog.Warningf("unable to remove %v: %v", s.GetTmpDir(), err)
 	}
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
 	simplelog.Infof("cleaning up file %v", summaryFile)
-	//temp folders stay around forever unless we tell them to go away
+	// temp folders stay around forever unless we tell them to go away
 	if err := s.Fs.Remove(summaryFile); err != nil {
-		simplelog.Warningf("unable to remove %v due to error %v. It will need to be removed manually", summaryFile, err)
+		simplelog.Warningf("unable to remove %v: %v", summaryFile, err)
 	}
 }
 
@@ -157,8 +146,8 @@ func (s *CopyStrategyHC) Close() {
 func (s *CopyStrategyHC) ArchiveDiag(o string, outputLoc string) error {
 	// creates the summary file
 	summaryFile := filepath.Join(s.TmpDir, "summary.json")
-	if err := s.Fs.WriteFile(summaryFile, []byte(o), 0600); err != nil {
-		return fmt.Errorf("failed writing summary file '%v' due to error %v", summaryFile, err)
+	if err := s.Fs.WriteFile(summaryFile, []byte(o), 0o600); err != nil {
+		return fmt.Errorf("failed writing summary file %v: %w", summaryFile, err)
 	}
 
 	// create completed file (its not gzipped)
@@ -179,18 +168,16 @@ func (s *CopyStrategyHC) createHCFiles() (file string, err error) {
 	compFile := filepath.Join(path, baseDir)
 	err = s.Fs.MkdirAll(path, DirPerms)
 	if err != nil {
-		return compFile, fmt.Errorf("ERROR: failed to create HC completed dir %v due to error: %v", path, err)
+		return compFile, fmt.Errorf("ERROR: failed to create HC completed dir %v: %w", path, err)
 	}
 
 	txt := []byte(baseDir)
-	err = s.Fs.WriteFile(compFile, txt, 0600)
+	err = s.Fs.WriteFile(compFile, txt, 0o600)
 	if err != nil {
-		return compFile, fmt.Errorf("ERROR: failed to create HC completed file %v due to error: %v", compFile, err)
-
+		return compFile, fmt.Errorf("ERROR: failed to create HC completed file %v: %w", compFile, err)
 	}
 
 	return compFile, nil
-
 }
 
 func (s *CopyStrategyHC) GetTmpDir() string {
